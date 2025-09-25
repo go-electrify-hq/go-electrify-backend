@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35527.113
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoElectrify.BLL", "GoElectrify.BLL\GoElectrify.BLL.csproj", "{D6D0C696-8784-4734-9E17-3AAC7FA0EB03}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoElectrify.DAL", "GoElectrify.DAL\GoElectrify.DAL.csproj", "{14219653-FB1F-4E9B-B7E4-8884537A8797}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoElectrify.Api", "GoElectrify.Api\GoElectrify.Api.csproj", "{F68E66CB-6D51-4C0F-9F8D-43C14B998433}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D6D0C696-8784-4734-9E17-3AAC7FA0EB03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D6D0C696-8784-4734-9E17-3AAC7FA0EB03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D6D0C696-8784-4734-9E17-3AAC7FA0EB03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D6D0C696-8784-4734-9E17-3AAC7FA0EB03}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14219653-FB1F-4E9B-B7E4-8884537A8797}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14219653-FB1F-4E9B-B7E4-8884537A8797}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14219653-FB1F-4E9B-B7E4-8884537A8797}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14219653-FB1F-4E9B-B7E4-8884537A8797}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F68E66CB-6D51-4C0F-9F8D-43C14B998433}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F68E66CB-6D51-4C0F-9F8D-43C14B998433}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F68E66CB-6D51-4C0F-9F8D-43C14B998433}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F68E66CB-6D51-4C0F-9F8D-43C14B998433}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

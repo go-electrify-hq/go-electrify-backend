@@ -1,0 +1,6 @@
+@go_electrify_backend_HostAddress = http://localhost:5022
+
+GET {{go_electrify_backend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

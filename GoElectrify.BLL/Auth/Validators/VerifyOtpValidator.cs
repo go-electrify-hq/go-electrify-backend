@@ -1,0 +1,13 @@
+﻿using FluentValidation;
+
+namespace GoElectrify.BLL.Auth.Validators
+{
+    public sealed class VerifyOtpValidator : AbstractValidator<VerifyOtpDto>
+    {
+        public VerifyOtpValidator()
+        {
+            RuleFor(x => x.Email).NotEmpty().EmailAddress();
+            RuleFor(x => x.Otp).NotEmpty().Length(6);
+        }
+    }
+}
