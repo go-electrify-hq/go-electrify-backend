@@ -20,8 +20,34 @@ namespace GoElectrify.DAL.DependencyInjection
                 opt.UseSqlServer(cfg.GetConnectionString("SqlServer")));
 
             // Redis (Upstash cũng dùng ConnectionMultiplexer.Connect với rediss://)
-            services.AddSingleton<IConnectionMultiplexer>(_ =>
-                ConnectionMultiplexer.Connect(cfg.GetConnectionString("Redis")!));
+            var redisUrl = cfg.GetConnectionString("Redis");
+            if (!string.IsNullOrWhiteSpace(redisUrl))
+            {
+                var uri = new Uri(redisUrl);
+
+                var opts = new ConfigurationOptions
+                {
+                    AbortOnConnectFail = false,
+                    Ssl = uri.Scheme.Equals("rediss", StringComparison.OrdinalIgnoreCase),
+                    SslHost = uri.Host,                    // quan trọng cho SNI/TLS
+                    ConnectRetry = 3,
+                    ConnectTimeout = 10000,                // 10s
+                    KeepAlive = 60,
+                    ReconnectRetryPolicy = new ExponentialRetry(5000)
+                };
+
+                opts.EndPoints.Add(uri.Host, uri.Port > 0 ? uri.Port : 6379);
+
+                // user/password từ URL
+                if (!string.IsNullOrEmpty(uri.UserInfo))
+                {
+                    var parts = uri.UserInfo.Split(':', 2);
+                    if (parts.Length == 2) { opts.User = parts[0]; opts.Password = parts[1]; }
+                    else { opts.Password = parts[0]; } // nhiều URL không có user => password-only
+                }
+
+                services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(opts));
+            }
 
             // Repositories
             services.AddScoped<IUserRepository, UserRepository>();
