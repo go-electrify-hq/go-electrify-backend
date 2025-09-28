@@ -1,4 +1,4 @@
-﻿using GoElectrify.BLL.Auth;
+﻿using GoElectrify.BLL.Dto.Auth;
 
 namespace GoElectrify.BLL.Contracts.Services
 {

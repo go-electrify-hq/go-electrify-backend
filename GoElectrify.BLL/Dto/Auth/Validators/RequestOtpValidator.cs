@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
+using GoElectrify.BLL.Dto.Auth;
 
-namespace GoElectrify.BLL.Auth.Validators
+namespace GoElectrify.BLL.Dto.Auth.Validators
 {
     public sealed class RequestOtpValidator : AbstractValidator<RequestOtpDto>
     {

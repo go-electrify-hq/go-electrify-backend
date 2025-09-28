@@ -1,6 +1,6 @@
-﻿using GoElectrify.BLL.Auth;
-using GoElectrify.BLL.Contracts.Repositories;
+﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
+using GoElectrify.BLL.Dto.Auth;
 using GoElectrify.BLL.Entities;
 
 namespace GoElectrify.BLL.Services

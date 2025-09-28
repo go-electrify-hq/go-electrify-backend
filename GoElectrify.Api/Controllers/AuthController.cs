@@ -1,5 +1,5 @@
-﻿using GoElectrify.BLL.Auth;
-using GoElectrify.BLL.Contracts.Services;
+﻿using GoElectrify.BLL.Contracts.Services;
+using GoElectrify.BLL.Dto.Auth;
 using GoElectrify.BLL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
