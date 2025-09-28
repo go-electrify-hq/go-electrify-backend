@@ -23,12 +23,14 @@ namespace GoElectrify.DAL.Persistence
         public DbSet<StationStaff> StationStaff => Set<StationStaff>();
         public DbSet<Incident> Incidents => Set<Incident>();
         public DbSet<ChargerLog> ChargerLogs => Set<ChargerLog>();
-
+        public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
+        public DbSet<TopupIntent> TopupIntents => Set<TopupIntent>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
         }
     }
 }

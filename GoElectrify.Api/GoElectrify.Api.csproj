@@ -4,7 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>go_electrify_backend</RootNamespace>
+    <RootNamespace>GoElectrify.Api</RootNamespace>
     <UserSecretsId>11f8c3a4-2d73-478c-ad6e-f1be3b17934f</UserSecretsId>
   </PropertyGroup>
 

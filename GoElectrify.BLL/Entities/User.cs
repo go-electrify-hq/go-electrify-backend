@@ -8,5 +8,7 @@
         public string? FullName { get; set; }
         public Wallet? Wallet { get; set; }
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+        public ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
+
     }
 }

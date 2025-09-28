@@ -54,6 +54,8 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IWalletRepository, WalletRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+            services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
+            services.AddScoped<ITopupIntentRepository, TopupIntentRepository>();
 
             // Infra services
             services.AddSingleton<IRedisCache, RedisCache>();
