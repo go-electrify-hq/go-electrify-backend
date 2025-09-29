@@ -1,13 +1,14 @@
-using System.Text;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Services;
 using GoElectrify.DAL.DependencyInjection;
 using GoElectrify.DAL.Infra;
 using GoElectrify.DAL.Persistence;
+using GoElectrify.DAL.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +23,8 @@ builder.Services.AddDal(builder.Configuration);
 // BLL services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
-
+builder.Services.AddScoped<IStationRepository, StationRepository>();
+builder.Services.AddScoped<IStationService, StationService>();
 // JWT auth
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
