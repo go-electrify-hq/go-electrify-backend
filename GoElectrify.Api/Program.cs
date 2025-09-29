@@ -22,6 +22,9 @@ builder.Services.AddDal(builder.Configuration);
 // BLL services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
+
+
 
 // JWT auth
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;

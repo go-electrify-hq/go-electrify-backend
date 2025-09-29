@@ -1,12 +1,13 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
+using GoElectrify.BLL.Services;
 using GoElectrify.DAL.Infra;
 using GoElectrify.DAL.Persistence;
 using GoElectrify.DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 
 namespace GoElectrify.DAL.DependencyInjection
@@ -56,6 +57,8 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
             services.AddScoped<ITopupIntentRepository, TopupIntentRepository>();
+            services.AddScoped<IVehicleModelRepository, VehicleModelRepository>();
+            services.AddScoped<IVehicleModelService, VehicleModelService>();
 
             // Infra services
             services.AddSingleton<IRedisCache, RedisCache>();
