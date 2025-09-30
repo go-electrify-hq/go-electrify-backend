@@ -51,6 +51,7 @@ builder.Services.AddDal(builder.Configuration);
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
+builder.Services.AddScoped<IConnectorTypeService, ConnectorTypeService>();
 
 
 
