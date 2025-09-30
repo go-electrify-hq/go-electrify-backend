@@ -1,14 +1,15 @@
 ﻿using GoElectrify.BLL.Dto;
 using GoElectrify.BLL.Dto.Station;
 using GoElectrify.BLL.Entities;
-using GoElectrify.BLL.Contracts;
 using GoElectrify.BLL.Contracts.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-namespace GoElectrify.BLL.Contracts.Services
+using GoElectrify.BLL.Contracts.Services;
+
+namespace GoElectrify.BLL.Services
 {
     public class StationService : IStationService
     {
@@ -36,6 +37,7 @@ namespace GoElectrify.BLL.Contracts.Services
                 Name = request.Name,
                 Description = request.Description,
                 Address = request.Address,
+                ImageUrl = request.ImageUrl,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 Status = "Active",
@@ -55,6 +57,7 @@ namespace GoElectrify.BLL.Contracts.Services
             station.Name = request.Name ?? station.Name;
             station.Description = request.Description ?? station.Description;
             station.Address = request.Address ?? station.Address;
+            station.ImageUrl = request.ImageUrl ?? station.ImageUrl;
             station.Latitude = request.Latitude ?? station.Latitude;
             station.Longitude = request.Longitude ?? station.Longitude;
             station.Status = request.Status ?? station.Status;
