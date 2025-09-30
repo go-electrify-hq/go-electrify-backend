@@ -60,6 +60,7 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<ITopupIntentRepository, TopupIntentRepository>();
             services.AddScoped<IVehicleModelRepository, VehicleModelRepository>();
             services.AddScoped<IVehicleModelService, VehicleModelService>();
+            services.AddScoped<IConnectorTypeRepository, ConnectorTypeRepository>();
 
             services.AddScoped<IStationRepository, StationRepository>();
             // Infra services
