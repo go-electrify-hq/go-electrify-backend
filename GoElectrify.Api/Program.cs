@@ -50,6 +50,9 @@ builder.Services.AddDal(builder.Configuration);
 // BLL services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
+
+
 
 // JWT (để ở Program là hợp lý)
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
