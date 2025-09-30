@@ -53,6 +53,7 @@ builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
 builder.Services.AddScoped<IConnectorTypeService, ConnectorTypeService>();
 builder.Services.AddScoped<IStationService, StationService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 
 
 // JWT (để ở Program là hợp lý)
