@@ -52,12 +52,12 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
 builder.Services.AddScoped<IConnectorTypeService, ConnectorTypeService>();
-
+builder.Services.AddScoped<IStationService, StationService>();
 
 
 // JWT (để ở Program là hợp lý)
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
-builder.Services.AddScoped<IStationService, StationService>();
+
 // JWT auth
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

@@ -1,14 +1,15 @@
 ﻿using GoElectrify.BLL.Dto;
 using GoElectrify.BLL.Dto.Station;
 using GoElectrify.BLL.Entities;
-using GoElectrify.BLL.Contracts;
 using GoElectrify.BLL.Contracts.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-namespace GoElectrify.BLL.Contracts.Services
+using GoElectrify.BLL.Contracts.Services;
+
+namespace GoElectrify.BLL.Services
 {
     public class StationService : IStationService
     {
@@ -71,6 +72,25 @@ namespace GoElectrify.BLL.Contracts.Services
 
             await _repo.DeleteAsync(station);
             return true;
+        }
+
+        public async Task<IReadOnlyList<StationNearbyDto>> GetNearbyAsync(
+        double lat, double lng, double radiusKm = 10, int limit = 20, CancellationToken ct = default)
+        {
+            if (lat is < -90 or > 90) throw new ArgumentOutOfRangeException(nameof(lat));
+            if (lng is < -180 or > 180) throw new ArgumentOutOfRangeException(nameof(lng));
+
+            var rows = await _repo.FindNearestAsync(lat, lng, radiusKm, limit, ct);
+            return rows.Select(r => new StationNearbyDto
+            {
+                Id = r.Id,
+                Name = r.Name,
+                Address = r.Address,
+                Latitude = r.Latitude,
+                Longitude = r.Longitude,
+                Status = r.Status,
+                DistanceKm = r.DistanceKm
+            }).ToList();
         }
     }
 }
