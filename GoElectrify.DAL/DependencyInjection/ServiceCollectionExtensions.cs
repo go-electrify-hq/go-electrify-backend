@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Resend;
 
 
 namespace GoElectrify.DAL.DependencyInjection
@@ -48,7 +50,6 @@ namespace GoElectrify.DAL.DependencyInjection
 
                 services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(opts));
             }
-
             // Repositories
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
@@ -59,11 +60,31 @@ namespace GoElectrify.DAL.DependencyInjection
 
             // Infra services
             services.AddSingleton<IRedisCache, RedisCache>();
-            services.AddScoped<IEmailSender, ConsoleEmailSender>();
 
-            // JWT
-            services.Configure<JwtOptions>(cfg.GetSection("Jwt"));
-            services.AddScoped<ITokenService, JwtTokenService>();
+
+            // ======================
+            // Email Sender — Resend ONLY (SDK chính thức)
+            // ======================
+            services.AddHttpClient<ResendClient>();
+            // Lấy "Resend:ApiToken" từ appsettings + user-secrets (dev) / ENV (prod)
+            services.Configure<ResendClientOptions>(cfg.GetSection("Resend"));
+            services.PostConfigure<ResendClientOptions>(o =>
+            {
+                if (string.IsNullOrWhiteSpace(o.ApiToken))
+                    throw new InvalidOperationException("Missing Resend:ApiToken. Set via user-secrets (dev) or ENV/secret store (prod).");
+            });
+            services.AddTransient<IResend, ResendClient>();
+
+            // From (sender) cấu hình nhẹ
+            services.Configure<EmailSenderOptions>(cfg.GetSection("Email"));
+            services.PostConfigure<EmailSenderOptions>(o =>
+            {
+                if (string.IsNullOrWhiteSpace(o.From))
+                    throw new InvalidOperationException("Missing Email:From (verified sender in Resend).");
+            });
+
+            // IEmailSender -> ResendEmailSender (duy nhất)
+            services.AddTransient<IEmailSender, ResendEmailSender>();
 
             return services;
         }
