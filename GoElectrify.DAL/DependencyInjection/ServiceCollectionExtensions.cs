@@ -1,12 +1,15 @@
-﻿using GoElectrify.BLL.Contracts.Repositories;
+using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
+using GoElectrify.BLL.Services;
 using GoElectrify.DAL.Infra;
 using GoElectrify.DAL.Persistence;
 using GoElectrify.DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
+using Microsoft.Extensions.Options;
+using Resend;
 
 
 namespace GoElectrify.DAL.DependencyInjection
@@ -48,7 +51,6 @@ namespace GoElectrify.DAL.DependencyInjection
 
                 services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(opts));
             }
-
             // Repositories
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
@@ -56,14 +58,37 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
             services.AddScoped<ITopupIntentRepository, TopupIntentRepository>();
+            services.AddScoped<IVehicleModelRepository, VehicleModelRepository>();
+            services.AddScoped<IVehicleModelService, VehicleModelService>();
 
+            services.AddScoped<IStationRepository, StationRepository>();
             // Infra services
             services.AddSingleton<IRedisCache, RedisCache>();
-            services.AddScoped<IEmailSender, ConsoleEmailSender>();
 
-            // JWT
-            services.Configure<JwtOptions>(cfg.GetSection("Jwt"));
-            services.AddScoped<ITokenService, JwtTokenService>();
+
+            // ======================
+            // Email Sender — Resend ONLY (SDK chính thức)
+            // ======================
+            services.AddHttpClient<ResendClient>();
+            // Lấy "Resend:ApiToken" từ appsettings + user-secrets (dev) / ENV (prod)
+            services.Configure<ResendClientOptions>(cfg.GetSection("Resend"));
+            services.PostConfigure<ResendClientOptions>(o =>
+            {
+                if (string.IsNullOrWhiteSpace(o.ApiToken))
+                    throw new InvalidOperationException("Missing Resend:ApiToken. Set via user-secrets (dev) or ENV/secret store (prod).");
+            });
+            services.AddTransient<IResend, ResendClient>();
+
+            // From (sender) cấu hình nhẹ
+            services.Configure<EmailSenderOptions>(cfg.GetSection("Email"));
+            services.PostConfigure<EmailSenderOptions>(o =>
+            {
+                if (string.IsNullOrWhiteSpace(o.From))
+                    throw new InvalidOperationException("Missing Email:From (verified sender in Resend).");
+            });
+
+            // IEmailSender -> ResendEmailSender (duy nhất)
+            services.AddTransient<IEmailSender, ResendEmailSender>();
 
             return services;
         }

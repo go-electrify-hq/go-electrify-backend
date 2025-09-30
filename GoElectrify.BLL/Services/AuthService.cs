@@ -37,7 +37,7 @@ namespace GoElectrify.BLL.Services
 
             await email.SendAsync(
                 emailAddr,
-                "[GoElectrify] Your OTP code",
+                "[Go Electrify] Your OTP code",
                 $"<p>Your login code is <b>{otp}</b>. It expires in {OtpTtl.TotalMinutes:0} minutes.</p>",
                 ct);
         }
@@ -88,5 +88,18 @@ namespace GoElectrify.BLL.Services
             rt.RevokedAt = DateTime.UtcNow;
             await refreshTokens.SaveAsync(ct);
         }
+
+        //public async Task<bool> LogoutAsync(int userId, string refreshToken, CancellationToken ct)
+        //{
+        //    if (string.IsNullOrWhiteSpace(refreshToken)) return false;
+
+        //    var hash = tokenSvc.HashToken(refreshToken);
+        //    var rt = await refreshTokens.FindActiveAsync(userId, hash, ct);
+        //    if (rt is null) return false;
+
+        //    rt.RevokedAt = DateTime.UtcNow;
+        //    await refreshTokens.SaveAsync(ct);
+        //    return true;
+        //}
     }
 }

@@ -32,8 +32,22 @@ namespace go_electrify_backend.Controllers
         public async Task<IActionResult> Logout([FromBody] string refreshToken, CancellationToken ct)
         {
             var uid = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            await auth.LogoutAsync(uid, refreshToken, ct);
-            return Ok();
+            await auth.LogoutAsync(uid, refreshToken, ct); return Ok();
+        }
+
+        [HttpGet("whoami")]
+        [Authorize]
+        public IActionResult WhoAmI()
+        {
+            return Ok(new
+            {
+                nameid = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                sub = User.FindFirst("sub")?.Value,
+                role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
+                iss = User.FindFirst("iss")?.Value,
+                aud = User.FindFirst("aud")?.Value,
+                exp = User.FindFirst("exp")?.Value
+            });
         }
     }
 }
