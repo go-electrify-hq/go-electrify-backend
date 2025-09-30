@@ -37,6 +37,7 @@ namespace GoElectrify.BLL.Services
                 Name = request.Name,
                 Description = request.Description,
                 Address = request.Address,
+                ImageUrl = request.ImageUrl,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 Status = "Active",
@@ -56,6 +57,7 @@ namespace GoElectrify.BLL.Services
             station.Name = request.Name ?? station.Name;
             station.Description = request.Description ?? station.Description;
             station.Address = request.Address ?? station.Address;
+            station.ImageUrl = request.ImageUrl ?? station.ImageUrl;
             station.Latitude = request.Latitude ?? station.Latitude;
             station.Longitude = request.Longitude ?? station.Longitude;
             station.Status = request.Status ?? station.Status;
