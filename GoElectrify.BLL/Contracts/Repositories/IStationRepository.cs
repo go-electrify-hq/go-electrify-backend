@@ -1,4 +1,5 @@
-﻿using GoElectrify.BLL.Entities;
+﻿using GoElectrify.BLL.Dto.Station;
+using GoElectrify.BLL.Entities;
 
 namespace GoElectrify.BLL.Contracts.Repositories
 {
@@ -9,5 +10,7 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task AddAsync(Station station);
         Task UpdateAsync(Station station);
         Task DeleteAsync(Station station);
+        Task<IReadOnlyList<StationNearResult>> FindNearestAsync(
+        double lat, double lng, double radiusKm, int limit, CancellationToken ct);
     }
 }

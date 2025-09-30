@@ -13,7 +13,7 @@ namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20250930021130_check")]
-    partial class check
+    partial class Check
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

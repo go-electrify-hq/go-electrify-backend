@@ -52,4 +52,16 @@ public class StationController : ControllerBase
         if (!deleted) return NotFound();
         return NoContent();
     }
+
+    [HttpGet("nearby")]
+    public async Task<IActionResult> Nearby(
+    [FromQuery] double lat,
+    [FromQuery] double lng,
+    [FromQuery] double radiusKm = 10,
+    [FromQuery] int limit = 20,
+    CancellationToken ct = default)
+    {
+        var data = await _service.GetNearbyAsync(lat, lng, radiusKm, limit, ct);
+        return Ok(new { ok = true, data });
+    }
 }
