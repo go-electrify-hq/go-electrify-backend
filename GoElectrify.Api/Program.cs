@@ -1,3 +1,4 @@
+using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Services;
 using GoElectrify.DAL.DependencyInjection;
