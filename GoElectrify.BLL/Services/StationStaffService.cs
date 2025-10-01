@@ -42,7 +42,6 @@ namespace GoElectrify.BLL.Services
             {
                 // Re-activate
                 existed.RevokedAt = null;
-                existed.Role = NormalizeRole(req.Role);
                 existed.AssignedAt = DateTime.UtcNow;
                 repo.Update(existed);
                 await repo.SaveAsync(ct);
@@ -53,7 +52,6 @@ namespace GoElectrify.BLL.Services
             {
                 StationId = stationId,
                 UserId = req.UserId,
-                Role = NormalizeRole(req.Role),
                 AssignedAt = DateTime.UtcNow,
                 RevokedAt = null
             };
@@ -93,7 +91,6 @@ namespace GoElectrify.BLL.Services
             UserId = s.UserId,
             UserEmail = s.User?.Email,
             UserFullName = s.User?.FullName,
-            Role = s.Role,
             AssignedAt = s.AssignedAt,
             RevokedAt = s.RevokedAt
         };

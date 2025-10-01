@@ -13,9 +13,6 @@ namespace GoElectrify.BLL.Entities
 
         public int UserId { get; set; }                   // nhân viên (User.Role = Staff)
         public User User { get; set; } = default!;
-
-        public string Role { get; set; } = "STAFF";       // STAFF | MANAGER (uppercase)
-
         public string? RevokedReason { get; set; }
         public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
         public DateTime? RevokedAt { get; set; }
