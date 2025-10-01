@@ -50,5 +50,24 @@ namespace go_electrify_backend.Controllers
                 exp = User.FindFirst("exp")?.Value
             });
         }
+
+        [HttpPost("refreshToken")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Refresh([FromBody] RefreshRequest req, CancellationToken ct)
+        {
+            try
+            {
+                var tokens = await auth.RefreshAsync(req.RefreshToken, ct);
+                return Ok(tokens);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 }
