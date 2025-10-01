@@ -17,7 +17,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasKey(x => x.Id);
 
             //b.Property(x => x.Role).HasMaxLength(16).IsRequired();
-            b.ToTable(t => t.HasCheckConstraint("CK_StationStaff_Role_UPPER", "Role = UPPER(Role)"));
+            //b.ToTable(t => t.HasCheckConstraint("CK_StationStaff_Role_UPPER", "Role = UPPER(Role)"));
 
             b.Property(x => x.AssignedAt).IsRequired();
 

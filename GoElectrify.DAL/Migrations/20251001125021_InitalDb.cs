@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace GoElectrify.DAL.Migrations
 {
     /// <inheritdoc />
-    public partial class Inital : Migration
+    public partial class InitalDb : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -52,6 +52,7 @@ namespace GoElectrify.DAL.Migrations
                     Name = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
                     Address = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Latitude = table.Column<decimal>(type: "decimal(10,6)", precision: 10, scale: 6, nullable: false),
                     Longitude = table.Column<decimal>(type: "decimal(10,6)", precision: 10, scale: 6, nullable: false),
                     Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
@@ -180,6 +181,30 @@ namespace GoElectrify.DAL.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ExternalLogins",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    Provider = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    ProviderUserId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ExternalLogins", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ExternalLogins_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "RefreshTokens",
                 columns: table => new
                 {
@@ -211,7 +236,7 @@ namespace GoElectrify.DAL.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     StationId = table.Column<int>(type: "int", nullable: false),
                     UserId = table.Column<int>(type: "int", nullable: false),
-                    Role = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
+                    RevokedReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     AssignedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     RevokedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -220,7 +245,6 @@ namespace GoElectrify.DAL.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_StationStaff", x => x.Id);
-                    table.CheckConstraint("CK_StationStaff_Role_UPPER", "Role = UPPER(Role)");
                     table.ForeignKey(
                         name: "FK_StationStaff_Stations_StationId",
                         column: x => x.StationId,
@@ -368,6 +392,35 @@ namespace GoElectrify.DAL.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TopupIntents",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    WalletId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Provider = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    ProviderRef = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
+                    QrContent = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    RawWebhook = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TopupIntents", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TopupIntents_Wallets_WalletId",
+                        column: x => x.WalletId,
+                        principalTable: "Wallets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -562,6 +615,17 @@ namespace GoElectrify.DAL.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_ExternalLogins_Provider_ProviderUserId",
+                table: "ExternalLogins",
+                columns: new[] { "Provider", "ProviderUserId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ExternalLogins_UserId",
+                table: "ExternalLogins",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Incidents_ChargerId",
                 table: "Incidents",
                 column: "ChargerId");
@@ -604,11 +668,6 @@ namespace GoElectrify.DAL.Migrations
                 column: "Status");
 
             migrationBuilder.CreateIndex(
-                name: "IX_StationStaff_StationId_Role",
-                table: "StationStaff",
-                columns: new[] { "StationId", "Role" });
-
-            migrationBuilder.CreateIndex(
                 name: "IX_StationStaff_StationId_UserId",
                 table: "StationStaff",
                 columns: new[] { "StationId", "UserId" },
@@ -624,6 +683,27 @@ namespace GoElectrify.DAL.Migrations
                 table: "Subscriptions",
                 column: "Name",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TopupIntents_CreatedAt",
+                table: "TopupIntents",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TopupIntents_Provider_ProviderRef",
+                table: "TopupIntents",
+                columns: new[] { "Provider", "ProviderRef" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TopupIntents_Status",
+                table: "TopupIntents",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TopupIntents_WalletId",
+                table: "TopupIntents",
+                column: "WalletId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Transactions_ChargingSessionId",
@@ -691,6 +771,9 @@ namespace GoElectrify.DAL.Migrations
                 name: "ChargerLogs");
 
             migrationBuilder.DropTable(
+                name: "ExternalLogins");
+
+            migrationBuilder.DropTable(
                 name: "Incidents");
 
             migrationBuilder.DropTable(
@@ -698,6 +781,9 @@ namespace GoElectrify.DAL.Migrations
 
             migrationBuilder.DropTable(
                 name: "StationStaff");
+
+            migrationBuilder.DropTable(
+                name: "TopupIntents");
 
             migrationBuilder.DropTable(
                 name: "Transactions");

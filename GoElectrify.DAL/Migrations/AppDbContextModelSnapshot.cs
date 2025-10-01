@@ -538,11 +538,6 @@ namespace GoElectrify.DAL.Migrations
                     b.Property<string>("RevokedReason")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
-
                     b.Property<int>("StationId")
                         .HasColumnType("int");
 
@@ -556,15 +551,10 @@ namespace GoElectrify.DAL.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("StationId", "Role");
-
                     b.HasIndex("StationId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("StationStaff", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_StationStaff_Role_UPPER", "Role = UPPER(Role)");
-                        });
+                    b.ToTable("StationStaff", (string)null);
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Subscription", b =>
