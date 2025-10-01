@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace go_electrify_backend.Controllers;
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/stations")]
 public class StationController : ControllerBase
 {
     private readonly IStationService _service;
