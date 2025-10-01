@@ -12,6 +12,7 @@ namespace GoElectrify.BLL.Dto.Station
         [Required] public string Name { get; set; }
         public string? Description { get; set; }
         [Required] public string Address { get; set; }
+        public string? ImageUrl { get; set; }
         [Range(-90, 90)] public decimal Latitude { get; set; }
         [Range(-180, 180)] public decimal Longitude { get; set; }
     }
