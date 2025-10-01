@@ -62,6 +62,9 @@ builder.Services.AddScoped<IChargerService, ChargerService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IStationStaffService, StationStaffService>();
 
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+
+
 
 
 // JWT (để ở Program là hợp lý)
