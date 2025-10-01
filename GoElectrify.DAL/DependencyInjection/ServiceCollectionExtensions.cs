@@ -61,8 +61,8 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<IVehicleModelRepository, VehicleModelRepository>();
             services.AddScoped<IVehicleModelService, VehicleModelService>();
             services.AddScoped<IConnectorTypeRepository, ConnectorTypeRepository>();
-
             services.AddScoped<IStationRepository, StationRepository>();
+
             // Infra services
             services.AddSingleton<IRedisCache, RedisCache>();
 

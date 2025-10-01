@@ -52,7 +52,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
 builder.Services.AddScoped<IConnectorTypeService, ConnectorTypeService>();
-
+builder.Services.AddScoped<IUserService, UserService>();
 
 
 // JWT (để ở Program là hợp lý)
