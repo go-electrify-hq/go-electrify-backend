@@ -35,6 +35,7 @@ namespace go_electrify_backend.Controllers
             await auth.LogoutAsync(uid, refreshToken, ct); return Ok();
         }
 
+
         [HttpGet("whoami")]
         [Authorize]
         public IActionResult WhoAmI()

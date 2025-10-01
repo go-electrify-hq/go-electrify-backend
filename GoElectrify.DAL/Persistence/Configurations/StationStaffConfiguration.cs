@@ -24,8 +24,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasOne(x => x.Station).WithMany(s => s.StationStaff).HasForeignKey(x => x.StationId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
 
-            b.HasIndex(x => new { x.StationId, x.UserId }).IsUnique(); // một user không lặp lại tại cùng station
-            //b.HasIndex(x => new { x.StationId, x.Role });
+            b.HasIndex(x => new { x.StationId, x.UserId }).IsUnique();
 
             b.Property(x => x.CreatedAt).IsRequired();
             b.Property(x => x.UpdatedAt).IsRequired();

@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace GoElectrify.DAL.Migrations
 {
     /// <inheritdoc />
-    public partial class InitalDb : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -536,6 +538,98 @@ namespace GoElectrify.DAL.Migrations
                         principalTable: "Wallets",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.InsertData(
+                table: "ConnectorTypes",
+                columns: new[] { "Id", "CreatedAt", "Description", "MaxPowerKw", "Name", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { 1, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "DC fast (Combo 1)", 200, "CSS1", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "DC fast (Combo 2)", 350, "CSS2", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 3, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "SAE J1772 (AC)", 7, "Type1-AC", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "IEC 62196-2 Type 2 (Mennekes)", 22, "Type2-AC", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 5, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "DC fast (legacy/JDM)", 62, "CHAdeMO", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Roles",
+                columns: new[] { "Id", "CreatedAt", "Name", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { 1, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Driver", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Staff", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 3, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Admin", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Stations",
+                columns: new[] { "Id", "Address", "CreatedAt", "Description", "ImageUrl", "Latitude", "Longitude", "Name", "Status", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { 300, "7 Đ. D1, Long Thạnh Mỹ, Thủ Đức, Hồ Chí Minh 700000, Việt Nam", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Nạp đầy năng lượng cho xe, sẵn sàng cho việc học! Trạm sạc xe điện hiện đại ngay trong khuôn viên Đại học FPT. Dành cho sinh viên, giảng viên và khách tham quan, giúp bạn sạc pin tiện lợi, an toàn trong giờ học và làm việc. Lựa chọn xanh cho một khuôn viên đại học thông minh.", null, 10.84167829167107m, 106.81083314772492m, "FPT University", "ACTIVE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 301, "Số 1 Lưu Hữu Phước, Đông Hoà, Dĩ An, Hồ Chí Minh, Việt Nam", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Điểm sạc lý tưởng cho cộng đồng sinh viên năng động! Trạm sạc xe điện được đặt ngay tại Nhà Văn hóa Sinh viên TP.HCM. Bạn có thể an tâm sạc đầy pin trong khi tham gia các hoạt động, học nhóm hay uống cà phê. Nhanh chóng, an toàn và cực kỳ tiện lợi.", null, 10.876244851905408m, 106.80600195446553m, "Nhà Văn hóa Sinh viên TP.HCM", "ACTIVE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 302, "TTTM Vincom Mega Mall Grand Park, 88 Phước Thiện, Long Bình, Thủ Đức, Hồ Chí Minh, Việt Nam", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Mua sắm thả ga, không lo hết pin! Trạm sạc xe điện hiện đại nay đã có mặt tại Vincom Mega Mall Grand Park. Hãy sạc đầy pin cho xe trong lúc bạn và gia đình thỏa sức mua sắm, ăn uống và giải trí. Trải nghiệm tiện ích nhân đôi, cho chuyến đi thêm trọn vẹn.", null, 10.843429972631098m, 106.84260840302923m, "Vincom Mega Mall Grand Park", "ACTIVE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Subscriptions",
+                columns: new[] { "Id", "CreatedAt", "DurationDays", "Name", "Price", "TotalKwh", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { 1, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 30, "Go Spark – Basic", 360000m, 100m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 30, "Go Pulse - Family", 690000m, 200m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 3, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 30, "Go Drive – Pro", 3990000m, 1200m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 30, "Go Flow – Flexible", 190000m, 50m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
+                });
+
+            migrationBuilder.InsertData(
+                table: "VehicleModels",
+                columns: new[] { "Id", "BatteryCapacityKwh", "CreatedAt", "MaxPowerKw", "ModelName", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { 200, 42.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 60, "VinFast VF e34", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 201, 19.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 32, "VinFast VF 3 Eco", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 202, 22.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 37, "VinFast VF 3 Plus", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 203, 37.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 100, "VinFast VF 5 Plus", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 204, 59.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 150, "VinFast VF 6 Standard", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 205, 59.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 160, "VinFast VF 6 Plus", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 206, 75.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 180, "VinFast VF 7 Standard", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 207, 75.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 200, "VinFast VF 7 Plus", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 208, 87.7m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 150, "VinFast VF 8 Eco", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 209, 92.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 170, "VinFast VF 8 Plus", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 210, 92.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 200, "VinFast VF 9 Eco", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 211, 123.0m, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 220, "VinFast VF 9 Plus", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Chargers",
+                columns: new[] { "Id", "Code", "ConnectorTypeId", "CreatedAt", "PowerKw", "PricePerKwh", "StationId", "Status", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { 400, "FU-DC1", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 401, "FU-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 22, 4500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 402, "FU-DC2", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 403, "FU-DC3", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 404, "FU-AC2", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 22, 4500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 410, "SC-DC1", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 200, 6500.0000m, 301, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 411, "SC-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 22, 4500.0000m, 301, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 420, "GP-DC1", 1, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 120, 6500.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 421, "GP-CHA1", 5, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 50, 6000.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 422, "GP-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 22, 4500.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
+                });
+
+            migrationBuilder.InsertData(
+                table: "VehicleModelConnectorTypes",
+                columns: new[] { "ConnectorTypeId", "VehicleModelId" },
+                values: new object[,]
+                {
+                    { 1, 200 },
+                    { 3, 200 },
+                    { 1, 201 },
+                    { 3, 201 },
+                    { 1, 202 },
+                    { 3, 202 }
                 });
 
             migrationBuilder.CreateIndex(

@@ -114,11 +114,6 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
-    if (!db.Roles.Any())
-    {
-        db.Roles.AddRange(new() { Name = "Driver" }, new() { Name = "Staff" }, new() { Name = "Admin" });
-        db.SaveChanges();
-    }
 }
 
 app.UseSerilogRequestLogging();
@@ -126,7 +121,7 @@ app.UseSerilogRequestLogging();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseAuthentication();   // phải trước UseAuthorization
 app.UseAuthorization();
