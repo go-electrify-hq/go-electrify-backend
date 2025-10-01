@@ -17,4 +17,8 @@
 		<Folder Include="Dto\ConnectorTypes\" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Folder Include="Dto\ConnectorTypes\" />
+	</ItemGroup>
+
 </Project>

@@ -55,8 +55,14 @@ builder.Services.AddScoped<IConnectorTypeService, ConnectorTypeService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IStationStaffService, StationStaffService>();
 builder.Services.AddScoped<IStationService, StationService>();
+
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IChargerService, ChargerService>();
+
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IStationStaffService, StationStaffService>();
+
+
 
 // JWT (để ở Program là hợp lý)
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
