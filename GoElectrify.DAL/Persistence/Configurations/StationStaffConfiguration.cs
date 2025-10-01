@@ -16,7 +16,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.ToTable("StationStaff");
             b.HasKey(x => x.Id);
 
-            b.Property(x => x.Role).HasMaxLength(16).IsRequired();
+            //b.Property(x => x.Role).HasMaxLength(16).IsRequired();
             b.ToTable(t => t.HasCheckConstraint("CK_StationStaff_Role_UPPER", "Role = UPPER(Role)"));
 
             b.Property(x => x.AssignedAt).IsRequired();
@@ -25,7 +25,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
 
             b.HasIndex(x => new { x.StationId, x.UserId }).IsUnique(); // một user không lặp lại tại cùng station
-            b.HasIndex(x => new { x.StationId, x.Role });
+            //b.HasIndex(x => new { x.StationId, x.Role });
 
             b.Property(x => x.CreatedAt).IsRequired();
             b.Property(x => x.UpdatedAt).IsRequired();

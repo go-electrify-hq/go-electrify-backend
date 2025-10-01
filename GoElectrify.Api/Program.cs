@@ -52,9 +52,16 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IVehicleModelService, VehicleModelService>();
 builder.Services.AddScoped<IConnectorTypeService, ConnectorTypeService>();
-builder.Services.AddScoped<IStationService, StationService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IStationStaffService, StationStaffService>();
+builder.Services.AddScoped<IStationService, StationService>();
+
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IChargerService, ChargerService>();
+
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IStationStaffService, StationStaffService>();
+
 
 
 // JWT (để ở Program là hợp lý)
