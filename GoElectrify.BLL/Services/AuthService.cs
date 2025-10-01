@@ -88,6 +88,36 @@ namespace GoElectrify.BLL.Services
             rt.RevokedAt = DateTime.UtcNow;
             await refreshTokens.SaveAsync(ct);
         }
+        public async Task<TokenResponse> RefreshAsync(string refreshToken, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                throw new InvalidOperationException("Refresh token is required.");
+
+            var hash = tokenSvc.HashToken(refreshToken);
+            var existing = await refreshTokens.FindActiveByHashAsync(hash, ct);
+            if (existing is null)
+                throw new UnauthorizedAccessException("Invalid or expired refresh token.");
+
+            var user = await users.GetByIdAsync(existing.UserId, ct);
+            if (user is null)
+                throw new UnauthorizedAccessException("User not found.");
+
+            // phát hành token mới
+            var (access, accessExp, newRefresh, newRefreshExp) =
+                tokenSvc.IssueTokens(user.Id, user.Email, user.Role?.Name ?? "Driver");
+
+            // rotate: revoke token cũ + lưu token mới
+            existing.RevokedAt = DateTime.UtcNow;
+            await refreshTokens.AddAsync(new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = tokenSvc.HashToken(newRefresh),
+                ExpiresAt = newRefreshExp
+            }, ct);
+            await refreshTokens.SaveAsync(ct);
+
+            return new TokenResponse(access, accessExp, newRefresh, newRefreshExp);
+        }
 
         //public async Task<bool> LogoutAsync(int userId, string refreshToken, CancellationToken ct)
         //{
