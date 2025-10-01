@@ -14,5 +14,6 @@ namespace GoElectrify.BLL.Dto.StationStaff
         public string? UserFullName { get; set; }
         public string Role { get; set; } = "STAFF";
         public DateTime AssignedAt { get; set; }
+        public DateTime? RevokedAt { get; set; }
     }
 }

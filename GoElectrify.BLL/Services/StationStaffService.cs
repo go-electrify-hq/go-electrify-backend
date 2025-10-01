@@ -10,64 +10,75 @@ using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Services
 {
-    public class StationStaffService : IStationStaffService
+    public class StationStaffService(
+        IStationRepository stationRepo,
+        IUserRepository userRepo,
+        IStationStaffRepository repo) : IStationStaffService
     {
-        private readonly IStationRepository _stationRepo;
-        private readonly IUserRepository _userRepo;
-        private readonly IStationStaffRepository _repo;
-
-        public StationStaffService(
-            IStationRepository stationRepo,
-            IUserRepository userRepo,
-            IStationStaffRepository repo)
+        public async Task<List<StationStaffDto>> ListAsync(int stationId, CancellationToken ct)
         {
-            _stationRepo = stationRepo;
-            _userRepo = userRepo;
-            _repo = repo;
-        }
-
-        public async Task<List<StationStaffDto>> ListAsync(int stationId)
-        {
-            var station = await _stationRepo.GetByIdAsync(stationId);
+            // station phải tồn tại
+            var station = await stationRepo.GetByIdAsync(stationId);
             if (station == null) throw new KeyNotFoundException("Station not found.");
 
-            // Vì không còn revoke, trả toàn bộ bản ghi của station
-            var items = await _repo.ListByStationAsync(stationId, includeRevoked: true);
+            var items = await repo.ListByStationAsync(stationId, ct);
             return items.Select(ToDto).ToList();
         }
 
-        public async Task<StationStaffDto> AssignAsync(int stationId, AssignStaffRequestDto req)
+        public async Task<StationStaffDto> AssignAsync(int stationId, AssignStaffRequestDto req, CancellationToken ct)
         {
-            var station = await _stationRepo.GetByIdAsync(stationId);
+            // station & user phải tồn tại
+            var station = await stationRepo.GetByIdAsync(stationId);
             if (station == null) throw new KeyNotFoundException("Station not found.");
 
-            var user = await _userRepo.GetByIdAsync(req.UserId);
+            var user = await userRepo.GetByIdAsync(req.UserId, ct);
             if (user == null) throw new KeyNotFoundException("User not found.");
 
-            var existed = await _repo.GetAsync(stationId, req.UserId);
-            if (existed != null)
-                throw new InvalidOperationException("User already assigned to this station.");
+            // không cho trùng (StationId, UserId)
+            var existed = await repo.GetAsync(stationId, req.UserId, ct);
+            if (existed != null) throw new InvalidOperationException("User already assigned to this station.");
+
+            if (existed is { RevokedAt: not null })
+            {
+                // Re-activate
+                existed.RevokedAt = null;
+                existed.Role = NormalizeRole(req.Role);
+                existed.AssignedAt = DateTime.UtcNow;
+                repo.Update(existed);
+                await repo.SaveAsync(ct);
+                return ToDto(existed);
+            }
 
             var entity = new StationStaff
             {
                 StationId = stationId,
                 UserId = req.UserId,
                 Role = NormalizeRole(req.Role),
-                AssignedAt = DateTime.UtcNow
+                AssignedAt = DateTime.UtcNow,
+                RevokedAt = null
             };
 
-            await _repo.AddAsync(entity);
+            await repo.AddAsync(entity, ct);
+            await repo.SaveAsync(ct);
 
-            var saved = await _repo.GetAsync(stationId, req.UserId) ?? entity;
+            var saved = await repo.GetAsync(stationId, req.UserId, ct) ?? entity;
             return ToDto(saved);
         }
 
-        public async Task<bool> RemoveAsync(int stationId, int userId)
+        public async Task DeleteAsync(int stationId, int userId, string reason, CancellationToken ct)
         {
-            var existed = await _repo.GetAsync(stationId, userId);
-            if (existed == null) return false;
-            await _repo.RemoveAsync(existed);
-            return true;
+            reason = (reason ?? string.Empty).Trim();
+            if (reason.Length < 3) throw new ArgumentException("Revoke reason must be at least 3 characters.", nameof(reason));
+
+            var existed = await repo.GetAsync(stationId, userId, ct);
+            if (existed == null) throw new KeyNotFoundException("Assignment not found.");
+
+            if (existed.RevokedAt != null) return; // idempotent
+
+            existed.RevokedAt = DateTime.UtcNow;
+            existed.RevokedReason = reason;
+            repo.Update(existed);
+            await repo.SaveAsync(ct);
         }
 
         private static string NormalizeRole(string? role)
@@ -83,7 +94,8 @@ namespace GoElectrify.BLL.Services
             UserEmail = s.User?.Email,
             UserFullName = s.User?.FullName,
             Role = s.Role,
-            AssignedAt = s.AssignedAt
+            AssignedAt = s.AssignedAt,
+            RevokedAt = s.RevokedAt
         };
     }
 }
