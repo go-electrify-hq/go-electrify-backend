@@ -10,7 +10,6 @@ namespace GoElectrify.BLL.Entities
     {
         public int StationId { get; set; }
         public Station Station { get; set; } = default!;
-
         public int UserId { get; set; }                   // nhân viên (User.Role = Staff)
         public User User { get; set; } = default!;
         public string? RevokedReason { get; set; }
