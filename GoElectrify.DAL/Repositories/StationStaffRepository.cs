@@ -22,7 +22,6 @@ namespace GoElectrify.DAL.Repositories
             => db.StationStaff
                  .Include(x => x.User)
                  .Where(x => x.StationId == stationId)   // không lọc revoke vì ta không dùng revoke
-                 .OrderBy(x => x.Role).ThenBy(x => x.UserId)
                  .ToListAsync(ct);
 
         public Task AddAsync(StationStaff entity, CancellationToken ct)
