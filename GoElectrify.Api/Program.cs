@@ -65,6 +65,9 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 
 
 
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+
+
 
 
 // JWT (để ở Program là hợp lý)
