@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250927114814_AddExternalLoginsAndTopupIntents")]
-    partial class AddExternalLoginsAndTopupIntents
+    [Migration("20251001125021_InitalDb")]
+    partial class InitalDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -485,6 +485,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("nvarchar(1024)");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("Latitude")
                         .HasPrecision(10, 6)
                         .HasColumnType("decimal(10,6)");
@@ -535,10 +538,8 @@ namespace GoElectrify.DAL.Migrations
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                    b.Property<string>("RevokedReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("StationId")
                         .HasColumnType("int");
@@ -553,15 +554,10 @@ namespace GoElectrify.DAL.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("StationId", "Role");
-
                     b.HasIndex("StationId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("StationStaff", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_StationStaff_Role_UPPER", "Role = UPPER(Role)");
-                        });
+                    b.ToTable("StationStaff", (string)null);
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Subscription", b =>
