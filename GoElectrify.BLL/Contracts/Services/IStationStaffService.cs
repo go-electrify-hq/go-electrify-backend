@@ -9,8 +9,8 @@ namespace GoElectrify.BLL.Contracts.Services
 {
     public interface IStationStaffService
     {
-        Task<List<StationStaffDto>> ListAsync(int stationId);
-        Task<StationStaffDto> AssignAsync(int stationId, AssignStaffRequestDto req);
-        Task<bool> RemoveAsync(int stationId, int userId); // hard delete
+        Task<List<StationStaffDto>> ListAsync(int stationId, CancellationToken ct);
+        Task<StationStaffDto> AssignAsync(int stationId, AssignStaffRequestDto req, CancellationToken ct);
+        Task DeleteAsync(int stationId, int userId, string reason, CancellationToken ct);
     }
 }

@@ -9,13 +9,11 @@ namespace GoElectrify.BLL.Contracts.Repositories
 {
     public interface IStationStaffRepository
     {
-        Task<StationStaff?> GetAsync(int stationId, int staffUserId);
-        Task AddAsync(StationStaff entity);
-        Task UpdateAsync(StationStaff entity);
-        Task<List<StationStaff>> GetStaffByStationAsync(int stationId, bool onlyActive);
-        Task<List<StationStaff>> GetStationsByStaffAsync(int staffUserId, bool onlyActive);
-        Task<bool> ExistsActiveAsync(int stationId, int staffUserId);
-        Task<bool> AnyPrimaryAsync(int stationId);
-        Task SaveChangesAsync();
+        Task<StationStaff?> GetAsync(int stationId, int userId, CancellationToken ct);
+        Task<List<StationStaff>> ListByStationAsync(int stationId, CancellationToken ct);
+        Task AddAsync(StationStaff entity, CancellationToken ct);
+        void Update(StationStaff entity);
+        void Remove(StationStaff entity);
+        Task SaveAsync(CancellationToken ct);
     }
 }
