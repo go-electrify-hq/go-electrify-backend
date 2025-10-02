@@ -61,6 +61,9 @@ builder.Services.AddScoped<IChargerService, ChargerService>();
 
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IStationStaffService, StationStaffService>();
+
+builder.Services.AddScoped<IIncidentService, IncidentService>();
+
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
 
