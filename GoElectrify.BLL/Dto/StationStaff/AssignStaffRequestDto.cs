@@ -10,7 +10,7 @@ namespace GoElectrify.BLL.Dto.StationStaff
     public class AssignStaffRequestDto
     {
         [Required] public int UserId { get; set; }
-        public string? Role { get; set; }
+      
 
     }
 }

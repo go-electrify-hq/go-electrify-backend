@@ -22,7 +22,10 @@ namespace GoElectrify.BLL.Services
             if (station == null) throw new KeyNotFoundException("Station not found.");
 
             var items = await repo.ListByStationAsync(stationId, ct);
-            return items.Select(ToDto).ToList();
+
+            // Chỉ trả staff ACTIVE
+            var active = items.Where(x => x.RevokedAt == null);
+            return active.Select(ToDto).ToList();
         }
 
         public async Task<StationStaffDto> AssignAsync(int stationId, AssignStaffRequestDto req, CancellationToken ct)
@@ -34,19 +37,25 @@ namespace GoElectrify.BLL.Services
             var user = await userRepo.GetByIdAsync(req.UserId, ct);
             if (user == null) throw new KeyNotFoundException("User not found.");
 
+            if (user.RoleId != 2)
+                throw new InvalidOperationException("User is not a Staff.");
+
             // không cho trùng (StationId, UserId)
             var existed = await repo.GetAsync(stationId, req.UserId, ct);
-            if (existed != null) throw new InvalidOperationException("User already assigned to this station.");
 
-            if (existed is { RevokedAt: not null })
+
+            if (existed is not null && existed.RevokedAt is not null)
             {
-                // Re-activate
                 existed.RevokedAt = null;
+                existed.RevokedReason = null;
                 existed.AssignedAt = DateTime.UtcNow;
                 repo.Update(existed);
                 await repo.SaveAsync(ct);
                 return ToDto(existed);
             }
+
+            if (existed is not null && existed.RevokedAt is null)
+                throw new InvalidOperationException("User already assigned to this station.");
 
             var entity = new StationStaff
             {
@@ -63,27 +72,44 @@ namespace GoElectrify.BLL.Services
             return ToDto(saved);
         }
 
-        public async Task DeleteAsync(int stationId, int userId, string reason, CancellationToken ct)
+        public async Task<RevokeStaffResultDto> DeleteAsync(int stationId, int userId, string reason, CancellationToken ct)
         {
             reason = (reason ?? string.Empty).Trim();
-            if (reason.Length < 3) throw new ArgumentException("Revoke reason must be at least 3 characters.", nameof(reason));
+            if (reason.Length < 3)
+                throw new ArgumentException("Revoke reason must be at least 3 characters.", nameof(reason));
 
             var existed = await repo.GetAsync(stationId, userId, ct);
             if (existed == null) throw new KeyNotFoundException("Assignment not found.");
 
-            if (existed.RevokedAt != null) return; // idempotent
+            // Đã revoked từ trước -> idempotent, trả về kết quả hiện trạng
+            if (existed.RevokedAt != null)
+            {
+                return new RevokeStaffResultDto
+                {
+                    StationId = stationId,
+                    UserId = userId,
+                    Action = "noop_already_revoked",
+                    RevokedAt = existed.RevokedAt,
+                    RevokedReason = existed.RevokedReason
+                };
+            }
 
+            // Thực hiện revoke
             existed.RevokedAt = DateTime.UtcNow;
             existed.RevokedReason = reason;
             repo.Update(existed);
             await repo.SaveAsync(ct);
+
+            return new RevokeStaffResultDto
+            {
+                StationId = stationId,
+                UserId = userId,
+                Action = "revoked",
+                RevokedAt = existed.RevokedAt,
+                RevokedReason = existed.RevokedReason
+            };
         }
 
-        private static string NormalizeRole(string? role)
-        {
-            role = (role ?? "STAFF").Trim().ToUpperInvariant();
-            return role is "MANAGER" or "STAFF" ? role : "STAFF";
-        }
 
         private static StationStaffDto ToDto(StationStaff s) => new()
         {
