@@ -63,7 +63,10 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<IConnectorTypeRepository, ConnectorTypeRepository>();
             services.AddScoped<IStationRepository, StationRepository>();
             services.AddScoped<IStationStaffRepository, StationStaffRepository>();
+            services.AddScoped<ITransactionRepository, TransactionRepository>();
 
+
+            services.AddScoped<INotificationRepository, NotificationRepository>();
 
             services.AddScoped<IStationRepository, StationRepository>();
             services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();

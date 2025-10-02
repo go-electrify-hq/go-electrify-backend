@@ -134,6 +134,128 @@ namespace GoElectrify.DAL.Migrations
                         {
                             t.HasCheckConstraint("CK_Chargers_Status_UPPER", "Status = UPPER(Status)");
                         });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 400,
+                            Code = "FU-DC1",
+                            ConnectorTypeId = 2,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 150,
+                            PricePerKwh = 6500.0000m,
+                            StationId = 300,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 401,
+                            Code = "FU-AC1",
+                            ConnectorTypeId = 4,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 22,
+                            PricePerKwh = 4500.0000m,
+                            StationId = 300,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 402,
+                            Code = "FU-DC2",
+                            ConnectorTypeId = 2,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 150,
+                            PricePerKwh = 6500.0000m,
+                            StationId = 300,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 403,
+                            Code = "FU-DC3",
+                            ConnectorTypeId = 2,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 150,
+                            PricePerKwh = 6500.0000m,
+                            StationId = 300,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 404,
+                            Code = "FU-AC2",
+                            ConnectorTypeId = 4,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 22,
+                            PricePerKwh = 4500.0000m,
+                            StationId = 300,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 410,
+                            Code = "SC-DC1",
+                            ConnectorTypeId = 2,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 200,
+                            PricePerKwh = 6500.0000m,
+                            StationId = 301,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 411,
+                            Code = "SC-AC1",
+                            ConnectorTypeId = 4,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 22,
+                            PricePerKwh = 4500.0000m,
+                            StationId = 301,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 420,
+                            Code = "GP-DC1",
+                            ConnectorTypeId = 1,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 120,
+                            PricePerKwh = 6500.0000m,
+                            StationId = 302,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 421,
+                            Code = "GP-CHA1",
+                            ConnectorTypeId = 5,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 50,
+                            PricePerKwh = 6000.0000m,
+                            StationId = 302,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 422,
+                            Code = "GP-AC1",
+                            ConnectorTypeId = 4,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PowerKw = 22,
+                            PricePerKwh = 4500.0000m,
+                            StationId = 302,
+                            Status = "ONLINE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.ChargerLog", b =>
@@ -290,6 +412,53 @@ namespace GoElectrify.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("ConnectorTypes", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "DC fast (Combo 1)",
+                            MaxPowerKw = 200,
+                            Name = "CSS1",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "DC fast (Combo 2)",
+                            MaxPowerKw = 350,
+                            Name = "CSS2",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "SAE J1772 (AC)",
+                            MaxPowerKw = 7,
+                            Name = "Type1-AC",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "IEC 62196-2 Type 2 (Mennekes)",
+                            MaxPowerKw = 22,
+                            Name = "Type2-AC",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 5,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "DC fast (legacy/JDM)",
+                            MaxPowerKw = 62,
+                            Name = "CHAdeMO",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.ExternalLogin", b =>
@@ -460,6 +629,29 @@ namespace GoElectrify.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("Roles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Name = "Driver",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Name = "Staff",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Name = "Admin",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Station", b =>
@@ -515,6 +707,44 @@ namespace GoElectrify.DAL.Migrations
                     b.ToTable("Stations", null, t =>
                         {
                             t.HasCheckConstraint("CK_Stations_Status_UPPER", "Status = UPPER(Status)");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 300,
+                            Address = "7 Đ. D1, Long Thạnh Mỹ, Thủ Đức, Hồ Chí Minh 700000, Việt Nam",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Nạp đầy năng lượng cho xe, sẵn sàng cho việc học! Trạm sạc xe điện hiện đại ngay trong khuôn viên Đại học FPT. Dành cho sinh viên, giảng viên và khách tham quan, giúp bạn sạc pin tiện lợi, an toàn trong giờ học và làm việc. Lựa chọn xanh cho một khuôn viên đại học thông minh.",
+                            Latitude = 10.84167829167107m,
+                            Longitude = 106.81083314772492m,
+                            Name = "FPT University",
+                            Status = "ACTIVE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 301,
+                            Address = "Số 1 Lưu Hữu Phước, Đông Hoà, Dĩ An, Hồ Chí Minh, Việt Nam",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Điểm sạc lý tưởng cho cộng đồng sinh viên năng động! Trạm sạc xe điện được đặt ngay tại Nhà Văn hóa Sinh viên TP.HCM. Bạn có thể an tâm sạc đầy pin trong khi tham gia các hoạt động, học nhóm hay uống cà phê. Nhanh chóng, an toàn và cực kỳ tiện lợi.",
+                            Latitude = 10.876244851905408m,
+                            Longitude = 106.80600195446553m,
+                            Name = "Nhà Văn hóa Sinh viên TP.HCM",
+                            Status = "ACTIVE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 302,
+                            Address = "TTTM Vincom Mega Mall Grand Park, 88 Phước Thiện, Long Bình, Thủ Đức, Hồ Chí Minh, Việt Nam",
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Mua sắm thả ga, không lo hết pin! Trạm sạc xe điện hiện đại nay đã có mặt tại Vincom Mega Mall Grand Park. Hãy sạc đầy pin cho xe trong lúc bạn và gia đình thỏa sức mua sắm, ăn uống và giải trí. Trải nghiệm tiện ích nhân đôi, cho chuyến đi thêm trọn vẹn.",
+                            Latitude = 10.843429972631098m,
+                            Longitude = 106.84260840302923m,
+                            Name = "Vincom Mega Mall Grand Park",
+                            Status = "ACTIVE",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 
@@ -593,6 +823,48 @@ namespace GoElectrify.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("Subscriptions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DurationDays = 30,
+                            Name = "Go Spark – Basic",
+                            Price = 360000m,
+                            TotalKwh = 100m,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DurationDays = 30,
+                            Name = "Go Pulse - Family",
+                            Price = 690000m,
+                            TotalKwh = 200m,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DurationDays = 30,
+                            Name = "Go Drive – Pro",
+                            Price = 3990000m,
+                            TotalKwh = 1200m,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DurationDays = 30,
+                            Name = "Go Flow – Flexible",
+                            Price = 190000m,
+                            TotalKwh = 50m,
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.TopupIntent", b =>
@@ -777,6 +1049,116 @@ namespace GoElectrify.DAL.Migrations
                         .IsUnique();
 
                     b.ToTable("VehicleModels", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 200,
+                            BatteryCapacityKwh = 42.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 60,
+                            ModelName = "VinFast VF e34",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 201,
+                            BatteryCapacityKwh = 19.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 32,
+                            ModelName = "VinFast VF 3 Eco",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 202,
+                            BatteryCapacityKwh = 22.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 37,
+                            ModelName = "VinFast VF 3 Plus",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 203,
+                            BatteryCapacityKwh = 37.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 100,
+                            ModelName = "VinFast VF 5 Plus",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 204,
+                            BatteryCapacityKwh = 59.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 150,
+                            ModelName = "VinFast VF 6 Standard",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 205,
+                            BatteryCapacityKwh = 59.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 160,
+                            ModelName = "VinFast VF 6 Plus",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 206,
+                            BatteryCapacityKwh = 75.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 180,
+                            ModelName = "VinFast VF 7 Standard",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 207,
+                            BatteryCapacityKwh = 75.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 200,
+                            ModelName = "VinFast VF 7 Plus",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 208,
+                            BatteryCapacityKwh = 87.7m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 150,
+                            ModelName = "VinFast VF 8 Eco",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 209,
+                            BatteryCapacityKwh = 92.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 170,
+                            ModelName = "VinFast VF 8 Plus",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 210,
+                            BatteryCapacityKwh = 92.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 200,
+                            ModelName = "VinFast VF 9 Eco",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 211,
+                            BatteryCapacityKwh = 123.0m,
+                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            MaxPowerKw = 220,
+                            ModelName = "VinFast VF 9 Plus",
+                            UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.VehicleModelConnectorType", b =>
@@ -792,6 +1174,38 @@ namespace GoElectrify.DAL.Migrations
                     b.HasIndex("ConnectorTypeId");
 
                     b.ToTable("VehicleModelConnectorTypes", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            VehicleModelId = 200,
+                            ConnectorTypeId = 3
+                        },
+                        new
+                        {
+                            VehicleModelId = 200,
+                            ConnectorTypeId = 1
+                        },
+                        new
+                        {
+                            VehicleModelId = 201,
+                            ConnectorTypeId = 3
+                        },
+                        new
+                        {
+                            VehicleModelId = 201,
+                            ConnectorTypeId = 1
+                        },
+                        new
+                        {
+                            VehicleModelId = 202,
+                            ConnectorTypeId = 3
+                        },
+                        new
+                        {
+                            VehicleModelId = 202,
+                            ConnectorTypeId = 1
+                        });
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Wallet", b =>
