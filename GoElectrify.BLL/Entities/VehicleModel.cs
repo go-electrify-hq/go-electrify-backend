@@ -13,5 +13,6 @@ namespace GoElectrify.BLL.Entities
         public decimal BatteryCapacityKwh { get; set; } // decimal(12,4)
 
         public ICollection<VehicleModelConnectorType> VehicleModelConnectorTypes { get; set; } = new List<VehicleModelConnectorType>();
+        public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     }
 }

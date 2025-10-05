@@ -22,5 +22,7 @@ namespace GoElectrify.BLL.Entities
 
         public ICollection<Charger> Chargers { get; set; } = new List<Charger>();
         public ICollection<StationStaff> StationStaff { get; set; } = new List<StationStaff>();
+        public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+        public ICollection<Incident> Incidents { get; set; } = new List<Incident>();
     }
 }

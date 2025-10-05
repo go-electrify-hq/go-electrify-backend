@@ -18,18 +18,18 @@ namespace GoElectrify.DAL.Persistence.Configurations
 
             b.Property(x => x.Provider).HasMaxLength(32).IsRequired();
             b.Property(x => x.ProviderUserId).HasMaxLength(128).IsRequired();
-            b.Property(x => x.Email).HasMaxLength(255);
-
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
 
             b.HasOne(x => x.User)
-                .WithMany(u => u.ExternalLogins)
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+             .WithMany(u => u.ExternalLogins)
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
 
             b.HasIndex(x => new { x.Provider, x.ProviderUserId }).IsUnique();
-            b.HasIndex(x => x.UserId);
+
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

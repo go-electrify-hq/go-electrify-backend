@@ -16,14 +16,16 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.ToTable("ConnectorTypes");
             b.HasKey(x => x.Id);
 
-            b.Property(x => x.Name).HasMaxLength(32).IsRequired();
+            b.Property(x => x.Name).HasMaxLength(64).IsRequired();
             b.HasIndex(x => x.Name).IsUnique();
 
-            b.Property(x => x.Description).HasMaxLength(512);
+            b.Property(x => x.Description).HasMaxLength(256);
             b.Property(x => x.MaxPowerKw).IsRequired();
 
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

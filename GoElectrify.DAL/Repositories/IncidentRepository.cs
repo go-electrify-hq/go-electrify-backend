@@ -34,7 +34,7 @@ namespace GoElectrify.DAL.Repositories
                 q = q.Where(x => x.Status == status);
 
             if (!string.IsNullOrWhiteSpace(severity))
-                q = q.Where(x => x.Severity == severity);
+                q = q.Where(x => x.Priority == severity);
 
             if (fromReportedAt.HasValue)
                 q = q.Where(x => x.ReportedAt >= fromReportedAt.Value);

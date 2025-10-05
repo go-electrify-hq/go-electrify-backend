@@ -47,7 +47,6 @@ namespace GoElectrify.DAL.Repositories
 
             // 3. Hoàn thành sạc
             var session = await _db.ChargingSessions
-                .Include(cs => cs.Station)
                 .Where(cs => cs.Status == "Completed")
                 .OrderByDescending(cs => cs.UpdatedAt)
                 .FirstOrDefaultAsync();
@@ -56,7 +55,7 @@ namespace GoElectrify.DAL.Repositories
                 notifications.Add(new NotificationDto
                 {
                     Title = "Hoàn thành sạc",
-                    Message = $"Quá trình sạc tại trạm {session.Station.Name} đã hoàn thành",
+                    Message = $"Quá trình sạc tại trạm {session.Charger.StationId} đã hoàn thành",
                     Type = "charging",
                     CreatedAt = session.UpdatedAt
                 });

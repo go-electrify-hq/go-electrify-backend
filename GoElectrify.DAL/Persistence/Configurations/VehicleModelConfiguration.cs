@@ -22,8 +22,10 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.MaxPowerKw).IsRequired();
             b.Property(x => x.BatteryCapacityKwh).HasPrecision(12, 4).IsRequired();
 
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

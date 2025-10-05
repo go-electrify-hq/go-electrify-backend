@@ -16,18 +16,22 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.ToTable("StationStaff");
             b.HasKey(x => x.Id);
 
-            //b.Property(x => x.Role).HasMaxLength(16).IsRequired();
-            //b.ToTable(t => t.HasCheckConstraint("CK_StationStaff_Role_UPPER", "Role = UPPER(Role)"));
+            b.HasOne(x => x.User)
+             .WithMany(u => u.StationStaff)
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
 
-            b.Property(x => x.AssignedAt).IsRequired();
+            b.HasOne(x => x.Station)
+             .WithMany(s => s.StationStaff)
+             .HasForeignKey(x => x.StationId)
+             .OnDelete(DeleteBehavior.Cascade);
 
-            b.HasOne(x => x.Station).WithMany(s => s.StationStaff).HasForeignKey(x => x.StationId).OnDelete(DeleteBehavior.Cascade);
-            b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            b.HasIndex(x => new { x.UserId, x.StationId }).IsUnique();
 
-            b.HasIndex(x => new { x.StationId, x.UserId }).IsUnique();
-
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

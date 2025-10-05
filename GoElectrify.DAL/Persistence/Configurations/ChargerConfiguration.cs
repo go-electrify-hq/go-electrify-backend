@@ -17,29 +17,30 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasKey(x => x.Id);
 
             b.Property(x => x.Code).HasMaxLength(64).IsRequired();
-            b.HasIndex(x => x.Code).IsUnique();
-
             b.Property(x => x.PowerKw).IsRequired();
 
-            b.Property(x => x.PricePerKwh).HasPrecision(18, 4);
             b.Property(x => x.Status).HasMaxLength(32).IsRequired();
             b.ToTable(t => t.HasCheckConstraint("CK_Chargers_Status_UPPER", "Status = UPPER(Status)"));
 
+            b.Property(x => x.PricePerKwh).HasPrecision(18, 4);
+
             b.HasOne(x => x.Station)
-                .WithMany(s => s.Chargers)
-                .HasForeignKey(x => x.StationId)
-                .OnDelete(DeleteBehavior.Restrict);
+             .WithMany(s => s.Chargers)
+             .HasForeignKey(x => x.StationId)
+             .OnDelete(DeleteBehavior.Cascade);
 
             b.HasOne(x => x.ConnectorType)
-                .WithMany(ct => ct.Chargers)
-                .HasForeignKey(x => x.ConnectorTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
+             .WithMany(ct => ct.Chargers)
+             .HasForeignKey(x => x.ConnectorTypeId)
+             .OnDelete(DeleteBehavior.Restrict);
 
-            b.HasIndex(x => x.StationId);
-            b.HasIndex(x => new { x.StationId, x.Status });
+            b.HasIndex(x => new { x.StationId, x.Code }).IsUnique();
+            b.HasIndex(x => x.ConnectorTypeId);
 
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

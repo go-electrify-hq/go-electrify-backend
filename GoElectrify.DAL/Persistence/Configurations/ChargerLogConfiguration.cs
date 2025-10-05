@@ -17,9 +17,9 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasKey(x => x.Id);
 
             b.HasOne(x => x.Charger)
-                .WithMany(c => c.ChargerLogs)
-                .HasForeignKey(x => x.ChargerId)
-                .OnDelete(DeleteBehavior.Cascade);
+             .WithMany(c => c.ChargerLogs)
+             .HasForeignKey(x => x.ChargerId)
+             .OnDelete(DeleteBehavior.Cascade);
 
             b.Property(x => x.SampleAt).IsRequired();
 
@@ -27,14 +27,15 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.Current).HasPrecision(12, 4);
             b.Property(x => x.PowerKw).HasPrecision(12, 4);
             b.Property(x => x.SessionEnergyKwh).HasPrecision(12, 4);
-            //b.Property(x => x.TemperatureC).HasPrecision(6, 2);
-
             b.Property(x => x.State).HasMaxLength(32);
             b.Property(x => x.ErrorCode).HasMaxLength(64);
 
-            b.HasIndex(x => new { x.ChargerId, x.SampleAt }).IsUnique(); // (chargerId, sampleAt) theo yêu cầu
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.HasIndex(x => new { x.ChargerId, x.SampleAt }).IsUnique();
+
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

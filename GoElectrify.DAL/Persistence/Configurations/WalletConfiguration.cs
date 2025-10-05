@@ -11,14 +11,34 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.ToTable("Wallets");
             b.HasKey(x => x.Id);
 
-            b.Property(x => x.Balance)
-                .HasPrecision(18, 2)
-                .IsRequired();
+            b.HasOne(x => x.User)
+             .WithOne(u => u.Wallet)
+             .HasForeignKey<Wallet>(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
 
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.HasIndex(x => x.UserId).IsUnique();
 
-            b.HasIndex(x => x.UserId).IsUnique(); // 1-1
+            b.Property(x => x.Balance).HasPrecision(18, 2).HasDefaultValue(0m).IsRequired();
+
+            b.HasMany(x => x.Transactions)
+             .WithOne(t => t.Wallet)
+             .HasForeignKey(t => t.WalletId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.WalletSubscriptions)
+             .WithOne(ws => ws.Wallet)
+             .HasForeignKey(ws => ws.WalletId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.TopupIntents)
+             .WithOne(ti => ti.Wallet)
+             .HasForeignKey(ti => ti.WalletId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

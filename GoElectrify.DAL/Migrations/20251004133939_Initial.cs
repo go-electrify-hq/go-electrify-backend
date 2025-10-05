@@ -19,11 +19,11 @@ namespace GoElectrify.DAL.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                    Name = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     MaxPowerKw = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -37,8 +37,8 @@ namespace GoElectrify.DAL.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -54,12 +54,12 @@ namespace GoElectrify.DAL.Migrations
                     Name = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
                     Address = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                    ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ImageUrl = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
                     Latitude = table.Column<decimal>(type: "decimal(10,6)", precision: 10, scale: 6, nullable: false),
                     Longitude = table.Column<decimal>(type: "decimal(10,6)", precision: 10, scale: 6, nullable: false),
                     Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -77,8 +77,8 @@ namespace GoElectrify.DAL.Migrations
                     Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     TotalKwh = table.Column<decimal>(type: "decimal(12,4)", precision: 12, scale: 4, nullable: false),
                     DurationDays = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -94,8 +94,8 @@ namespace GoElectrify.DAL.Migrations
                     ModelName = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                     MaxPowerKw = table.Column<int>(type: "int", nullable: false),
                     BatteryCapacityKwh = table.Column<decimal>(type: "decimal(12,4)", precision: 12, scale: 4, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -109,10 +109,11 @@ namespace GoElectrify.DAL.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     RoleId = table.Column<int>(type: "int", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    FullName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    FullName = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    AvatarUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -137,8 +138,8 @@ namespace GoElectrify.DAL.Migrations
                     PowerKw = table.Column<int>(type: "int", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
                     PricePerKwh = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -155,7 +156,7 @@ namespace GoElectrify.DAL.Migrations
                         column: x => x.StationId,
                         principalTable: "Stations",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -183,6 +184,54 @@ namespace GoElectrify.DAL.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Bookings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    StationId = table.Column<int>(type: "int", nullable: false),
+                    ConnectorTypeId = table.Column<int>(type: "int", nullable: false),
+                    VehicleModelId = table.Column<int>(type: "int", nullable: false),
+                    ScheduledStart = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    InitialSoc = table.Column<int>(type: "int", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false, defaultValue: "PENDING"),
+                    Code = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    EstimatedCost = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Bookings", x => x.Id);
+                    table.CheckConstraint("CK_Bookings_Status_UPPER", "Status = UPPER(Status)");
+                    table.ForeignKey(
+                        name: "FK_Bookings_ConnectorTypes_ConnectorTypeId",
+                        column: x => x.ConnectorTypeId,
+                        principalTable: "ConnectorTypes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Bookings_Stations_StationId",
+                        column: x => x.StationId,
+                        principalTable: "Stations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Bookings_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Bookings_VehicleModels_VehicleModelId",
+                        column: x => x.VehicleModelId,
+                        principalTable: "VehicleModels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ExternalLogins",
                 columns: table => new
                 {
@@ -191,9 +240,8 @@ namespace GoElectrify.DAL.Migrations
                     UserId = table.Column<int>(type: "int", nullable: false),
                     Provider = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
                     ProviderUserId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -216,8 +264,8 @@ namespace GoElectrify.DAL.Migrations
                     TokenHash = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                     ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     RevokedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -241,8 +289,8 @@ namespace GoElectrify.DAL.Migrations
                     RevokedReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     AssignedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     RevokedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -258,7 +306,7 @@ namespace GoElectrify.DAL.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -268,9 +316,9 @@ namespace GoElectrify.DAL.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: false),
-                    Balance = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Balance = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -281,47 +329,6 @@ namespace GoElectrify.DAL.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Bookings",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserId = table.Column<int>(type: "int", nullable: false),
-                    StationId = table.Column<int>(type: "int", nullable: false),
-                    ChargerId = table.Column<int>(type: "int", nullable: true),
-                    StartAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    Code = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    EstimatedCost = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Bookings", x => x.Id);
-                    table.CheckConstraint("CK_Bookings_Status_UPPER", "Status = UPPER(Status)");
-                    table.ForeignKey(
-                        name: "FK_Bookings_Chargers_ChargerId",
-                        column: x => x.ChargerId,
-                        principalTable: "Chargers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Bookings_Stations_StationId",
-                        column: x => x.StationId,
-                        principalTable: "Stations",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Bookings_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -339,8 +346,8 @@ namespace GoElectrify.DAL.Migrations
                     SocPercent = table.Column<int>(type: "int", nullable: true),
                     State = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true),
                     ErrorCode = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -354,6 +361,53 @@ namespace GoElectrify.DAL.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ChargingSessions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    BookingId = table.Column<int>(type: "int", nullable: true),
+                    ChargerId = table.Column<int>(type: "int", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EndedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DurationMinutes = table.Column<int>(type: "int", nullable: false),
+                    SocStart = table.Column<int>(type: "int", nullable: false),
+                    SocEnd = table.Column<int>(type: "int", nullable: true),
+                    ParkingMinutes = table.Column<int>(type: "int", nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false, defaultValue: "RUNNING"),
+                    EnergyKwh = table.Column<decimal>(type: "decimal(12,4)", precision: 12, scale: 4, nullable: false),
+                    AvgPowerKw = table.Column<decimal>(type: "decimal(12,4)", precision: 12, scale: 4, nullable: true),
+                    Cost = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ChargingSessions", x => x.Id);
+                    table.CheckConstraint("CK_ChargingSessions_AvgPower_NonNegative", "[AvgPowerKw] IS NULL OR [AvgPowerKw] >= 0");
+                    table.CheckConstraint("CK_ChargingSessions_Cost_NonNegative", "[Cost] IS NULL OR [Cost] >= 0");
+                    table.CheckConstraint("CK_ChargingSessions_Duration_NonNegative", "[DurationMinutes] >= 0");
+                    table.CheckConstraint("CK_ChargingSessions_Energy_NonNegative", "[EnergyKwh] >= 0");
+                    table.CheckConstraint("CK_ChargingSessions_Parking_NonNegative", "[ParkingMinutes] IS NULL OR [ParkingMinutes] >= 0");
+                    table.CheckConstraint("CK_ChargingSessions_SOC_Range", "[SocStart] BETWEEN 0 AND 100 AND ([SocEnd] IS NULL OR [SocEnd] BETWEEN 0 AND 100)");
+                    table.CheckConstraint("CK_ChargingSessions_Status_Allowed", "Status IN ('RUNNING','STOPPED','COMPLETED','FAILED')");
+                    table.CheckConstraint("CK_ChargingSessions_Status_UPPER", "Status = UPPER(Status)");
+                    table.CheckConstraint("CK_ChargingSessions_Timespan", "[EndedAt] IS NULL OR [EndedAt] >= [StartedAt]");
+                    table.ForeignKey(
+                        name: "FK_ChargingSessions_Bookings_BookingId",
+                        column: x => x.BookingId,
+                        principalTable: "Bookings",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_ChargingSessions_Chargers_ChargerId",
+                        column: x => x.ChargerId,
+                        principalTable: "Chargers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Incidents",
                 columns: table => new
                 {
@@ -361,25 +415,30 @@ namespace GoElectrify.DAL.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     StationId = table.Column<int>(type: "int", nullable: false),
                     ChargerId = table.Column<int>(type: "int", nullable: true),
-                    ReportedByUserId = table.Column<int>(type: "int", nullable: false),
+                    ReportedByStationStaffId = table.Column<int>(type: "int", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true),
-                    Severity = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
+                    Priority = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false, defaultValue: "OPEN"),
+                    Response = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
                     ReportedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ResolvedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Incidents", x => x.Id);
-                    table.CheckConstraint("CK_Incidents_Severity_UPPER", "Severity = UPPER(Severity)");
                     table.CheckConstraint("CK_Incidents_Status_UPPER", "Status = UPPER(Status)");
                     table.ForeignKey(
                         name: "FK_Incidents_Chargers_ChargerId",
                         column: x => x.ChargerId,
                         principalTable: "Chargers",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Incidents_StationStaff_ReportedByStationStaffId",
+                        column: x => x.ReportedByStationStaffId,
+                        principalTable: "StationStaff",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
@@ -387,13 +446,7 @@ namespace GoElectrify.DAL.Migrations
                         column: x => x.StationId,
                         principalTable: "Stations",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Incidents_Users_ReportedByUserId",
-                        column: x => x.ReportedByUserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -403,20 +456,22 @@ namespace GoElectrify.DAL.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     WalletId = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Provider = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    ProviderRef = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
-                    QrContent = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
+                    ProviderRef = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    QrContent = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     RawWebhook = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_TopupIntents", x => x.Id);
+                    table.CheckConstraint("CK_TopupIntents_Amount_NonNegative", "[Amount] >= 0");
+                    table.CheckConstraint("CK_TopupIntents_Status_UPPER", "Status = UPPER(Status)");
                     table.ForeignKey(
                         name: "FK_TopupIntents_Wallets_WalletId",
                         column: x => x.WalletId,
@@ -433,16 +488,18 @@ namespace GoElectrify.DAL.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     WalletId = table.Column<int>(type: "int", nullable: false),
                     SubscriptionId = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    RemainingKwh = table.Column<decimal>(type: "decimal(12,4)", precision: 12, scale: 4, nullable: false),
-                    StartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false, defaultValue: "ACTIVE"),
+                    RemainingKwh = table.Column<decimal>(type: "decimal(12,4)", precision: 12, scale: 4, nullable: false, defaultValue: 0m),
+                    StartDate = table.Column<DateTime>(type: "date", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "date", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_WalletSubscriptions", x => x.Id);
+                    table.CheckConstraint("CK_WalletSubscriptions_DateRange", "[EndDate] >= [StartDate]");
+                    table.CheckConstraint("CK_WalletSubscriptions_RemainingKwh_NonNegative", "[RemainingKwh] >= 0");
                     table.CheckConstraint("CK_WalletSubscriptions_Status_UPPER", "Status = UPPER(Status)");
                     table.ForeignKey(
                         name: "FK_WalletSubscriptions_Subscriptions_SubscriptionId",
@@ -459,54 +516,6 @@ namespace GoElectrify.DAL.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ChargingSessions",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserId = table.Column<int>(type: "int", nullable: false),
-                    StationId = table.Column<int>(type: "int", nullable: false),
-                    ChargerId = table.Column<int>(type: "int", nullable: false),
-                    BookingId = table.Column<int>(type: "int", nullable: true),
-                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    EnergyKwh = table.Column<decimal>(type: "decimal(12,4)", precision: 12, scale: 4, nullable: false),
-                    AvgPowerKw = table.Column<decimal>(type: "decimal(12,4)", precision: 12, scale: 4, nullable: true),
-                    Cost = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ChargingSessions", x => x.Id);
-                    table.CheckConstraint("CK_ChargingSessions_Status_UPPER", "Status = UPPER(Status)");
-                    table.ForeignKey(
-                        name: "FK_ChargingSessions_Bookings_BookingId",
-                        column: x => x.BookingId,
-                        principalTable: "Bookings",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_ChargingSessions_Chargers_ChargerId",
-                        column: x => x.ChargerId,
-                        principalTable: "Chargers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ChargingSessions_Stations_StationId",
-                        column: x => x.StationId,
-                        principalTable: "Stations",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ChargingSessions_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Transactions",
                 columns: table => new
                 {
@@ -518,12 +527,13 @@ namespace GoElectrify.DAL.Migrations
                     Type = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
                     Status = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
                     Note = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Transactions", x => x.Id);
+                    table.CheckConstraint("CK_Transactions_Amount_NonNegative", "[Amount] >= 0");
                     table.CheckConstraint("CK_Transactions_Status_UPPER", "Status = UPPER(Status)");
                     table.CheckConstraint("CK_Transactions_Type_UPPER", "Type = UPPER(Type)");
                     table.ForeignKey(
@@ -531,7 +541,7 @@ namespace GoElectrify.DAL.Migrations
                         column: x => x.ChargingSessionId,
                         principalTable: "ChargingSessions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Transactions_Wallets_WalletId",
                         column: x => x.WalletId,
@@ -633,25 +643,24 @@ namespace GoElectrify.DAL.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_ChargerId",
+                name: "IX_Bookings_ConnectorTypeId",
                 table: "Bookings",
-                column: "ChargerId");
+                column: "ConnectorTypeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_Code",
+                name: "IX_Bookings_StationId_ScheduledStart",
                 table: "Bookings",
-                column: "Code",
-                unique: true);
+                columns: new[] { "StationId", "ScheduledStart" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_StationId_StartAt",
+                name: "IX_Bookings_UserId_ScheduledStart",
                 table: "Bookings",
-                columns: new[] { "StationId", "StartAt" });
+                columns: new[] { "UserId", "ScheduledStart" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_UserId_StartAt",
+                name: "IX_Bookings_VehicleModelId",
                 table: "Bookings",
-                columns: new[] { "UserId", "StartAt" });
+                column: "VehicleModelId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ChargerLogs_ChargerId_SampleAt",
@@ -660,25 +669,15 @@ namespace GoElectrify.DAL.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Chargers_Code",
-                table: "Chargers",
-                column: "Code",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Chargers_ConnectorTypeId",
                 table: "Chargers",
                 column: "ConnectorTypeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Chargers_StationId",
+                name: "IX_Chargers_StationId_Code",
                 table: "Chargers",
-                column: "StationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Chargers_StationId_Status",
-                table: "Chargers",
-                columns: new[] { "StationId", "Status" });
+                columns: new[] { "StationId", "Code" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ChargingSessions_BookingId",
@@ -688,19 +687,14 @@ namespace GoElectrify.DAL.Migrations
                 filter: "[BookingId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChargingSessions_ChargerId",
+                name: "IX_ChargingSessions_ChargerId_StartedAt",
                 table: "ChargingSessions",
-                column: "ChargerId");
+                columns: new[] { "ChargerId", "StartedAt" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ChargingSessions_StationId_StartedAt",
+                name: "IX_ChargingSessions_Status",
                 table: "ChargingSessions",
-                columns: new[] { "StationId", "StartedAt" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ChargingSessions_UserId_StartedAt",
-                table: "ChargingSessions",
-                columns: new[] { "UserId", "StartedAt" });
+                column: "Status");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ConnectorTypes_Name",
@@ -725,19 +719,14 @@ namespace GoElectrify.DAL.Migrations
                 column: "ChargerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Incidents_ReportedByUserId",
+                name: "IX_Incidents_ReportedByStationStaffId",
                 table: "Incidents",
-                column: "ReportedByUserId");
+                column: "ReportedByStationStaffId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Incidents_StationId_ReportedAt",
+                name: "IX_Incidents_StationId_Status",
                 table: "Incidents",
-                columns: new[] { "StationId", "ReportedAt" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_RefreshTokens_ExpiresAt",
-                table: "RefreshTokens",
-                column: "ExpiresAt");
+                columns: new[] { "StationId", "Status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_RefreshTokens_UserId_TokenHash",
@@ -757,20 +746,20 @@ namespace GoElectrify.DAL.Migrations
                 columns: new[] { "Latitude", "Longitude" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Stations_Status",
+                name: "IX_Stations_Status_Name",
                 table: "Stations",
-                column: "Status");
+                columns: new[] { "Status", "Name" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_StationStaff_StationId_UserId",
+                name: "IX_StationStaff_StationId",
                 table: "StationStaff",
-                columns: new[] { "StationId", "UserId" },
+                column: "StationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_StationStaff_UserId_StationId",
+                table: "StationStaff",
+                columns: new[] { "UserId", "StationId" },
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StationStaff_UserId",
-                table: "StationStaff",
-                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Subscriptions_Name",
@@ -779,25 +768,9 @@ namespace GoElectrify.DAL.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_TopupIntents_CreatedAt",
+                name: "IX_TopupIntents_WalletId_CreatedAt",
                 table: "TopupIntents",
-                column: "CreatedAt");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TopupIntents_Provider_ProviderRef",
-                table: "TopupIntents",
-                columns: new[] { "Provider", "ProviderRef" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TopupIntents_Status",
-                table: "TopupIntents",
-                column: "Status");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TopupIntents_WalletId",
-                table: "TopupIntents",
-                column: "WalletId");
+                columns: new[] { "WalletId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Transactions_ChargingSessionId",
@@ -838,11 +811,6 @@ namespace GoElectrify.DAL.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_WalletSubscriptions_EndDate",
-                table: "WalletSubscriptions",
-                column: "EndDate");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_WalletSubscriptions_SubscriptionId",
                 table: "WalletSubscriptions",
                 column: "SubscriptionId");
@@ -853,9 +821,14 @@ namespace GoElectrify.DAL.Migrations
                 column: "WalletId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_WalletSubscriptions_WalletId_Status",
+                name: "IX_WalletSubscriptions_WalletId_EndDate",
                 table: "WalletSubscriptions",
-                columns: new[] { "WalletId", "Status" });
+                columns: new[] { "WalletId", "EndDate" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WalletSubscriptions_WalletId_StartDate",
+                table: "WalletSubscriptions",
+                columns: new[] { "WalletId", "StartDate" });
         }
 
         /// <inheritdoc />
@@ -874,9 +847,6 @@ namespace GoElectrify.DAL.Migrations
                 name: "RefreshTokens");
 
             migrationBuilder.DropTable(
-                name: "StationStaff");
-
-            migrationBuilder.DropTable(
                 name: "TopupIntents");
 
             migrationBuilder.DropTable(
@@ -889,10 +859,10 @@ namespace GoElectrify.DAL.Migrations
                 name: "WalletSubscriptions");
 
             migrationBuilder.DropTable(
-                name: "ChargingSessions");
+                name: "StationStaff");
 
             migrationBuilder.DropTable(
-                name: "VehicleModels");
+                name: "ChargingSessions");
 
             migrationBuilder.DropTable(
                 name: "Subscriptions");
@@ -908,6 +878,9 @@ namespace GoElectrify.DAL.Migrations
 
             migrationBuilder.DropTable(
                 name: "Users");
+
+            migrationBuilder.DropTable(
+                name: "VehicleModels");
 
             migrationBuilder.DropTable(
                 name: "ConnectorTypes");

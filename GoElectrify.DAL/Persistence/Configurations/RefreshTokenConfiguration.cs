@@ -13,16 +13,19 @@ namespace GoElectrify.DAL.Persistence.Configurations
 
             b.Property(x => x.TokenHash).HasMaxLength(128).IsRequired();
             b.Property(x => x.ExpiresAt).IsRequired();
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.Property(x => x.RevokedAt);
 
             b.HasOne(x => x.User)
-                .WithMany(u => u.RefreshTokens)
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+             .WithMany(u => u.RefreshTokens)
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
 
             b.HasIndex(x => new { x.UserId, x.TokenHash }).IsUnique();
-            b.HasIndex(x => x.ExpiresAt);
+
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

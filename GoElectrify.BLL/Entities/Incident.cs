@@ -14,14 +14,15 @@ namespace GoElectrify.BLL.Entities
         public int? ChargerId { get; set; }               // optional: sự cố ở cấp trạm hoặc trụ
         public Charger? Charger { get; set; }
 
-        public int ReportedByUserId { get; set; }         // thường là Staff
-        public User ReportedByUser { get; set; } = default!;
+        public int ReportedByStationStaffId { get; set; }         // thường là Staff
+        public StationStaff ReportedBy { get; set; } = default!;
 
         public string Title { get; set; } = default!;
         public string? Description { get; set; }
 
-        public string Severity { get; set; } = "LOW";     // LOW | MEDIUM | HIGH | CRITICAL
+        public string Priority { get; set; } = "LOW";     // LOW | MEDIUM | HIGH | CRITICAL
         public string Status { get; set; } = "OPEN";      // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+        public string? Response { get; set; }
 
         public DateTime ReportedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ResolvedAt { get; set; }

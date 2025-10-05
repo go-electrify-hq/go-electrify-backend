@@ -11,23 +11,19 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.ToTable("Users");
             b.HasKey(x => x.Id);
 
-            b.Property(x => x.Email).HasMaxLength(255).IsRequired();
-            b.Property(x => x.FullName).HasMaxLength(255);
+            b.Property(x => x.Email).HasMaxLength(256).IsRequired();
             b.HasIndex(x => x.Email).IsUnique();
-
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.Property(x => x.FullName).HasMaxLength(128);
 
             b.HasOne(x => x.Role)
-                .WithMany(r => r.Users)
-                .HasForeignKey(x => x.RoleId)
-                .OnDelete(DeleteBehavior.Restrict);
+             .WithMany() // hoặc .WithMany(r => r.Users) nếu đã khai báo
+             .HasForeignKey(x => x.RoleId)
+             .OnDelete(DeleteBehavior.Restrict);
 
-            // 1-1 User <-> Wallet
-            b.HasOne(x => x.Wallet)
-                .WithOne(w => w.User)
-                .HasForeignKey<Wallet>(w => w.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

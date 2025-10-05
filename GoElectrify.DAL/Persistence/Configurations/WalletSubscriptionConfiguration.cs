@@ -16,26 +16,34 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.ToTable("WalletSubscriptions");
             b.HasKey(x => x.Id);
 
-            b.Property(x => x.Status).HasMaxLength(32).IsRequired();
+            b.Property(x => x.Status).HasMaxLength(32).HasDefaultValue("ACTIVE").IsRequired();
             b.ToTable(t => t.HasCheckConstraint("CK_WalletSubscriptions_Status_UPPER", "Status = UPPER(Status)"));
 
-            b.Property(x => x.RemainingKwh).HasPrecision(12, 4).IsRequired();
-            b.Property(x => x.StartDate).IsRequired();
-            b.Property(x => x.EndDate).IsRequired();
+            b.Property(x => x.RemainingKwh).HasPrecision(12, 4).HasDefaultValue(0m).IsRequired();
+
+            b.Property(x => x.StartDate).HasColumnType("date").IsRequired();
+            b.Property(x => x.EndDate).HasColumnType("date").IsRequired();
+            b.ToTable(t => t.HasCheckConstraint("CK_WalletSubscriptions_DateRange", "[EndDate] >= [StartDate]"));
+            b.ToTable(t => t.HasCheckConstraint("CK_WalletSubscriptions_RemainingKwh_NonNegative", "[RemainingKwh] >= 0"));
 
             b.HasOne(x => x.Wallet)
-                .WithMany()
-                .HasForeignKey(x => x.WalletId)
-                .OnDelete(DeleteBehavior.Cascade);
+             .WithMany(w => w.WalletSubscriptions)
+             .HasForeignKey(x => x.WalletId)
+             .OnDelete(DeleteBehavior.Cascade);
 
             b.HasOne(x => x.Subscription)
-                .WithMany(s => s.WalletSubscriptions)
-                .HasForeignKey(x => x.SubscriptionId)
-                .OnDelete(DeleteBehavior.Restrict);
+             .WithMany(s => s.WalletSubscriptions)
+             .HasForeignKey(x => x.SubscriptionId)
+             .OnDelete(DeleteBehavior.Restrict);
 
             b.HasIndex(x => x.WalletId);
-            b.HasIndex(x => new { x.WalletId, x.Status });
-            b.HasIndex(x => x.EndDate);
+            b.HasIndex(x => new { x.WalletId, x.StartDate });
+            b.HasIndex(x => new { x.WalletId, x.EndDate });
+
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

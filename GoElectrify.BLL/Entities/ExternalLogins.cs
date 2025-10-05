@@ -13,6 +13,5 @@ namespace GoElectrify.BLL.Entities
 
         public string Provider { get; set; } = default!;       // "GOOGLE"
         public string ProviderUserId { get; set; } = default!; // Google "sub"
-        public string? Email { get; set; }                     // email từ provider (có thể thay đổi theo thời gian)
     }
 }

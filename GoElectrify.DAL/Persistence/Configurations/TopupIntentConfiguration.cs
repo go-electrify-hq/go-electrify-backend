@@ -16,26 +16,25 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.ToTable("TopupIntents");
             b.HasKey(x => x.Id);
 
-            b.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            b.Property(x => x.Amount).HasPrecision(18, 2).IsRequired();
             b.Property(x => x.Provider).HasMaxLength(32).IsRequired();
-            b.Property(x => x.ProviderRef).HasMaxLength(64).IsRequired();
-            b.Property(x => x.Status).HasMaxLength(16).IsRequired();
+            b.Property(x => x.Status).HasMaxLength(32).IsRequired();
+            b.Property(x => x.ProviderRef).HasMaxLength(128);
 
-            b.Property(x => x.QrContent).HasMaxLength(1024);
-            b.Property(x => x.RawWebhook).HasColumnType("nvarchar(max)");
-
-            b.Property(x => x.CreatedAt).IsRequired();
-            b.Property(x => x.UpdatedAt).IsRequired();
+            b.ToTable(t => t.HasCheckConstraint("CK_TopupIntents_Status_UPPER", "Status = UPPER(Status)"));
+            b.ToTable(t => t.HasCheckConstraint("CK_TopupIntents_Amount_NonNegative", "[Amount] >= 0"));
 
             b.HasOne(x => x.Wallet)
-                .WithMany() // không cần collection ở Wallet
-                .HasForeignKey(x => x.WalletId)
-                .OnDelete(DeleteBehavior.Cascade);
+             .WithMany(w => w.TopupIntents)
+             .HasForeignKey(x => x.WalletId)
+             .OnDelete(DeleteBehavior.Cascade);
 
-            b.HasIndex(x => x.WalletId);
-            b.HasIndex(x => new { x.Provider, x.ProviderRef }).IsUnique();
-            b.HasIndex(x => x.Status);
-            b.HasIndex(x => x.CreatedAt);
+            b.HasIndex(x => new { x.WalletId, x.CreatedAt });
+
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

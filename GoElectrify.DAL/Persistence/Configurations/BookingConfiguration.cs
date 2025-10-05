@@ -16,38 +16,45 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.ToTable("Bookings");
             b.HasKey(x => x.Id);
 
-            b.Property(x => x.Code).HasMaxLength(64).IsRequired();
-            b.HasIndex(x => x.Code).IsUnique();
-
-            b.Property(x => x.Status).HasMaxLength(32).IsRequired();
+            b.Property(x => x.Status).HasMaxLength(32).HasDefaultValue("PENDING").IsRequired();
             b.ToTable(t => t.HasCheckConstraint("CK_Bookings_Status_UPPER", "Status = UPPER(Status)"));
 
-            b.Property(x => x.EstimatedCost).HasPrecision(18, 2);
-            b.Property(x => x.StartAt).IsRequired();
-            b.Property(x => x.EndAt).IsRequired();
+            b.Property(x => x.ScheduledStart).IsRequired();
 
             b.HasOne(x => x.User)
-                .WithMany()
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+             .WithMany(u => u.Bookings)
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
 
             b.HasOne(x => x.Station)
-                .WithMany()
-                .HasForeignKey(x => x.StationId)
-                .OnDelete(DeleteBehavior.Restrict);
+             .WithMany(s => s.Bookings)
+             .HasForeignKey(x => x.StationId)
+             .OnDelete(DeleteBehavior.Restrict);
 
-            b.HasOne(x => x.Charger)
-                .WithMany()
-                .HasForeignKey(x => x.ChargerId)
-                .OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(x => x.ConnectorType)
+             .WithMany(ct => ct.Bookings)
+             .HasForeignKey(x => x.ConnectorTypeId)
+             .OnDelete(DeleteBehavior.Restrict);
 
-            // 1-1 Booking <-> ChargingSession (Fk ở ChargingSession)
+            b.HasOne(x => x.VehicleModel)
+             .WithMany(vm => vm.Bookings)
+             .HasForeignKey(x => x.VehicleModelId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.Property(x => x.EstimatedCost)
+            .HasPrecision(18, 2);
+            // 1-1 Booking <-> ChargingSession (FK nằm ở ChargingSession)
             b.HasOne(x => x.ChargingSession)
-                .WithOne(cs => cs.Booking)
-                .HasForeignKey<ChargingSession>(cs => cs.BookingId);
+             .WithOne(cs => cs.Booking)
+             .HasForeignKey<ChargingSession>(cs => cs.BookingId);
 
-            b.HasIndex(x => new { x.UserId, x.StartAt });
-            b.HasIndex(x => new { x.StationId, x.StartAt });
+            b.HasIndex(x => new { x.UserId, x.ScheduledStart });
+            b.HasIndex(x => new { x.StationId, x.ScheduledStart });
+
+            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
+             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

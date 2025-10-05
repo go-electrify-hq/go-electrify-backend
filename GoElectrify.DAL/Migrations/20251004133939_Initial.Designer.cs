@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251001200655_Initial")]
+    [Migration("20251004133939_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -33,25 +33,26 @@ namespace GoElectrify.DAL.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("ChargerId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ConnectorTypeId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("EndAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<decimal?>("EstimatedCost")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("StartAt")
+                    b.Property<int>("InitialSoc")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ScheduledStart")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("StationId")
@@ -59,25 +60,31 @@ namespace GoElectrify.DAL.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("PENDING");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<int>("VehicleModelId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("ChargerId");
+                    b.HasIndex("ConnectorTypeId");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
+                    b.HasIndex("VehicleModelId");
 
-                    b.HasIndex("StationId", "StartAt");
+                    b.HasIndex("StationId", "ScheduledStart");
 
-                    b.HasIndex("UserId", "StartAt");
+                    b.HasIndex("UserId", "ScheduledStart");
 
                     b.ToTable("Bookings", null, t =>
                         {
@@ -102,7 +109,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("PowerKw")
                         .HasColumnType("int");
@@ -120,18 +129,16 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
-
                     b.HasIndex("ConnectorTypeId");
 
-                    b.HasIndex("StationId");
-
-                    b.HasIndex("StationId", "Status");
+                    b.HasIndex("StationId", "Code")
+                        .IsUnique();
 
                     b.ToTable("Chargers", null, t =>
                         {
@@ -273,7 +280,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<decimal?>("Current")
                         .HasPrecision(12, 4)
@@ -302,7 +311,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<decimal?>("Voltage")
                         .HasPrecision(12, 4)
@@ -339,7 +350,12 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("EndedAt")
                         .HasColumnType("datetime2");
@@ -348,22 +364,29 @@ namespace GoElectrify.DAL.Migrations
                         .HasPrecision(12, 4)
                         .HasColumnType("decimal(12,4)");
 
+                    b.Property<int?>("ParkingMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SocEnd")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SocStart")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("StationId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("RUNNING");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
@@ -371,15 +394,29 @@ namespace GoElectrify.DAL.Migrations
                         .IsUnique()
                         .HasFilter("[BookingId] IS NOT NULL");
 
-                    b.HasIndex("ChargerId");
+                    b.HasIndex("Status");
 
-                    b.HasIndex("StationId", "StartedAt");
-
-                    b.HasIndex("UserId", "StartedAt");
+                    b.HasIndex("ChargerId", "StartedAt");
 
                     b.ToTable("ChargingSessions", null, t =>
                         {
+                            t.HasCheckConstraint("CK_ChargingSessions_AvgPower_NonNegative", "[AvgPowerKw] IS NULL OR [AvgPowerKw] >= 0");
+
+                            t.HasCheckConstraint("CK_ChargingSessions_Cost_NonNegative", "[Cost] IS NULL OR [Cost] >= 0");
+
+                            t.HasCheckConstraint("CK_ChargingSessions_Duration_NonNegative", "[DurationMinutes] >= 0");
+
+                            t.HasCheckConstraint("CK_ChargingSessions_Energy_NonNegative", "[EnergyKwh] >= 0");
+
+                            t.HasCheckConstraint("CK_ChargingSessions_Parking_NonNegative", "[ParkingMinutes] IS NULL OR [ParkingMinutes] >= 0");
+
+                            t.HasCheckConstraint("CK_ChargingSessions_SOC_Range", "[SocStart] BETWEEN 0 AND 100 AND ([SocEnd] IS NULL OR [SocEnd] BETWEEN 0 AND 100)");
+
+                            t.HasCheckConstraint("CK_ChargingSessions_Status_Allowed", "Status IN ('RUNNING','STOPPED','COMPLETED','FAILED')");
+
                             t.HasCheckConstraint("CK_ChargingSessions_Status_UPPER", "Status = UPPER(Status)");
+
+                            t.HasCheckConstraint("CK_ChargingSessions_Timespan", "[EndedAt] IS NULL OR [EndedAt] >= [StartedAt]");
                         });
                 });
 
@@ -392,22 +429,26 @@ namespace GoElectrify.DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<int>("MaxPowerKw")
                         .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
@@ -473,11 +514,9 @@ namespace GoElectrify.DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("Provider")
                         .IsRequired()
@@ -490,7 +529,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -517,33 +558,41 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.Property<DateTime>("ReportedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("ReportedByUserId")
+                    b.Property<int>("ReportedByStationStaffId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("ResolvedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Severity")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                    b.Property<string>("Response")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
 
                     b.Property<int>("StationId")
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("OPEN");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -551,20 +600,20 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ChargerId");
 
-                    b.HasIndex("ReportedByUserId");
+                    b.HasIndex("ReportedByStationStaffId");
 
-                    b.HasIndex("StationId", "ReportedAt");
+                    b.HasIndex("StationId", "Status");
 
                     b.ToTable("Incidents", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Incidents_Severity_UPPER", "Severity = UPPER(Severity)");
-
                             t.HasCheckConstraint("CK_Incidents_Status_UPPER", "Status = UPPER(Status)");
                         });
                 });
@@ -578,7 +627,9 @@ namespace GoElectrify.DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
@@ -592,14 +643,14 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExpiresAt");
 
                     b.HasIndex("UserId", "TokenHash")
                         .IsUnique();
@@ -616,7 +667,9 @@ namespace GoElectrify.DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -624,7 +677,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(64)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
@@ -671,14 +726,17 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1024)
                         .HasColumnType("nvarchar(1024)");
 
                     b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
 
                     b.Property<decimal>("Latitude")
                         .HasPrecision(10, 6)
@@ -699,13 +757,15 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Status");
-
                     b.HasIndex("Latitude", "Longitude");
+
+                    b.HasIndex("Status", "Name");
 
                     b.ToTable("Stations", null, t =>
                         {
@@ -763,7 +823,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("datetime2");
@@ -775,16 +837,18 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("StationId");
 
-                    b.HasIndex("StationId", "UserId")
+                    b.HasIndex("UserId", "StationId")
                         .IsUnique();
 
                     b.ToTable("StationStaff", (string)null);
@@ -799,7 +863,9 @@ namespace GoElectrify.DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("DurationDays")
                         .HasColumnType("int");
@@ -818,7 +884,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("decimal(12,4)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
@@ -879,13 +947,16 @@ namespace GoElectrify.DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("datetime2");
@@ -897,39 +968,38 @@ namespace GoElectrify.DAL.Migrations
 
                     b.Property<string>("ProviderRef")
                         .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("QrContent")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RawWebhook")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("WalletId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedAt");
+                    b.HasIndex("WalletId", "CreatedAt");
 
-                    b.HasIndex("Status");
+                    b.ToTable("TopupIntents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TopupIntents_Amount_NonNegative", "[Amount] >= 0");
 
-                    b.HasIndex("WalletId");
-
-                    b.HasIndex("Provider", "ProviderRef")
-                        .IsUnique();
-
-                    b.ToTable("TopupIntents", (string)null);
+                            t.HasCheckConstraint("CK_TopupIntents_Status_UPPER", "Status = UPPER(Status)");
+                        });
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Transaction", b =>
@@ -948,7 +1018,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("Note")
                         .HasMaxLength(1024)
@@ -965,7 +1037,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("WalletId")
                         .HasColumnType("int");
@@ -978,6 +1052,8 @@ namespace GoElectrify.DAL.Migrations
 
                     b.ToTable("Transactions", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Transactions_Amount_NonNegative", "[Amount] >= 0");
+
                             t.HasCheckConstraint("CK_Transactions_Status_UPPER", "Status = UPPER(Status)");
 
                             t.HasCheckConstraint("CK_Transactions_Type_UPPER", "Type = UPPER(Type)");
@@ -992,23 +1068,30 @@ namespace GoElectrify.DAL.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("FullName")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<int>("RoleId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
@@ -1033,7 +1116,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("decimal(12,4)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("MaxPowerKw")
                         .HasColumnType("int");
@@ -1044,7 +1129,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.HasKey("Id");
 
@@ -1220,14 +1307,20 @@ namespace GoElectrify.DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Balance")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -1249,72 +1342,93 @@ namespace GoElectrify.DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("date");
 
                     b.Property<decimal>("RemainingKwh")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("decimal(12,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("date");
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("ACTIVE");
 
                     b.Property<int>("SubscriptionId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<int>("WalletId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EndDate");
-
                     b.HasIndex("SubscriptionId");
 
                     b.HasIndex("WalletId");
 
-                    b.HasIndex("WalletId", "Status");
+                    b.HasIndex("WalletId", "EndDate");
+
+                    b.HasIndex("WalletId", "StartDate");
 
                     b.ToTable("WalletSubscriptions", null, t =>
                         {
+                            t.HasCheckConstraint("CK_WalletSubscriptions_DateRange", "[EndDate] >= [StartDate]");
+
+                            t.HasCheckConstraint("CK_WalletSubscriptions_RemainingKwh_NonNegative", "[RemainingKwh] >= 0");
+
                             t.HasCheckConstraint("CK_WalletSubscriptions_Status_UPPER", "Status = UPPER(Status)");
                         });
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Booking", b =>
                 {
-                    b.HasOne("GoElectrify.BLL.Entities.Charger", "Charger")
-                        .WithMany()
-                        .HasForeignKey("ChargerId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                    b.HasOne("GoElectrify.BLL.Entities.ConnectorType", "ConnectorType")
+                        .WithMany("Bookings")
+                        .HasForeignKey("ConnectorTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("GoElectrify.BLL.Entities.Station", "Station")
-                        .WithMany()
+                        .WithMany("Bookings")
                         .HasForeignKey("StationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("GoElectrify.BLL.Entities.User", "User")
-                        .WithMany()
+                        .WithMany("Bookings")
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GoElectrify.BLL.Entities.VehicleModel", "VehicleModel")
+                        .WithMany("Bookings")
+                        .HasForeignKey("VehicleModelId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Charger");
+                    b.Navigation("ConnectorType");
 
                     b.Navigation("Station");
 
                     b.Navigation("User");
+
+                    b.Navigation("VehicleModel");
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Charger", b =>
@@ -1328,7 +1442,7 @@ namespace GoElectrify.DAL.Migrations
                     b.HasOne("GoElectrify.BLL.Entities.Station", "Station")
                         .WithMany("Chargers")
                         .HasForeignKey("StationId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("ConnectorType");
@@ -1351,7 +1465,8 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.HasOne("GoElectrify.BLL.Entities.Booking", "Booking")
                         .WithOne("ChargingSession")
-                        .HasForeignKey("GoElectrify.BLL.Entities.ChargingSession", "BookingId");
+                        .HasForeignKey("GoElectrify.BLL.Entities.ChargingSession", "BookingId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("GoElectrify.BLL.Entities.Charger", "Charger")
                         .WithMany("ChargingSessions")
@@ -1359,25 +1474,9 @@ namespace GoElectrify.DAL.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("GoElectrify.BLL.Entities.Station", "Station")
-                        .WithMany()
-                        .HasForeignKey("StationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("GoElectrify.BLL.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Booking");
 
                     b.Navigation("Charger");
-
-                    b.Navigation("Station");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.ExternalLogin", b =>
@@ -1395,24 +1494,23 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.HasOne("GoElectrify.BLL.Entities.Charger", "Charger")
                         .WithMany()
-                        .HasForeignKey("ChargerId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("ChargerId");
 
-                    b.HasOne("GoElectrify.BLL.Entities.User", "ReportedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReportedByUserId")
+                    b.HasOne("GoElectrify.BLL.Entities.StationStaff", "ReportedBy")
+                        .WithMany("IncidentsReported")
+                        .HasForeignKey("ReportedByStationStaffId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("GoElectrify.BLL.Entities.Station", "Station")
-                        .WithMany()
+                        .WithMany("Incidents")
                         .HasForeignKey("StationId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Charger");
 
-                    b.Navigation("ReportedByUser");
+                    b.Navigation("ReportedBy");
 
                     b.Navigation("Station");
                 });
@@ -1437,9 +1535,9 @@ namespace GoElectrify.DAL.Migrations
                         .IsRequired();
 
                     b.HasOne("GoElectrify.BLL.Entities.User", "User")
-                        .WithMany()
+                        .WithMany("StationStaff")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Station");
@@ -1450,7 +1548,7 @@ namespace GoElectrify.DAL.Migrations
             modelBuilder.Entity("GoElectrify.BLL.Entities.TopupIntent", b =>
                 {
                     b.HasOne("GoElectrify.BLL.Entities.Wallet", "Wallet")
-                        .WithMany()
+                        .WithMany("TopupIntents")
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1463,10 +1561,10 @@ namespace GoElectrify.DAL.Migrations
                     b.HasOne("GoElectrify.BLL.Entities.ChargingSession", "ChargingSession")
                         .WithMany("Transactions")
                         .HasForeignKey("ChargingSessionId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("GoElectrify.BLL.Entities.Wallet", "Wallet")
-                        .WithMany()
+                        .WithMany("Transactions")
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1479,7 +1577,7 @@ namespace GoElectrify.DAL.Migrations
             modelBuilder.Entity("GoElectrify.BLL.Entities.User", b =>
                 {
                     b.HasOne("GoElectrify.BLL.Entities.Role", "Role")
-                        .WithMany("Users")
+                        .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1526,7 +1624,7 @@ namespace GoElectrify.DAL.Migrations
                         .IsRequired();
 
                     b.HasOne("GoElectrify.BLL.Entities.Wallet", "Wallet")
-                        .WithMany()
+                        .WithMany("WalletSubscriptions")
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1555,21 +1653,27 @@ namespace GoElectrify.DAL.Migrations
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.ConnectorType", b =>
                 {
+                    b.Navigation("Bookings");
+
                     b.Navigation("Chargers");
 
                     b.Navigation("VehicleModelConnectorTypes");
                 });
 
-            modelBuilder.Entity("GoElectrify.BLL.Entities.Role", b =>
-                {
-                    b.Navigation("Users");
-                });
-
             modelBuilder.Entity("GoElectrify.BLL.Entities.Station", b =>
                 {
+                    b.Navigation("Bookings");
+
                     b.Navigation("Chargers");
 
+                    b.Navigation("Incidents");
+
                     b.Navigation("StationStaff");
+                });
+
+            modelBuilder.Entity("GoElectrify.BLL.Entities.StationStaff", b =>
+                {
+                    b.Navigation("IncidentsReported");
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Subscription", b =>
@@ -1579,16 +1683,31 @@ namespace GoElectrify.DAL.Migrations
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.User", b =>
                 {
+                    b.Navigation("Bookings");
+
                     b.Navigation("ExternalLogins");
 
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("StationStaff");
 
                     b.Navigation("Wallet");
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.VehicleModel", b =>
                 {
+                    b.Navigation("Bookings");
+
                     b.Navigation("VehicleModelConnectorTypes");
+                });
+
+            modelBuilder.Entity("GoElectrify.BLL.Entities.Wallet", b =>
+                {
+                    b.Navigation("TopupIntents");
+
+                    b.Navigation("Transactions");
+
+                    b.Navigation("WalletSubscriptions");
                 });
 #pragma warning restore 612, 618
         }
