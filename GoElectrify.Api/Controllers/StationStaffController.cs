@@ -12,6 +12,7 @@ namespace GoElectrify.Api.Controllers
     {
         private readonly IStationStaffService _svc;
         public StationStaffController(IStationStaffService svc) => _svc = svc;
+
         // GET: chỉ trả staff ACTIVE (RevokedAt == null)
         [HttpGet]
         public async Task<IActionResult> List(int stationId, CancellationToken ct)
@@ -56,11 +57,17 @@ namespace GoElectrify.Api.Controllers
 
             try
             {
-                await _svc.DeleteAsync(stationId, userId, msg, ct);
-                return NoContent();
+                var result = await _svc.DeleteAsync(stationId, userId, msg, ct);
+                return Ok(result); // 200 OK + body JSON
             }
-            catch (KeyNotFoundException) { return NotFound(new { error = "Assignment not found." }); }
-            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { error = "Assignment not found." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
     }
 }
