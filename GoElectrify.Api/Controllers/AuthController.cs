@@ -23,8 +23,15 @@ namespace go_electrify_backend.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpDto dto, CancellationToken ct)
         {
-            var tokens = await auth.VerifyOtpAsync(dto.Email, dto.Otp, ct);
-            return Ok(tokens);
+            try
+            {
+                var tokens = await auth.VerifyOtpAsync(dto.Email, dto.Otp, ct);
+                return Ok(tokens);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         [HttpPost("logout")]
