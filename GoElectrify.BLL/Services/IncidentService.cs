@@ -12,7 +12,6 @@ namespace GoElectrify.BLL.Services
 {
     public class IncidentService(
         IStationRepository stationRepo,
-        IUserRepository userRepo,
         IStationStaffRepository staffRepo,
         IIncidentRepository repo) : IIncidentService
     {
@@ -22,24 +21,29 @@ namespace GoElectrify.BLL.Services
             var station = await stationRepo.GetByIdAsync(stationId);
             if (station == null) throw new KeyNotFoundException("Station not found.");
 
-            var user = await userRepo.GetByIdAsync(reporterUserId, ct);
-            if (user == null) throw new KeyNotFoundException("User not found.");
-
-            // yêu cầu Staff phải được assign vào station
-            var staff = await staffRepo.GetAsync(stationId, reporterUserId, ct);
-            if (staff == null || staff.RevokedAt != null)
+            // 2) User phải được assign (active) vào station
+            var assignment = await staffRepo.GetAsync(stationId, reporterUserId, ct);
+            if (assignment == null || assignment.RevokedAt != null)
                 throw new InvalidOperationException("You are not assigned to this station.");
 
             var now = DateTime.UtcNow;
 
+            var title = (dto.Title ?? string.Empty).Trim();
+            if (title.Length > 128) title = title[..128];
+
+            string? description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
+            if (description?.Length > 2048) description = description[..2048];
+
+            var priority = (dto.Severity ?? "LOW").Trim().ToUpperInvariant(); // LOW|MEDIUM|HIGH|CRITICAL
+
             var entity = new Incident
             {
                 StationId = stationId,
-                ChargerId = dto.ChargerId,
-                ReportedByStationStaffId  = reporterUserId,
-                Title = dto.Title.Trim(),
-                Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
-                Priority = (dto.Severity ?? "LOW").ToUpperInvariant(),
+                ChargerId = dto.ChargerId,                  // nếu bảng có FK, có thể thêm check tồn tại sau
+                ReportedByStationStaffId = assignment.Id,   
+                Title = title,
+                Description = description,
+                Priority = priority,    // schema của bạn dùng Priority (string)
                 Status = "OPEN",
                 ReportedAt = dto.ReportedAt ?? now,
                 CreatedAt = now,
@@ -55,10 +59,13 @@ namespace GoElectrify.BLL.Services
             var station = await stationRepo.GetByIdAsync(stationId);
             if (station == null) throw new KeyNotFoundException("Station not found.");
 
+            var statusUpper = query.Status?.Trim().ToUpperInvariant();
+            var priorityUpper = query.Severity?.Trim().ToUpperInvariant(); // DTO dùng "Severity", DB là "Priority"
+
             var list = await repo.ListByStationAsync(
                 stationId,
-                query.Status?.ToUpperInvariant(),
-                query.Severity?.ToUpperInvariant(),
+                statusUpper,
+                priorityUpper,
                 query.FromReportedAt,
                 query.ToReportedAt,
                 ct);
@@ -80,21 +87,18 @@ namespace GoElectrify.BLL.Services
             if (incident == null || incident.StationId != stationId)
                 throw new KeyNotFoundException("Incident not found.");
 
-            // chỉ staff được assign hoặc admin mới được cập nhật
+            // Chỉ staff đang active ở station được cập nhật
             var staff = await staffRepo.GetAsync(stationId, userId, ct);
-            var isAssignedStaff = staff != null && staff.RevokedAt == null;
-
-            // nếu không phải staff assigned thì vẫn có thể là Admin — check rất nhẹ: role lấy từ user
-            var user = await userRepo.GetByIdAsync(userId, ct);
-            var isAdmin = (user?.Role?.Name?.Equals("Admin", StringComparison.OrdinalIgnoreCase) ?? false);
-
-            if (!isAssignedStaff && !isAdmin)
+            if (staff == null || staff.RevokedAt != null)
                 throw new InvalidOperationException("You are not allowed to update this incident.");
 
-            var newStatus = dto.Status.ToUpperInvariant();
+            var newStatus = (dto.Status ?? string.Empty).Trim().ToUpperInvariant(); // OPEN|IN_PROGRESS|RESOLVED|CLOSED
+            if (string.IsNullOrEmpty(newStatus))
+                throw new ArgumentException("Status is required.");
+
             incident.Status = newStatus;
 
-            if ((newStatus == "RESOLVED" || newStatus == "CLOSED"))
+            if (newStatus is "RESOLVED" or "CLOSED")
                 incident.ResolvedAt = dto.ResolvedAt ?? DateTime.UtcNow;
 
             incident.UpdatedAt = DateTime.UtcNow;
@@ -110,7 +114,7 @@ namespace GoElectrify.BLL.Services
             Id = x.Id,
             StationId = x.StationId,
             ChargerId = x.ChargerId,
-            ReportedByUserId = x.ReportedByStationStaffId ,
+            ReportedByStationStaffId = x.ReportedByStationStaffId ,
             Title = x.Title,
             Description = x.Description,
             Severity = x.Priority,

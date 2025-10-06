@@ -11,7 +11,7 @@ namespace GoElectrify.BLL.Dto.Incidents
         public int Id { get; set; }
         public int StationId { get; set; }
         public int? ChargerId { get; set; }
-        public int ReportedByUserId { get; set; }
+        public int ReportedByStationStaffId { get; set; }
 
         public string Title { get; set; } = default!;
         public string? Description { get; set; }
