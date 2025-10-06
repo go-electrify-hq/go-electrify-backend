@@ -35,24 +35,34 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.AvgPowerKw).HasPrecision(12, 4);
             b.Property(x => x.Cost).HasPrecision(18, 2);
 
-            // Check constraints (dữ liệu sạch)
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_Status_UPPER", "Status = UPPER(Status)"));
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_Status_Allowed",
-                "Status IN ('RUNNING','STOPPED','COMPLETED','FAILED')"));
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_Timespan",
-                "[EndedAt] IS NULL OR [EndedAt] >= [StartedAt]"));
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_Duration_NonNegative",
-                "[DurationMinutes] >= 0"));
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_Parking_NonNegative",
-                "[ParkingMinutes] IS NULL OR [ParkingMinutes] >= 0"));
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_SOC_Range",
-                "[SocStart] BETWEEN 0 AND 100 AND ([SocEnd] IS NULL OR [SocEnd] BETWEEN 0 AND 100)"));
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_Energy_NonNegative",
-                "[EnergyKwh] >= 0"));
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_AvgPower_NonNegative",
-                "[AvgPowerKw] IS NULL OR [AvgPowerKw] >= 0"));
-            b.ToTable(t => t.HasCheckConstraint("CK_ChargingSessions_Cost_NonNegative",
-                "[Cost] IS NULL OR [Cost] >= 0"));
+            // CHECK constraints cho Postgres + snake_case
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_status_upper",
+                "status = UPPER(status)"));
+
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_status_allowed",
+                "status IN ('RUNNING','STOPPED','COMPLETED','FAILED')"));
+
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_timespan",
+                "ended_at IS NULL OR ended_at >= started_at"));
+
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_duration_non_negative",
+                "duration_minutes >= 0"));
+
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_parking_non_negative",
+                "parking_minutes IS NULL OR parking_minutes >= 0"));
+
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_soc_range",
+                "soc_start BETWEEN 0 AND 100 AND (soc_end IS NULL OR soc_end BETWEEN 0 AND 100)"));
+
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_energy_non_negative",
+                "energy_kwh >= 0"));
+
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_avg_power_non_negative",
+                "avg_power_kw IS NULL OR avg_power_kw >= 0"));
+
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_cost_non_negative",
+                "cost IS NULL OR cost >= 0"));
+
 
             // Relationships
             b.HasOne(x => x.Charger)
@@ -68,13 +78,11 @@ namespace GoElectrify.DAL.Persistence.Configurations
             // Indexes
             b.HasIndex(x => new { x.ChargerId, x.StartedAt });
             b.HasIndex(x => x.Status);
-            b.HasIndex(x => x.BookingId).IsUnique().HasFilter("[BookingId] IS NOT NULL");
+            b.HasIndex(x => x.BookingId).IsUnique();
 
             // Audit (INSERT mặc định do DB gán)
-            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
-            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
         }
 
     }

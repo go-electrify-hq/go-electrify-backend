@@ -20,7 +20,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.PowerKw).IsRequired();
 
             b.Property(x => x.Status).HasMaxLength(32).IsRequired();
-            b.ToTable(t => t.HasCheckConstraint("CK_Chargers_Status_UPPER", "Status = UPPER(Status)"));
+            b.ToTable(t => t.HasCheckConstraint("CK_Chargers_Status_UPPER", "status = UPPER(status)"));
 
             b.Property(x => x.PricePerKwh).HasPrecision(18, 4);
 
@@ -37,10 +37,8 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasIndex(x => new { x.StationId, x.Code }).IsUnique();
             b.HasIndex(x => x.ConnectorTypeId);
 
-            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
-            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

@@ -9,6 +9,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 using Microsoft.Extensions.Options;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
+
 using Resend;
 
 
@@ -19,8 +21,19 @@ namespace GoElectrify.DAL.DependencyInjection
         public static IServiceCollection AddDal(this IServiceCollection services, IConfiguration cfg)
         {
             // SQL Server
+            //services.AddDbContext<AppDbContext>(opt =>
+            //    opt.UseSqlServer(cfg.GetConnectionString("SqlServer")));
+
+            var cs = cfg.GetConnectionString("PostgreSql"); // đổi tên key
             services.AddDbContext<AppDbContext>(opt =>
-                opt.UseSqlServer(cfg.GetConnectionString("SqlServer")));
+            {
+                opt.UseNpgsql(cs, npg =>
+                {
+                    // npg.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery); // nếu có include nặng
+                }).UseSnakeCaseNamingConvention();
+                // Khuyến nghị: snake_case trong Postgres
+
+            });
 
             // Redis (Upstash cũng dùng ConnectionMultiplexer.Connect với rediss://)
             var redisUrl = cfg.GetConnectionString("Redis");

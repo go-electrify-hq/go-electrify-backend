@@ -20,10 +20,8 @@ namespace GoElectrify.DAL.Persistence.Configurations
              .HasForeignKey(x => x.RoleId)
              .OnDelete(DeleteBehavior.Restrict);
 
-            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
-            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

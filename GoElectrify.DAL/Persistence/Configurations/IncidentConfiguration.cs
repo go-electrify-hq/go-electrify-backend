@@ -22,7 +22,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.Status).HasMaxLength(32).HasDefaultValue("OPEN").IsRequired();
             b.Property(x => x.Response).HasMaxLength(1024);
 
-            b.ToTable(t => t.HasCheckConstraint("CK_Incidents_Status_UPPER", "Status = UPPER(Status)"));
+            b.ToTable(t => t.HasCheckConstraint("CK_Incidents_Status_UPPER", "status = UPPER(status)"));
 
             b.HasOne(x => x.Station)
              .WithMany(s => s.Incidents)
@@ -36,10 +36,8 @@ namespace GoElectrify.DAL.Persistence.Configurations
 
             b.HasIndex(x => new { x.StationId, x.Status });
 
-            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
-            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

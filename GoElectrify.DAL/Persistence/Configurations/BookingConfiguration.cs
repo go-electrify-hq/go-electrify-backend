@@ -17,7 +17,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasKey(x => x.Id);
 
             b.Property(x => x.Status).HasMaxLength(32).HasDefaultValue("PENDING").IsRequired();
-            b.ToTable(t => t.HasCheckConstraint("CK_Bookings_Status_UPPER", "Status = UPPER(Status)"));
+            b.ToTable(t => t.HasCheckConstraint("CK_Bookings_Status_UPPER", "status = UPPER(status)"));
 
             b.Property(x => x.ScheduledStart).IsRequired();
 
@@ -51,10 +51,8 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasIndex(x => new { x.UserId, x.ScheduledStart });
             b.HasIndex(x => new { x.StationId, x.ScheduledStart });
 
-            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
-            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

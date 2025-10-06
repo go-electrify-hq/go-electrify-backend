@@ -25,15 +25,13 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.Longitude).HasPrecision(10, 6).IsRequired();
 
             b.Property(x => x.Status).HasMaxLength(32).IsRequired();
-            b.ToTable(t => t.HasCheckConstraint("CK_Stations_Status_UPPER", "Status = UPPER(Status)"));
+            b.ToTable(t => t.HasCheckConstraint("CK_Stations_Status_UPPER", "status = UPPER(status)"));
 
             b.HasIndex(x => new { x.Status, x.Name });
             b.HasIndex(x => new { x.Latitude, x.Longitude });
 
-            b.Property(x => x.CreatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
-            b.Property(x => x.UpdatedAt).HasColumnType("datetime2")
-             .HasDefaultValueSql("GETUTCDATE()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
+            b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
         }
     }
 }

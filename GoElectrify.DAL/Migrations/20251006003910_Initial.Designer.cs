@@ -3,16 +3,16 @@ using System;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251004133939_Initial")]
+    [Migration("20251006003910_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -21,74 +21,91 @@ namespace GoElectrify.DAL.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "9.0.9")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.Booking", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("code");
 
                     b.Property<int>("ConnectorTypeId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("connector_type_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<decimal?>("EstimatedCost")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("estimated_cost");
 
                     b.Property<int>("InitialSoc")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("initial_soc");
 
                     b.Property<DateTime>("ScheduledStart")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scheduled_start");
 
                     b.Property<int>("StationId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("station_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
-                        .HasDefaultValue("PENDING");
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("PENDING")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
 
                     b.Property<int>("VehicleModelId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("vehicle_model_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_bookings");
 
-                    b.HasIndex("ConnectorTypeId");
+                    b.HasIndex("ConnectorTypeId")
+                        .HasDatabaseName("ix_bookings_connector_type_id");
 
-                    b.HasIndex("VehicleModelId");
+                    b.HasIndex("VehicleModelId")
+                        .HasDatabaseName("ix_bookings_vehicle_model_id");
 
-                    b.HasIndex("StationId", "ScheduledStart");
+                    b.HasIndex("StationId", "ScheduledStart")
+                        .HasDatabaseName("ix_bookings_station_id_scheduled_start");
 
-                    b.HasIndex("UserId", "ScheduledStart");
+                    b.HasIndex("UserId", "ScheduledStart")
+                        .HasDatabaseName("ix_bookings_user_id_scheduled_start");
 
                     b.ToTable("Bookings", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Bookings_Status_UPPER", "Status = UPPER(Status)");
+                            t.HasCheckConstraint("CK_Bookings_Status_UPPER", "status = UPPER(status)");
                         });
                 });
 
@@ -96,53 +113,65 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code");
 
                     b.Property<int>("ConnectorTypeId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("connector_type_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("PowerKw")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("power_kw");
 
                     b.Property<decimal?>("PricePerKwh")
                         .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("price_per_kwh");
 
                     b.Property<int>("StationId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("station_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_chargers");
 
-                    b.HasIndex("ConnectorTypeId");
+                    b.HasIndex("ConnectorTypeId")
+                        .HasDatabaseName("ix_chargers_connector_type_id");
 
                     b.HasIndex("StationId", "Code")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_chargers_station_id_code");
 
                     b.ToTable("Chargers", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Chargers_Status_UPPER", "Status = UPPER(Status)");
+                            t.HasCheckConstraint("CK_Chargers_Status_UPPER", "status = UPPER(status)");
                         });
 
                     b.HasData(
@@ -272,57 +301,71 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ChargerId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("charger_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<decimal?>("Current")
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("current");
 
                     b.Property<string>("ErrorCode")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("error_code");
 
                     b.Property<decimal?>("PowerKw")
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("power_kw");
 
                     b.Property<DateTime>("SampleAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sample_at");
 
                     b.Property<decimal?>("SessionEnergyKwh")
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("session_energy_kwh");
 
                     b.Property<int?>("SocPercent")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("soc_percent");
 
                     b.Property<string>("State")
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("state");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<decimal?>("Voltage")
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("voltage");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_charger_logs");
 
                     b.HasIndex("ChargerId", "SampleAt")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_charger_logs_charger_id_sample_at");
 
                     b.ToTable("ChargerLogs", (string)null);
                 });
@@ -331,92 +374,110 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal?>("AvgPowerKw")
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("avg_power_kw");
 
                     b.Property<int?>("BookingId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("booking_id");
 
                     b.Property<int>("ChargerId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("charger_id");
 
                     b.Property<decimal?>("Cost")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("cost");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("DurationMinutes")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_minutes");
 
                     b.Property<DateTime?>("EndedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ended_at");
 
                     b.Property<decimal>("EnergyKwh")
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("energy_kwh");
 
                     b.Property<int?>("ParkingMinutes")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("parking_minutes");
 
                     b.Property<int?>("SocEnd")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("soc_end");
 
                     b.Property<int>("SocStart")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("soc_start");
 
                     b.Property<DateTime>("StartedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
-                        .HasDefaultValue("RUNNING");
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("RUNNING")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_charging_sessions");
 
                     b.HasIndex("BookingId")
                         .IsUnique()
-                        .HasFilter("[BookingId] IS NOT NULL");
+                        .HasDatabaseName("ix_charging_sessions_booking_id");
 
-                    b.HasIndex("Status");
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_charging_sessions_status");
 
-                    b.HasIndex("ChargerId", "StartedAt");
+                    b.HasIndex("ChargerId", "StartedAt")
+                        .HasDatabaseName("ix_charging_sessions_charger_id_started_at");
 
                     b.ToTable("ChargingSessions", null, t =>
                         {
-                            t.HasCheckConstraint("CK_ChargingSessions_AvgPower_NonNegative", "[AvgPowerKw] IS NULL OR [AvgPowerKw] >= 0");
+                            t.HasCheckConstraint("ck_charging_sessions_avg_power_non_negative", "avg_power_kw IS NULL OR avg_power_kw >= 0");
 
-                            t.HasCheckConstraint("CK_ChargingSessions_Cost_NonNegative", "[Cost] IS NULL OR [Cost] >= 0");
+                            t.HasCheckConstraint("ck_charging_sessions_cost_non_negative", "cost IS NULL OR cost >= 0");
 
-                            t.HasCheckConstraint("CK_ChargingSessions_Duration_NonNegative", "[DurationMinutes] >= 0");
+                            t.HasCheckConstraint("ck_charging_sessions_duration_non_negative", "duration_minutes >= 0");
 
-                            t.HasCheckConstraint("CK_ChargingSessions_Energy_NonNegative", "[EnergyKwh] >= 0");
+                            t.HasCheckConstraint("ck_charging_sessions_energy_non_negative", "energy_kwh >= 0");
 
-                            t.HasCheckConstraint("CK_ChargingSessions_Parking_NonNegative", "[ParkingMinutes] IS NULL OR [ParkingMinutes] >= 0");
+                            t.HasCheckConstraint("ck_charging_sessions_parking_non_negative", "parking_minutes IS NULL OR parking_minutes >= 0");
 
-                            t.HasCheckConstraint("CK_ChargingSessions_SOC_Range", "[SocStart] BETWEEN 0 AND 100 AND ([SocEnd] IS NULL OR [SocEnd] BETWEEN 0 AND 100)");
+                            t.HasCheckConstraint("ck_charging_sessions_soc_range", "soc_start BETWEEN 0 AND 100 AND (soc_end IS NULL OR soc_end BETWEEN 0 AND 100)");
 
-                            t.HasCheckConstraint("CK_ChargingSessions_Status_Allowed", "Status IN ('RUNNING','STOPPED','COMPLETED','FAILED')");
+                            t.HasCheckConstraint("ck_charging_sessions_status_allowed", "status IN ('RUNNING','STOPPED','COMPLETED','FAILED')");
 
-                            t.HasCheckConstraint("CK_ChargingSessions_Status_UPPER", "Status = UPPER(Status)");
+                            t.HasCheckConstraint("ck_charging_sessions_status_upper", "status = UPPER(status)");
 
-                            t.HasCheckConstraint("CK_ChargingSessions_Timespan", "[EndedAt] IS NULL OR [EndedAt] >= [StartedAt]");
+                            t.HasCheckConstraint("ck_charging_sessions_timespan", "ended_at IS NULL OR ended_at >= started_at");
                         });
                 });
 
@@ -424,36 +485,44 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("Description")
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("description");
 
                     b.Property<int>("MaxPowerKw")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("max_power_kw");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("name");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_connector_types");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_connector_types_name");
 
                     b.ToTable("ConnectorTypes", (string)null);
 
@@ -509,39 +578,48 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("Provider")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("provider");
 
                     b.Property<string>("ProviderUserId")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("provider_user_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_external_logins");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_external_logins_user_id");
 
                     b.HasIndex("Provider", "ProviderUserId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_external_logins_provider_provider_user_id");
 
                     b.ToTable("ExternalLogins", (string)null);
                 });
@@ -550,71 +628,88 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("ChargerId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("charger_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("description");
 
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("priority");
 
                     b.Property<DateTime>("ReportedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reported_at");
 
                     b.Property<int>("ReportedByStationStaffId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("reported_by_station_staff_id");
 
                     b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
 
                     b.Property<string>("Response")
                         .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("response");
 
                     b.Property<int>("StationId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("station_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
-                        .HasDefaultValue("OPEN");
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("OPEN")
+                        .HasColumnName("status");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("title");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_incidents");
 
-                    b.HasIndex("ChargerId");
+                    b.HasIndex("ChargerId")
+                        .HasDatabaseName("ix_incidents_charger_id");
 
-                    b.HasIndex("ReportedByStationStaffId");
+                    b.HasIndex("ReportedByStationStaffId")
+                        .HasDatabaseName("ix_incidents_reported_by_station_staff_id");
 
-                    b.HasIndex("StationId", "Status");
+                    b.HasIndex("StationId", "Status")
+                        .HasDatabaseName("ix_incidents_station_id_status");
 
                     b.ToTable("Incidents", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Incidents_Status_UPPER", "Status = UPPER(Status)");
+                            t.HasCheckConstraint("CK_Incidents_Status_UPPER", "status = UPPER(status)");
                         });
                 });
 
@@ -622,38 +717,47 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
 
                     b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("token_hash");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_refresh_tokens");
 
                     b.HasIndex("UserId", "TokenHash")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_refresh_tokens_user_id_token_hash");
 
                     b.ToTable("RefreshTokens", (string)null);
                 });
@@ -662,29 +766,35 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("name");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_roles");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_roles_name");
 
                     b.ToTable("Roles", (string)null);
 
@@ -716,60 +826,73 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Address")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("address");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("description");
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("image_url");
 
                     b.Property<decimal>("Latitude")
                         .HasPrecision(10, 6)
-                        .HasColumnType("decimal(10,6)");
+                        .HasColumnType("numeric(10,6)")
+                        .HasColumnName("latitude");
 
                     b.Property<decimal>("Longitude")
                         .HasPrecision(10, 6)
-                        .HasColumnType("decimal(10,6)");
+                        .HasColumnType("numeric(10,6)")
+                        .HasColumnName("longitude");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_stations");
 
-                    b.HasIndex("Latitude", "Longitude");
+                    b.HasIndex("Latitude", "Longitude")
+                        .HasDatabaseName("ix_stations_latitude_longitude");
 
-                    b.HasIndex("Status", "Name");
+                    b.HasIndex("Status", "Name")
+                        .HasDatabaseName("ix_stations_status_name");
 
                     b.ToTable("Stations", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Stations_Status_UPPER", "Status = UPPER(Status)");
+                            t.HasCheckConstraint("CK_Stations_Status_UPPER", "status = UPPER(status)");
                         });
 
                     b.HasData(
@@ -815,41 +938,52 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assigned_at");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
 
                     b.Property<string>("RevokedReason")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("revoked_reason");
 
                     b.Property<int>("StationId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("station_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_station_staff");
 
-                    b.HasIndex("StationId");
+                    b.HasIndex("StationId")
+                        .HasDatabaseName("ix_station_staff_station_id");
 
                     b.HasIndex("UserId", "StationId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_station_staff_user_id_station_id");
 
                     b.ToTable("StationStaff", (string)null);
                 });
@@ -858,40 +992,49 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("DurationDays")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_days");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("price");
 
                     b.Property<decimal>("TotalKwh")
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("total_kwh");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_subscriptions");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_subscriptions_name");
 
                     b.ToTable("Subscriptions", (string)null);
 
@@ -942,63 +1085,77 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
 
                     b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
 
                     b.Property<string>("Provider")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("provider");
 
                     b.Property<string>("ProviderRef")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("provider_ref");
 
                     b.Property<string>("QrContent")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("qr_content");
 
                     b.Property<string>("RawWebhook")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("raw_webhook");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("WalletId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("wallet_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_topup_intents");
 
-                    b.HasIndex("WalletId", "CreatedAt");
+                    b.HasIndex("WalletId", "CreatedAt")
+                        .HasDatabaseName("ix_topup_intents_wallet_id_created_at");
 
                     b.ToTable("TopupIntents", null, t =>
                         {
-                            t.HasCheckConstraint("CK_TopupIntents_Amount_NonNegative", "[Amount] >= 0");
+                            t.HasCheckConstraint("CK_TopupIntents_Amount_NonNegative", "amount >= 0");
 
-                            t.HasCheckConstraint("CK_TopupIntents_Status_UPPER", "Status = UPPER(Status)");
+                            t.HasCheckConstraint("CK_TopupIntents_Status_UPPER", "status = UPPER(status)");
                         });
                 });
 
@@ -1006,57 +1163,69 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
 
                     b.Property<int?>("ChargingSessionId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("charging_session_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("Note")
                         .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("note");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
 
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("type");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("WalletId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("wallet_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_transactions");
 
-                    b.HasIndex("ChargingSessionId");
+                    b.HasIndex("ChargingSessionId")
+                        .HasDatabaseName("ix_transactions_charging_session_id");
 
-                    b.HasIndex("WalletId", "CreatedAt");
+                    b.HasIndex("WalletId", "CreatedAt")
+                        .HasDatabaseName("ix_transactions_wallet_id_created_at");
 
                     b.ToTable("Transactions", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Transactions_Amount_NonNegative", "[Amount] >= 0");
+                            t.HasCheckConstraint("CK_Transactions_Amount_NonNegative", "amount >= 0");
 
-                            t.HasCheckConstraint("CK_Transactions_Status_UPPER", "Status = UPPER(Status)");
+                            t.HasCheckConstraint("CK_Transactions_Status_UPPER", "status = UPPER(status)");
 
-                            t.HasCheckConstraint("CK_Transactions_Type_UPPER", "Type = UPPER(Type)");
+                            t.HasCheckConstraint("CK_Transactions_Type_UPPER", "type = UPPER(type)");
                         });
                 });
 
@@ -1064,41 +1233,51 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AvatarUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text")
+                        .HasColumnName("avatar_url");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
 
                     b.Property<string>("FullName")
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("full_name");
 
                     b.Property<int>("RoleId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("role_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_users");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_email");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex("RoleId")
+                        .HasDatabaseName("ix_users_role_id");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -1107,36 +1286,44 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("BatteryCapacityKwh")
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)");
+                        .HasColumnType("numeric(12,4)")
+                        .HasColumnName("battery_capacity_kwh");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("MaxPowerKw")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("max_power_kw");
 
                     b.Property<string>("ModelName")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("model_name");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_vehicle_models");
 
                     b.HasIndex("ModelName")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_vehicle_models_model_name");
 
                     b.ToTable("VehicleModels", (string)null);
 
@@ -1254,14 +1441,18 @@ namespace GoElectrify.DAL.Migrations
             modelBuilder.Entity("GoElectrify.BLL.Entities.VehicleModelConnectorType", b =>
                 {
                     b.Property<int>("VehicleModelId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("vehicle_model_id");
 
                     b.Property<int>("ConnectorTypeId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("connector_type_id");
 
-                    b.HasKey("VehicleModelId", "ConnectorTypeId");
+                    b.HasKey("VehicleModelId", "ConnectorTypeId")
+                        .HasName("pk_vehicle_model_connector_types");
 
-                    b.HasIndex("ConnectorTypeId");
+                    b.HasIndex("ConnectorTypeId")
+                        .HasDatabaseName("ix_vehicle_model_connector_types_connector_type_id");
 
                     b.ToTable("VehicleModelConnectorTypes", (string)null);
 
@@ -1302,33 +1493,40 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Balance")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("balance");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_wallets");
 
                     b.HasIndex("UserId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("ix_wallets_user_id");
 
                     b.ToTable("Wallets", (string)null);
                 });
@@ -1337,62 +1535,76 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
 
                     b.Property<decimal>("RemainingKwh")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(12, 4)
-                        .HasColumnType("decimal(12,4)")
-                        .HasDefaultValue(0m);
+                        .HasColumnType("numeric(12,4)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("remaining_kwh");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
-                        .HasDefaultValue("ACTIVE");
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("ACTIVE")
+                        .HasColumnName("status");
 
                     b.Property<int>("SubscriptionId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("subscription_id");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("WalletId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer")
+                        .HasColumnName("wallet_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_wallet_subscriptions");
 
-                    b.HasIndex("SubscriptionId");
+                    b.HasIndex("SubscriptionId")
+                        .HasDatabaseName("ix_wallet_subscriptions_subscription_id");
 
-                    b.HasIndex("WalletId");
+                    b.HasIndex("WalletId")
+                        .HasDatabaseName("ix_wallet_subscriptions_wallet_id");
 
-                    b.HasIndex("WalletId", "EndDate");
+                    b.HasIndex("WalletId", "EndDate")
+                        .HasDatabaseName("ix_wallet_subscriptions_wallet_id_end_date");
 
-                    b.HasIndex("WalletId", "StartDate");
+                    b.HasIndex("WalletId", "StartDate")
+                        .HasDatabaseName("ix_wallet_subscriptions_wallet_id_start_date");
 
                     b.ToTable("WalletSubscriptions", null, t =>
                         {
-                            t.HasCheckConstraint("CK_WalletSubscriptions_DateRange", "[EndDate] >= [StartDate]");
+                            t.HasCheckConstraint("CK_WalletSubscriptions_DateRange", "end_date >= start_date");
 
-                            t.HasCheckConstraint("CK_WalletSubscriptions_RemainingKwh_NonNegative", "[RemainingKwh] >= 0");
+                            t.HasCheckConstraint("CK_WalletSubscriptions_RemainingKwh_NonNegative", "remaining_kwh >= 0");
 
-                            t.HasCheckConstraint("CK_WalletSubscriptions_Status_UPPER", "Status = UPPER(Status)");
+                            t.HasCheckConstraint("CK_WalletSubscriptions_Status_UPPER", "status = UPPER(status)");
                         });
                 });
 
@@ -1402,25 +1614,29 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("Bookings")
                         .HasForeignKey("ConnectorTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_bookings_connector_types_connector_type_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.Station", "Station")
                         .WithMany("Bookings")
                         .HasForeignKey("StationId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_bookings_stations_station_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.User", "User")
                         .WithMany("Bookings")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_bookings_users_user_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.VehicleModel", "VehicleModel")
                         .WithMany("Bookings")
                         .HasForeignKey("VehicleModelId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_bookings_vehicle_models_vehicle_model_id");
 
                     b.Navigation("ConnectorType");
 
@@ -1437,13 +1653,15 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("Chargers")
                         .HasForeignKey("ConnectorTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_chargers_connector_types_connector_type_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.Station", "Station")
                         .WithMany("Chargers")
                         .HasForeignKey("StationId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_chargers_stations_station_id");
 
                     b.Navigation("ConnectorType");
 
@@ -1456,7 +1674,8 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("ChargerLogs")
                         .HasForeignKey("ChargerId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_charger_logs_chargers_charger_id");
 
                     b.Navigation("Charger");
                 });
@@ -1466,13 +1685,15 @@ namespace GoElectrify.DAL.Migrations
                     b.HasOne("GoElectrify.BLL.Entities.Booking", "Booking")
                         .WithOne("ChargingSession")
                         .HasForeignKey("GoElectrify.BLL.Entities.ChargingSession", "BookingId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_charging_sessions_bookings_booking_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.Charger", "Charger")
                         .WithMany("ChargingSessions")
                         .HasForeignKey("ChargerId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_charging_sessions_chargers_charger_id");
 
                     b.Navigation("Booking");
 
@@ -1485,7 +1706,8 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("ExternalLogins")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_external_logins_users_user_id");
 
                     b.Navigation("User");
                 });
@@ -1494,19 +1716,22 @@ namespace GoElectrify.DAL.Migrations
                 {
                     b.HasOne("GoElectrify.BLL.Entities.Charger", "Charger")
                         .WithMany()
-                        .HasForeignKey("ChargerId");
+                        .HasForeignKey("ChargerId")
+                        .HasConstraintName("fk_incidents_chargers_charger_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.StationStaff", "ReportedBy")
                         .WithMany("IncidentsReported")
                         .HasForeignKey("ReportedByStationStaffId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_incidents_station_staff_reported_by_station_staff_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.Station", "Station")
                         .WithMany("Incidents")
                         .HasForeignKey("StationId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_incidents_stations_station_id");
 
                     b.Navigation("Charger");
 
@@ -1521,7 +1746,8 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("RefreshTokens")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_tokens_users_user_id");
 
                     b.Navigation("User");
                 });
@@ -1532,13 +1758,15 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("StationStaff")
                         .HasForeignKey("StationId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_station_staff_stations_station_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.User", "User")
                         .WithMany("StationStaff")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_station_staff_users_user_id");
 
                     b.Navigation("Station");
 
@@ -1551,7 +1779,8 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("TopupIntents")
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_topup_intents_wallets_wallet_id");
 
                     b.Navigation("Wallet");
                 });
@@ -1561,13 +1790,15 @@ namespace GoElectrify.DAL.Migrations
                     b.HasOne("GoElectrify.BLL.Entities.ChargingSession", "ChargingSession")
                         .WithMany("Transactions")
                         .HasForeignKey("ChargingSessionId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_transactions_charging_sessions_charging_session_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.Wallet", "Wallet")
                         .WithMany("Transactions")
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_transactions_wallets_wallet_id");
 
                     b.Navigation("ChargingSession");
 
@@ -1580,7 +1811,8 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_users_roles_role_id");
 
                     b.Navigation("Role");
                 });
@@ -1591,13 +1823,15 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("VehicleModelConnectorTypes")
                         .HasForeignKey("ConnectorTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_vehicle_model_connector_types_connector_types_connector_type_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.VehicleModel", "VehicleModel")
                         .WithMany("VehicleModelConnectorTypes")
                         .HasForeignKey("VehicleModelId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_vehicle_model_connector_types_vehicle_models_vehicle_model_id");
 
                     b.Navigation("ConnectorType");
 
@@ -1610,7 +1844,8 @@ namespace GoElectrify.DAL.Migrations
                         .WithOne("Wallet")
                         .HasForeignKey("GoElectrify.BLL.Entities.Wallet", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_wallets_users_user_id");
 
                     b.Navigation("User");
                 });
@@ -1621,13 +1856,15 @@ namespace GoElectrify.DAL.Migrations
                         .WithMany("WalletSubscriptions")
                         .HasForeignKey("SubscriptionId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_wallet_subscriptions_subscriptions_subscription_id");
 
                     b.HasOne("GoElectrify.BLL.Entities.Wallet", "Wallet")
                         .WithMany("WalletSubscriptions")
                         .HasForeignKey("WalletId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_wallet_subscriptions_wallets_wallet_id");
 
                     b.Navigation("Subscription");
 
