@@ -8,7 +8,7 @@ namespace GoElectrify.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/stations/{stationId:int}/incidents")]
-    [Authorize(Roles = "Staff,Admin")]
+    [Authorize(Roles = "Staff")]
     public class IncidentController : ControllerBase
     {
         private readonly IIncidentService _svc;
@@ -17,22 +17,14 @@ namespace GoElectrify.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> List(int stationId, [FromQuery] IncidentListQueryDto query, CancellationToken ct)
         {
-            try
-            {
-                var items = await _svc.ListAsync(stationId, query, ct);
-                return Ok(items);
-            }
+            try { return Ok(await _svc.ListAsync(stationId, query, ct)); }
             catch (KeyNotFoundException) { return NotFound(new { error = "Station not found." }); }
         }
 
         [HttpGet("{incidentId:int}")]
         public async Task<IActionResult> GetById(int stationId, int incidentId, CancellationToken ct)
         {
-            try
-            {
-                var item = await _svc.GetAsync(stationId, incidentId, ct);
-                return Ok(item);
-            }
+            try { return Ok(await _svc.GetAsync(stationId, incidentId, ct)); }
             catch (KeyNotFoundException) { return NotFound(new { error = "Incident not found." }); }
         }
 
@@ -41,12 +33,16 @@ namespace GoElectrify.Api.Controllers
         {
             try
             {
-                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+                if (!int.TryParse(userIdStr, out var userId))
+                    return Unauthorized(new { error = "Invalid user id in token." });
+
                 var result = await _svc.CreateAsync(stationId, userId, dto, ct);
                 return CreatedAtAction(nameof(GetById), new { stationId, incidentId = result.Id }, result);
             }
             catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
-            catch (InvalidOperationException ex) { return Forbid(ex.Message); }
+            catch (InvalidOperationException ex) { return StatusCode(403, new { error = ex.Message }); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
         [HttpPatch("{incidentId:int}/status")]
@@ -54,12 +50,16 @@ namespace GoElectrify.Api.Controllers
         {
             try
             {
-                var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+                var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+                if (!int.TryParse(userIdStr, out var userId))
+                    return Unauthorized(new { error = "Invalid user id in token." });
+
                 var result = await _svc.UpdateStatusAsync(stationId, incidentId, userId, dto, ct);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
-            catch (InvalidOperationException ex) { return Forbid(ex.Message); }
+            catch (InvalidOperationException ex) { return StatusCode(403, new { error = ex.Message }); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
         }
     }
 }
