@@ -4,6 +4,7 @@ using GoElectrify.BLL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using static System.Net.WebRequestMethods;
 
 namespace go_electrify_backend.Controllers
 {
@@ -16,7 +17,7 @@ namespace go_electrify_backend.Controllers
         public async Task<IActionResult> RequestOtp([FromBody] RequestOtpDto dto, CancellationToken ct)
         {
             await auth.RequestOtpAsync(dto.Email, ct);
-            return Ok(new { message = "OTP sent if email exists." });
+            return Ok(new { message = "If the email is valid, an OTP has been sent(valid for 5 minutes)." });
         }
 
         [HttpPost("verify-otp")]

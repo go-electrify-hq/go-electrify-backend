@@ -25,5 +25,21 @@ namespace GoElectrify.DAL.Infra
             if (created && ttlWhenCreate is not null) await _db.KeyExpireAsync(key, ttlWhenCreate);
             return val;
         }
+
+        public async Task<bool> ExistsAsync(string key)
+        {
+            return await _db.KeyExistsAsync(key);
+        }
+
+        public async Task<long> IncrementAsync(string key)
+        {
+            // Redis INCR: tăng 1 và trả về giá trị sau khi tăng
+            return await _db.StringIncrementAsync(key);
+        }
+
+        public async Task<bool> ExpireAsync(string key, TimeSpan ttl)
+        {
+            return await _db.KeyExpireAsync(key, ttl);
+        }
     }
 }

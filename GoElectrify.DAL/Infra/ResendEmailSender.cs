@@ -56,5 +56,12 @@ namespace GoElectrify.DAL.Infra
                 _log.LogWarning("Resend sent email to {To}, but MessageId is unavailable.", toEmail);
             }
         }
+
+        public async Task SendOtpAsync(string toEmail, string otp, CancellationToken ct = default)
+        {
+            var subject = "[Go Electrify] Your OTP code";
+            var htmlBody = $"<p>Your login code is <b>{otp}</b>. It expires in 5 minutes.</p>";
+            await SendAsync(toEmail, subject, htmlBody, ct); // Reuse the existing SendAsync method
+        }
     }
 }

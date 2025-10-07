@@ -13,5 +13,9 @@
 
         /// <summary>Tăng counter; nếu key mới tạo thì set TTL.</summary>
         Task<long> IncrAsync(string key, TimeSpan? ttlWhenCreate = null);
+
+        Task<bool> ExistsAsync(string key);
+        Task<long> IncrementAsync(string key);
+        Task<bool> ExpireAsync(string key, TimeSpan ttl);
     }
 }

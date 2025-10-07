@@ -55,19 +55,12 @@ builder.Services.AddScoped<IConnectorTypeService, ConnectorTypeService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IStationStaffService, StationStaffService>();
 builder.Services.AddScoped<IStationService, StationService>();
-
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IChargerService, ChargerService>();
-
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IStationStaffService, StationStaffService>();
-
 builder.Services.AddScoped<IIncidentService, IncidentService>();
-
 builder.Services.AddScoped<INotificationService, NotificationService>();
-
-
-
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 
 
@@ -111,7 +104,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // Đăng ký token service (phát hành access/refresh)
-builder.Services.AddScoped<ITokenService, JwtTokenService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // Controllers
 builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.PropertyNamingPolicy = null);
