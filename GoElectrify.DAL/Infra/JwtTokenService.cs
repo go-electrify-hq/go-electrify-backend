@@ -29,22 +29,22 @@ namespace GoElectrify.DAL.Infra
             var refreshExp = now.AddDays(_opt.RefreshDays);
 
             var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new(JwtRegisteredClaimNames.Email, email ?? string.Empty),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
-            new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            {
+                new(ClaimTypes.NameIdentifier, userId.ToString()),
+                new(JwtRegisteredClaimNames.Email, email ?? string.Empty),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+                new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
 
-            // Role: thêm chuẩn + 'role' cho FE
-            new(ClaimTypes.Role, role),
-            new("role", role),
+                // Role: thêm chuẩn + 'role' cho FE
+                new(ClaimTypes.Role, role),
+                new("role", role),
 
-            // Audit: phương thức xác thực (otp / oauth-google / password)
-            new("amr", authMethod ?? "otp"),
+                // Audit: phương thức xác thực (otp / oauth-google / password)
+                new("amr", authMethod ?? "otp"),
 
-            // Tiện FE parse nhanh
-            new("uid", userId.ToString())
-        };
+                // Tiện FE parse nhanh
+                new("uid", userId.ToString())
+            };
 
             AddIfNotEmpty(claims, "name", fullName);
             AddIfNotEmpty(claims, "avatar", avatarUrl);

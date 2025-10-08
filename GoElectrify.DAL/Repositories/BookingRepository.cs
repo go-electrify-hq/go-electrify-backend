@@ -1,0 +1,82 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using GoElectrify.BLL.Contracts.Repositories;
+using GoElectrify.BLL.Entities;
+using GoElectrify.DAL.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace GoElectrify.DAL.Repositories
+{
+    public sealed class BookingRepository(AppDbContext db) : IBookingRepository
+    {
+        public Task<Booking?> GetByIdAsync(int id, CancellationToken ct)
+            => db.Bookings.FirstOrDefaultAsync(x => x.Id == id, ct);
+
+        public async Task AddAsync(Booking e, CancellationToken ct)
+        {
+            await db.Bookings.AddAsync(e, ct);
+            await db.SaveChangesAsync(ct);
+        }
+
+        public async Task UpdateAsync(Booking e, CancellationToken ct)
+        {
+            db.Bookings.Update(e);
+            await db.SaveChangesAsync(ct);
+        }
+
+        public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+        {
+            var e = await db.Bookings.FindAsync(new object[] { id }, ct);
+            if (e is null) return false;
+            db.Bookings.Remove(e);
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        public async Task<IReadOnlyList<Booking>> GetMyAsync(
+            int userId, string? status, DateTime? from, DateTime? to, int page, int pageSize, CancellationToken ct)
+        {
+            var q = db.Bookings.AsNoTracking().Where(b => b.UserId == userId);
+            if (!string.IsNullOrWhiteSpace(status)) q = q.Where(b => b.Status == status);
+            if (from.HasValue) q = q.Where(b => b.ScheduledStart >= from.Value);
+            if (to.HasValue) q = q.Where(b => b.ScheduledStart < to.Value);
+
+            return await q
+                .OrderByDescending(b => b.ScheduledStart)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
+        }
+
+        public Task<int> CountActiveBookingsAsync(
+            int stationId, int connectorTypeId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken ct)
+        {
+            // Đếm PENDING/CONFIRMED/CONSUMED trong khoảng chồng lấn time window
+            var active = new[] { "PENDING", "CONFIRMED", "CONSUMED" };
+            return db.Bookings
+                .Where(b => b.StationId == stationId && b.ConnectorTypeId == connectorTypeId)
+                .Where(b => active.Contains(b.Status))
+                .Where(b =>
+                    // coi mỗi booking chiếm một slot bắt đầu tại ScheduledStart, kéo dài SLOT_MIN (service sẽ truyền windowStart/End)
+                    b.ScheduledStart >= windowStartUtc && b.ScheduledStart < windowEndUtc
+                )
+                .CountAsync(ct);
+        }
+
+        public Task<int> CountActiveChargersAsync(int stationId, int connectorTypeId, CancellationToken ct)
+            => db.Chargers
+                  .Where(c => c.StationId == stationId && c.ConnectorTypeId == connectorTypeId)
+                  .Where(c => c.Status != "OFFLINE") // ONLINE + MAINTENANCE vẫn coi 1 cổng vật lý; tùy BR có thể exclude MAINTENANCE
+                  .CountAsync(ct);
+
+        public Task<bool> VehicleSupportsConnectorAsync(int vehicleModelId, int connectorTypeId, CancellationToken ct)
+            => db.Set<VehicleModelConnectorType>()
+                 .AnyAsync(j => j.VehicleModelId == vehicleModelId && j.ConnectorTypeId == connectorTypeId, ct);
+
+        public Task<bool> StationExistsAsync(int stationId, CancellationToken ct)
+            => db.Stations.AnyAsync(s => s.Id == stationId, ct);
+    }
+}

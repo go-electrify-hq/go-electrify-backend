@@ -45,35 +45,11 @@ namespace GoElectrify.BLL.Services
             return (v % 1_000_000).ToString("D6");
         }
 
-
-
-        //public async Task RequestOtpAsync(string emailAddr, CancellationToken ct)
-        //{
-        //    var emailKey = emailAddr.ToLowerInvariant();
-
-        //    // Rate limit
-        //    var rlKey = $"{OtpRatePrefix}{emailKey}";
-        //    var count = await redis.IncrAsync(rlKey, RateWindow);
-        //    if (count > RateLimit)
-        //        throw new InvalidOperationException("Too many OTP requests. Please try again later.");
-
-        //    // Generate 6-digit OTP
-        //    var otp = Random.Shared.Next(100000, 999999).ToString();
-        //    await redis.SetAsync($"{OtpKeyPrefix}{emailKey}", otp, OtpTtl);
-
-        //    await email.SendAsync(
-        //        emailAddr,
-        //        "[Go Electrify] Your OTP code",
-        //        $"<p>Your login code is <b>{otp}</b>. It expires in {OtpTtl.TotalMinutes:0} minutes.</p>",
-        //        ct);
-        //}
-
         public async Task RequestOtpAsync(string rawEmail, CancellationToken ct)
         {
             // 1) Chuẩn hoá & validate email (đồng nhất với Verify)
             var email = NormalizeEmail(rawEmail);
 
-            // BR-ENUM-01: giữ thông điệp đồng phục & timing “na ná”
             // => nếu email lỗi, vẫn return 200 ở Controller, nhưng dừng logic.
             if (!IsValidEmail(email))
             {
@@ -111,7 +87,7 @@ namespace GoElectrify.BLL.Services
             await emailSender.SendOtpAsync(email, otp, ct);
 
             // 6) Jitter nhẹ để làm phẳng thời gian phản hồi (BR-ENUM-01)
-            await Task.Delay(RandomJitter(180, 320), ct);
+            //await Task.Delay(RandomJitter(180, 320), ct);
         }
 
         // Jitter 180–320ms để responses khó phân biệt (đồng phục thời gian)

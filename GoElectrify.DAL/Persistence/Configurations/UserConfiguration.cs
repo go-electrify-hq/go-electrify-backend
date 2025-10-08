@@ -10,7 +10,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
         {
             b.ToTable("Users");
             b.HasKey(x => x.Id);
-
+            b.Property(x => x.Id).UseIdentityByDefaultColumn();
             b.Property(x => x.Email).HasMaxLength(256).IsRequired();
             b.HasIndex(x => x.Email).IsUnique();
             b.Property(x => x.FullName).HasMaxLength(128);
