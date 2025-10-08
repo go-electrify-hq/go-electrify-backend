@@ -11,24 +11,31 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 9.0.x
+
     - name: Restore dependencies
       run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
+
+    # Build the solution in Release so publish can use --no-build safely
+    - name: Build (Release)
+      run: dotnet build --no-restore -c Release
+
     - name: Test
-      run: dotnet test --no-build --verbosity normal
-    - name: Publish (create artifact)
-      # publish outputs to ./artifacts (release configuration)
-      run: dotnet publish -c Release -o ./artifacts --no-build
+      # Tests run against the already-built Release outputs
+      run: dotnet test --no-build -c Release --verbosity normal
+
+    - name: Publish API (create artifact)
+      # Publish the API project (not the solution). Publishing a specific project allows using -o.
+      run: dotnet publish ./GoElectrify.Api/GoElectrify.Api.csproj -c Release -o ./artifacts --no-build
+
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
