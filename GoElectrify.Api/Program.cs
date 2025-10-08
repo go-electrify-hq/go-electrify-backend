@@ -62,7 +62,7 @@ builder.Services.AddScoped<IStationStaffService, StationStaffService>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
-
+builder.Services.AddScoped<IAdminIncidentService, AdminIncidentService>();
 
 
 
