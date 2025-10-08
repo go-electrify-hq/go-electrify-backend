@@ -10,16 +10,28 @@ namespace GoElectrify.DAL.Repositories
         private readonly AppDbContext _db;
         public TransactionRepository(AppDbContext db) => _db = db;
 
-        public async Task<IReadOnlyList<Transaction>> GetByWalletIdAsync(int walletId, DateTime? from = null, DateTime? to = null)
+        public async Task<IReadOnlyList<Transaction>> GetByWalletIdAsync(
+        int walletId, DateTime? from = null, DateTime? to = null)
         {
             var q = _db.Transactions
-                       .AsNoTracking()
-                       .Where(t => t.WalletId == walletId);
+                .AsNoTracking()
+                .Where(t => t.WalletId == walletId);
 
-            if (from.HasValue) q = q.Where(t => t.CreatedAt >= from.Value);
-            if (to.HasValue) q = q.Where(t => t.CreatedAt <= to.Value);
+            
+            if (from.HasValue)
+            {
+                var fromUtc = DateTime.SpecifyKind(from.Value, DateTimeKind.Utc);
+                q = q.Where(t => t.CreatedAt >= fromUtc);
+            }
+
+            if (to.HasValue)
+            {
+                var toUtc = DateTime.SpecifyKind(to.Value, DateTimeKind.Utc);
+                q = q.Where(t => t.CreatedAt <= toUtc);
+            }
 
             return await q.OrderByDescending(t => t.CreatedAt).ToListAsync();
         }
+
     }
 }
