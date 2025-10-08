@@ -26,3 +26,12 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+    - name: Publish (create artifact)
+      # publish outputs to ./artifacts (release configuration)
+      run: dotnet publish -c Release -o ./artifacts --no-build
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: dotnet-publish
+        path: artifacts
+        retention-days: 7
