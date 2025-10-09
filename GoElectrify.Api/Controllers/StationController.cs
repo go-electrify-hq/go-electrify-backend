@@ -1,6 +1,7 @@
 ﻿using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto;
 using GoElectrify.BLL.Dto.Station;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace go_electrify_backend.Controllers;
@@ -22,6 +23,7 @@ public class StationController : ControllerBase
         return Ok(stations);
     }
 
+    [Authorize(Roles = "Admin,Staff")]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -30,6 +32,7 @@ public class StationController : ControllerBase
         return Ok(station);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] StationCreateDto request)
     {
@@ -37,6 +40,7 @@ public class StationController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = station.Id }, station);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] StationUpdateDto request)
     {
@@ -45,6 +49,7 @@ public class StationController : ControllerBase
         return Ok(station);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
