@@ -1,23 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Entities;
-using GoElectrify.DAL.Persistence;
+using GoElectrify.DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
+using GoElectrify.DAL.Persistence;
+using System.Threading.Tasks;
 
-namespace GoElectrify.DAL.Repositories
+namespace GoElectrify.DAL.Repositories;
+
+public class TopupIntentRepository : ITopupIntentRepository
 {
-    public class TopupIntentRepository(AppDbContext db) : ITopupIntentRepository
+    private readonly AppDbContext _db;
+    public TopupIntentRepository(AppDbContext db) => _db = db;  
+
+    public async Task<TopupIntent?> GetByProviderRefAsync(long orderCode)
+        => await _db.TopupIntents.FirstOrDefaultAsync(t => t.OrderCode == orderCode);
+
+    public async Task<TopupIntent> AddAsync(TopupIntent entity)
     {
-        public Task AddAsync(TopupIntent intent, CancellationToken ct)
-            => db.Set<TopupIntent>().AddAsync(intent, ct).AsTask();
+        _db.TopupIntents.Add(entity);
+        await _db.SaveChangesAsync();
+        return entity;
+    }               
 
-        public Task<TopupIntent?> FindByProviderRefAsync(string provider, string providerRef, CancellationToken ct)
-            => db.Set<TopupIntent>().FirstOrDefaultAsync(x => x.Provider == provider && x.ProviderRef == providerRef, ct);
-
-        public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+    public async Task UpdateAsync(TopupIntent entity)
+    {
+        _db.TopupIntents.Update(entity);
+        await _db.SaveChangesAsync();
     }
 }

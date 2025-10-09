@@ -1,11 +1,37 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
+using GoElectrify.DAL.Repositories;
+using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 namespace GoElectrify.DAL.Repositories
 {
-    public class WalletRepository(AppDbContext db) : IWalletRepository
+    public class WalletRepository : IWalletRepository
     {
-        public Task AddAsync(Wallet wallet, CancellationToken ct) => db.Wallets.AddAsync(wallet, ct).AsTask();
+        private readonly AppDbContext _db;
+        public WalletRepository(AppDbContext db)
+        {
+            _db = db;
+        }
+
+        public async Task<Wallet?> GetByIdAsync(int walletId)
+        {
+            return await _db.Wallets.FirstOrDefaultAsync(w => w.Id == walletId);
+        }
+
+        public async Task UpdateBalanceAsync(int walletId, decimal amount)
+        {
+            var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.Id == walletId);
+            if (wallet == null)
+                throw new Exception($"Wallet with id {walletId} not found");
+
+            wallet.Balance += amount;
+            await _db.SaveChangesAsync();
+        }
+
+        public Task AddAsync(Wallet wallet, CancellationToken ct) => _db.Wallets.AddAsync(wallet, ct).AsTask();
     }
 }
+
+

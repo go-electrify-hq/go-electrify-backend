@@ -12,8 +12,8 @@ namespace GoElectrify.BLL.Entities
         public Wallet Wallet { get; set; } = default!;
 
         public decimal Amount { get; set; }                // decimal(18,2)
-        public string Provider { get; set; } = "SEPAY";    // "SEPAY"
-        public string ProviderRef { get; set; } = default!;// mã giao dịch phía provider (duy nhất)
+        public string Provider { get; set; } = "PayOs";    // "PayOs"
+        public long OrderCode { get; set; }
 
         // CREATED | PENDING | SUCCESS | FAILED | EXPIRED
         public string Status { get; set; } = "CREATED";

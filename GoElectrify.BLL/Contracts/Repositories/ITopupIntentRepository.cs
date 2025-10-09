@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using GoElectrify.BLL.Entities;
 using System.Threading.Tasks;
-using GoElectrify.BLL.Entities;
 
-namespace GoElectrify.BLL.Contracts.Repositories
+namespace GoElectrify.DAL.Repositories;
+
+public interface ITopupIntentRepository
 {
-    public interface ITopupIntentRepository
-    {
-        Task AddAsync(TopupIntent intent, CancellationToken ct);
-        Task<TopupIntent?> FindByProviderRefAsync(string provider, string providerRef, CancellationToken ct);
-        Task SaveAsync(CancellationToken ct);
-    }
+    Task<TopupIntent?> GetByProviderRefAsync(long orderCode);
+    Task<TopupIntent> AddAsync(TopupIntent entity);
+    Task UpdateAsync(TopupIntent entity);
 }
