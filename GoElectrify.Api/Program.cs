@@ -63,6 +63,9 @@ builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IAdminIncidentService, AdminIncidentService>();
+
+
 
 // JWT (để ở Program là hợp lý)
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
