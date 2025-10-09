@@ -63,6 +63,7 @@ builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IAdminIncidentService, AdminIncidentService>();
 
 
 
@@ -121,7 +122,14 @@ using (var scope = app.Services.CreateScope())
 app.UseSerilogRequestLogging();
 
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(o =>
+{
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "GoElectrify API v1");
+    o.RoutePrefix = "swagger";
+});
+
+// Redirect "/" -> "/swagger"
+app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
 
 //app.UseHttpsRedirection();
 
