@@ -1,9 +1,10 @@
 ﻿using GoElectrify.BLL.Entities;
 
-namespace GoElectrify.BLL.Contracts.Repositories
+namespace GoElectrify.BLL.Contracts.Repositories;
+
+public interface IWalletRepository
 {
-    public interface IWalletRepository
-    {
-        Task AddAsync(Wallet wallet, CancellationToken ct);
-    }
-}
+    Task AddAsync(Wallet wallet, CancellationToken ct);
+    Task<Wallet?> GetByIdAsync(int walletId);
+    Task UpdateBalanceAsync(int walletId, decimal amount);
+}   

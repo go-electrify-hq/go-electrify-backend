@@ -16,10 +16,24 @@ namespace GoElectrify.DAL.Repositories
                        .AsNoTracking()
                        .Where(t => t.WalletId == walletId);
 
-            if (from.HasValue) q = q.Where(t => t.CreatedAt >= from.Value);
-            if (to.HasValue) q = q.Where(t => t.CreatedAt <= to.Value);
+            if (from.HasValue)
+            {
+                var fromUtc = DateTime.SpecifyKind(from.Value, DateTimeKind.Utc);
+                q = q.Where(t => t.CreatedAt >= fromUtc);
+            }
+
+            if (to.HasValue)
+            {
+                var toUtc = DateTime.SpecifyKind(to.Value, DateTimeKind.Utc);
+                q = q.Where(t => t.CreatedAt <= toUtc);
+            }
 
             return await q.OrderByDescending(t => t.CreatedAt).ToListAsync();
+        }
+        public async Task AddAsync(Transaction entity)
+        {
+            _db.Transactions.Add(entity);
+            await _db.SaveChangesAsync();
         }
     }
 }

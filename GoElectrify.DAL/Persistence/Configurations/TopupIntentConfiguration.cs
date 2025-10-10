@@ -19,7 +19,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.Amount).HasPrecision(18, 2).IsRequired();
             b.Property(x => x.Provider).HasMaxLength(32).IsRequired();
             b.Property(x => x.Status).HasMaxLength(32).IsRequired();
-            b.Property(x => x.ProviderRef).HasMaxLength(128);
+            b.Property(x => x.OrderCode).HasMaxLength(128);
 
             b.ToTable(t => t.HasCheckConstraint("CK_TopupIntents_Status_UPPER", "status = UPPER(status)"));
             b.ToTable(t => t.HasCheckConstraint("CK_TopupIntents_Amount_NonNegative", "amount >= 0"));
