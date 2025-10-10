@@ -1,4 +1,5 @@
 ﻿using GoElectrify.BLL.Dto.Auth;
+using GoElectrify.BLL.Entities;
 
 namespace GoElectrify.BLL.Contracts.Services
 {
@@ -9,5 +10,6 @@ namespace GoElectrify.BLL.Contracts.Services
         //Task LogoutAsync(int userId, string refreshToken, CancellationToken ct);
         Task LogoutAsync(int userId, string refreshToken, CancellationToken ct);
         Task<TokenResponse> RefreshAsync(string refreshToken, CancellationToken ct);
+
     }
 }

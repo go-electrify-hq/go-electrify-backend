@@ -24,6 +24,20 @@ namespace GoElectrify.DAL.Persistence.Configurations
 
             b.Property(x => x.PricePerKwh).HasPrecision(18, 4);
 
+            b.Property(c => c.DockSecretHash)
+           .HasMaxLength(256)
+           .IsUnicode(false);
+
+            b.Property(c => c.AblyChannel)
+            .HasMaxLength(128)
+            .IsUnicode(false);
+
+            b.Property(c => c.DockStatus)
+            .HasMaxLength(20)
+            .IsUnicode(false);
+
+            b.Property(c => c.LastConnectedAt);
+
             b.HasOne(x => x.Station)
              .WithMany(s => s.Chargers)
              .HasForeignKey(x => x.StationId)

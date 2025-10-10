@@ -79,6 +79,10 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasIndex(x => new { x.ChargerId, x.StartedAt });
             b.HasIndex(x => x.Status);
             b.HasIndex(x => x.BookingId).IsUnique();
+            //b.HasIndex(x => x.ChargerId)
+            //.HasFilter("ended_at IS NULL")
+            //.IsUnique()
+            //.HasDatabaseName("ux_charging_sessions_active_per_charger");s
 
             // Audit (INSERT mặc định do DB gán)
             b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();

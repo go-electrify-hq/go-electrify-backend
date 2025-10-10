@@ -1,3 +1,4 @@
+using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Services;
@@ -64,7 +65,8 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IAdminIncidentService, AdminIncidentService>();
-
+builder.Services.AddSingleton<IAblyService, AblyService>();
+builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 
 
 // JWT (để ở Program là hợp lý)

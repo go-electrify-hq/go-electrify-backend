@@ -19,6 +19,11 @@ namespace GoElectrify.DAL.Repositories
 
         public Task<User?> GetByIdAsync(int id, CancellationToken ct)
         => db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
+        public Task<User?> GetByIdWithRoleAsync(int id, CancellationToken ct)
+        => db.Users.AsNoTracking()
+            .Include(u => u.Role)
+            .FirstOrDefaultAsync(u => u.Id == id, ct);
+
 
         public Task<User?> GetDetailAsync(int id, CancellationToken ct)
             => db.Users.Include(u => u.Role).Include(u => u.Wallet)
