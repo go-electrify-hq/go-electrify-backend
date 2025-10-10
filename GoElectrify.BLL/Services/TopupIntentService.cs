@@ -30,8 +30,8 @@ public class TopupIntentService : ITopupIntentService
         var (checkoutUrl, orderCode) = await _payos.CreatePaymentLinkAsync(
             dto.Amount,
             "nap tien vao vi",
-            "https://localhost:5001/payment/success",
-            "https://localhost:5001/payment/cancel"
+            "https://api.go-electrify.com/payment/success",
+            "https://api.go-electrify.com/payment/cancel"
         );
 
         var intent = new Entities.TopupIntent
