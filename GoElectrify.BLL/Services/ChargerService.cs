@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using GoElectrify.BLL.Contracts.Repositories;
@@ -20,6 +21,24 @@ namespace GoElectrify.BLL.Services
 
         public async Task<ChargerDto?> GetByIdAsync(int id, CancellationToken ct)
             => (await _repo.GetByIdAsync(id, ct)) is { } e ? Map(e) : null;
+        private static string MakeStoredSecret(string inputSecret)
+        {
+            // 16 bytes salt là đủ
+            Span<byte> salt = stackalloc byte[16];
+            RandomNumberGenerator.Fill(salt);
+
+            // Tính SHA256(salt || UTF8(secret))
+            using var sha = SHA256.Create();
+            byte[] secretBytes = Encoding.UTF8.GetBytes(inputSecret);
+            byte[] buffer = new byte[salt.Length + secretBytes.Length];
+            salt.CopyTo(buffer);
+            Buffer.BlockCopy(secretBytes, 0, buffer, salt.Length, secretBytes.Length);
+            byte[] hash = sha.ComputeHash(buffer);
+
+            string saltHex = Convert.ToHexString(salt).ToLowerInvariant();
+            string hashHex = Convert.ToHexString(hash).ToLowerInvariant();
+            return $"{saltHex}.{hashHex}";
+        }
 
         public async Task<ChargerDto> CreateAsync(ChargerCreateDto dto, CancellationToken ct)
         {
@@ -37,6 +56,7 @@ namespace GoElectrify.BLL.Services
                 PowerKw = dto.PowerKw,
                 Status = dto.Status.Trim(),
                 PricePerKwh = dto.PricePerKwh,
+                DockSecretHash = string.IsNullOrWhiteSpace(dto.DockSecretHash) ? null : MakeStoredSecret(dto.DockSecretHash.Trim())
             };
             await _repo.AddAsync(e, ct);
             return Map(e);
@@ -56,7 +76,7 @@ namespace GoElectrify.BLL.Services
             if (dto.PowerKw is not null) e.PowerKw = dto.PowerKw.Value;
             if (!string.IsNullOrWhiteSpace(dto.Status)) e.Status = dto.Status.Trim();
             if (dto.PricePerKwh is not null) e.PricePerKwh = dto.PricePerKwh.Value;
-
+            if (dto.DockSecretHash is not null) e.DockSecretHash = string.IsNullOrWhiteSpace(dto.DockSecretHash) ? null : MakeStoredSecret(dto.DockSecretHash.Trim());
             e.UpdatedAt = DateTime.UtcNow;
             Validate(e);
             await _repo.UpdateAsync(e, ct);

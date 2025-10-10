@@ -14,5 +14,6 @@ namespace GoElectrify.BLL.Dto.Charger
         public int PowerKw { get; set; }
         public string Status { get; set; } = "ONLINE"; // ONLINE | OFFLINE | MAINTENANCE
         public decimal? PricePerKwh { get; set; }
+        public string? DockSecretHash { get; set; }
     }
 }

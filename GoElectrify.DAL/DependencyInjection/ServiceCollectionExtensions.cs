@@ -20,22 +20,16 @@ namespace GoElectrify.DAL.DependencyInjection
     {
         public static IServiceCollection AddDal(this IServiceCollection services, IConfiguration cfg)
         {
-            // SQL Server
-            //services.AddDbContext<AppDbContext>(opt =>
-            //    opt.UseSqlServer(cfg.GetConnectionString("SqlServer")));
 
-            var cs = cfg.GetConnectionString("PostgreSql"); // đổi tên key
+
+            var cs = cfg.GetConnectionString("PostgreSql");
             services.AddDbContext<AppDbContext>(opt =>
             {
-                opt.UseNpgsql(cs, npg =>
-                {
-                    // npg.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery); // nếu có include nặng
-                }).UseSnakeCaseNamingConvention();
-                // Khuyến nghị: snake_case trong Postgres
+                opt.UseNpgsql(cs, npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null)).UseSnakeCaseNamingConvention();
+
 
             });
 
-            // Redis (Upstash cũng dùng ConnectionMultiplexer.Connect với rediss://)
             var redisUrl = cfg.GetConnectionString("Redis");
             if (!string.IsNullOrWhiteSpace(redisUrl))
             {
@@ -59,7 +53,7 @@ namespace GoElectrify.DAL.DependencyInjection
                 {
                     var parts = uri.UserInfo.Split(':', 2);
                     if (parts.Length == 2) { opts.User = parts[0]; opts.Password = parts[1]; }
-                    else { opts.Password = parts[0]; } // nhiều URL không có user => password-only
+                    else { opts.Password = parts[0]; }
                 }
 
                 services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(opts));
@@ -88,12 +82,14 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<IAdminIncidentRepository, AdminIncidentRepository>();
 
             services.AddScoped<IBookingRepository, BookingRepository>();
+            services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
+
             // Infra services
             services.AddSingleton<IRedisCache, RedisCache>();
 
 
             // ======================
-            // Email Sender — Resend ONLY (SDK chính thức)
+            // Email Sender — Resend 
             // ======================
             services.AddHttpClient<ResendClient>();
             // Lấy "Resend:ApiToken" từ appsettings + user-secrets (dev) / ENV (prod)

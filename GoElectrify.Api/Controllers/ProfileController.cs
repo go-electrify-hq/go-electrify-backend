@@ -25,7 +25,7 @@ namespace go_electrify_backend.Controllers
         public async Task<IActionResult> Update([FromBody] UpdateProfileDto dto, CancellationToken ct)
         {
             var uid = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            await profile.UpdateFullNameAsync(uid, dto.FullName, ct);
+            await profile.UpdateProfileAsync(uid, dto.FullName, dto.AvatarUrl, ct);
             return NoContent();
         }
     }
