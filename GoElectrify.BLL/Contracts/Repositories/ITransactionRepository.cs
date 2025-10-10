@@ -1,11 +1,10 @@
 ﻿using GoElectrify.BLL.Entities;
 
-namespace GoElectrify.BLL.Contracts.Repositories
+namespace GoElectrify.BLL.Contracts.Repositories;
+
+public interface ITransactionRepository
 {
-    public interface ITransactionRepository
-    {
-        Task<IReadOnlyList<Transaction>> GetByWalletIdAsync(int walletId, DateTime? from = null, DateTime? to = null);
+    Task<IReadOnlyList<Transaction>> GetByWalletIdAsync(int walletId, DateTime? from = null, DateTime? to = null);
+    Task AddAsync(Transaction entity);
 
-
-    }
 }

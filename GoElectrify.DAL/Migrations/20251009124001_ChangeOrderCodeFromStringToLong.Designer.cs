@@ -3,6 +3,7 @@ using System;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251009124001_ChangeOrderCodeFromStringToLong")]
+    partial class ChangeOrderCodeFromStringToLong
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -115,12 +118,6 @@ namespace GoElectrify.DAL.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AblyChannel")
-                        .HasMaxLength(128)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("ably_channel");
-
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -136,22 +133,6 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
-
-                    b.Property<string>("DockSecretHash")
-                        .HasMaxLength(256)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("dock_secret_hash");
-
-                    b.Property<string>("DockStatus")
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("dock_status");
-
-                    b.Property<DateTime?>("LastConnectedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_connected_at");
 
                     b.Property<int>("PowerKw")
                         .HasColumnType("integer")
@@ -200,7 +181,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "FU-DC1",
                             ConnectorTypeId = 2,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 150,
                             PricePerKwh = 6500.0000m,
                             StationId = 300,
@@ -213,7 +193,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "FU-AC1",
                             ConnectorTypeId = 4,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 22,
                             PricePerKwh = 4500.0000m,
                             StationId = 300,
@@ -226,7 +205,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "FU-DC2",
                             ConnectorTypeId = 2,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 150,
                             PricePerKwh = 6500.0000m,
                             StationId = 300,
@@ -239,7 +217,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "FU-DC3",
                             ConnectorTypeId = 2,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 150,
                             PricePerKwh = 6500.0000m,
                             StationId = 300,
@@ -252,7 +229,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "FU-AC2",
                             ConnectorTypeId = 4,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 22,
                             PricePerKwh = 4500.0000m,
                             StationId = 300,
@@ -265,7 +241,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "SC-DC1",
                             ConnectorTypeId = 2,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 200,
                             PricePerKwh = 6500.0000m,
                             StationId = 301,
@@ -278,7 +253,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "SC-AC1",
                             ConnectorTypeId = 4,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 22,
                             PricePerKwh = 4500.0000m,
                             StationId = 301,
@@ -291,7 +265,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "GP-DC1",
                             ConnectorTypeId = 1,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 120,
                             PricePerKwh = 6500.0000m,
                             StationId = 302,
@@ -304,7 +277,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "GP-CHA1",
                             ConnectorTypeId = 5,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 50,
                             PricePerKwh = 6000.0000m,
                             StationId = 302,
@@ -317,7 +289,6 @@ namespace GoElectrify.DAL.Migrations
                             Code = "GP-AC1",
                             ConnectorTypeId = 4,
                             CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DockStatus = "DISCONNECTED",
                             PowerKw = 22,
                             PricePerKwh = 4500.0000m,
                             StationId = 302,

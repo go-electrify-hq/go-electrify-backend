@@ -32,12 +32,14 @@ namespace GoElectrify.DAL.Repositories
 
         public async Task AddAsync(Station station)
         {
+            station.Status = string.IsNullOrWhiteSpace(station.Status) ? "ACTIVE" : station.Status.ToUpper();
             await _context.Stations.AddAsync(station);
             await _context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Station station)
         {
+            station.Status = string.IsNullOrWhiteSpace(station.Status) ? "ACTIVE" : station.Status.ToUpper();
             _context.Stations.Update(station);
             await _context.SaveChangesAsync();
         }

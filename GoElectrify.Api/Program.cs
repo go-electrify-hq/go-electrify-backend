@@ -2,6 +2,8 @@ using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Services;
+using GoElectrify.BLL.Services;
+using GoElectrify.BLL.Services.Interfaces;
 using GoElectrify.DAL.DependencyInjection;
 using GoElectrify.DAL.Infra;
 using GoElectrify.DAL.Persistence;
@@ -67,6 +69,9 @@ builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IAdminIncidentService, AdminIncidentService>();
 builder.Services.AddSingleton<IAblyService, AblyService>();
 builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
+builder.Services.AddScoped<ITopupIntentService, TopupIntentService>();
+builder.Services.AddHttpClient<IPayOSService, PayOSService>();
+
 
 
 // JWT (để ở Program là hợp lý)
