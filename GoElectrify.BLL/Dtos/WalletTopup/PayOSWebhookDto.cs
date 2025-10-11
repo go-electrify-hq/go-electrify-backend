@@ -1,4 +1,4 @@
-namespace GoElectrify.BLL.DTOs.WalletTopup;
+namespace GoElectrify.BLL.Dtos.WalletTopup;
 
 public class PayOSWebhookDto
 {
@@ -10,7 +10,7 @@ public class PayOSWebhookDto
 
 public class WebhookDataDto
 {
-    public long orderCode { get; set; } 
+    public long orderCode { get; set; }
     public decimal Amount { get; set; }
     public string Description { get; set; } = string.Empty;
 }
