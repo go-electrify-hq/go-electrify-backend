@@ -226,14 +226,12 @@ namespace GoElectrify.BLL.Services
             if (existing is null)
                 throw new UnauthorizedAccessException("Invalid or expired refresh token.");
 
-            // LẤY USER + ROLE MỚI NHẤT
             var user = await users.GetByIdWithRoleAsync(existing.UserId, ct);
             if (user is null)
                 throw new UnauthorizedAccessException("User not found.");
 
-            var roleName = user.Role?.Name ?? "Driver"; // hoặc bắt buộc phải có role → throw
+            var roleName = user.Role?.Name ?? "Driver";
 
-            // Issue token mới với role mới
             var (access, accessExp, newRefresh, newRefreshExp) =
                 tokenSvc.IssueTokens(
                     user.Id,
