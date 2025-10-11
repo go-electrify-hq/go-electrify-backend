@@ -1,4 +1,4 @@
-using GoElectrify.BLL.DTOs.WalletTopup;
+using GoElectrify.BLL.Dtos.WalletTopup;
 using System;
 using System.Threading.Tasks;
 

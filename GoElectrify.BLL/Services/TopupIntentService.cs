@@ -1,4 +1,3 @@
-using GoElectrify.BLL.DTOs.WalletTopup;
 using GoElectrify.BLL.Services.Interfaces;
 using GoElectrify.DAL.Repositories;
 using GoElectrify.BLL.Entities;
@@ -7,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System;
 using GoElectrify.BLL.Contracts.Services;
+using GoElectrify.BLL.Dtos.WalletTopup;
 
 namespace GoElectrify.BLL.Services;
 

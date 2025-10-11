@@ -1,4 +1,4 @@
-namespace GoElectrify.BLL.DTOs.WalletTopup;
+namespace GoElectrify.BLL.Dtos.WalletTopup;
 
 public class TopupResponseDto
 {
