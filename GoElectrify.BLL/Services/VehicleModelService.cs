@@ -21,7 +21,7 @@ namespace GoElectrify.BLL.Services
                 ModelName = x.ModelName,
                 MaxPowerKw = x.MaxPowerKw,
                 BatteryCapacityKwh = x.BatteryCapacityKwh,
-                ConnectorTypeIds = new()
+                ConnectorTypeIds = x.VehicleModelConnectorTypes.Select(j => j.ConnectorTypeId).ToList(),
             }).ToList();
         }
 
