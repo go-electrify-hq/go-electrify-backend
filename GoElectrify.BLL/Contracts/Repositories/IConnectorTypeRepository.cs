@@ -16,9 +16,14 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task AddAsync(ConnectorType entity, CancellationToken ct);
         void Remove(ConnectorType entity);
 
-        // Join helpers để xóa sạch quan hệ trước khi xóa ConnectorType
-        Task<bool> HasAnyJoinAsync(int connectorTypeId, CancellationToken ct);
-        Task RemoveAllJoinsAsync(int connectorTypeId, CancellationToken ct);
+        Task<HashSet<int>> GetExistingIdsAsync(IEnumerable<int> ids, CancellationToken ct);   // NEW (trả HashSet nhanh)
+        Task<HashSet<int>> FindBlockedIdsAsync(IEnumerable<int> ids, CancellationToken ct);   // chỉ Chargers + Bookings
+
+        Task RemoveAllJoinsAsync(int connectorTypeId, CancellationToken ct);                 // xoá join cho 1 id
+        Task RemoveAllJoinsAsync(IEnumerable<int> ids, CancellationToken ct);                // xoá join cho nhiều id
+
+        Task<int> BulkDeleteAsync(IEnumerable<int> ids, CancellationToken ct);               // set-based delete
+        Task<int> DeleteManySafeAsync(IEnumerable<int> ids, CancellationToken ct);           // NEW: dọn join + xoá trong 1 TXN
 
         Task SaveAsync(CancellationToken ct);
     }

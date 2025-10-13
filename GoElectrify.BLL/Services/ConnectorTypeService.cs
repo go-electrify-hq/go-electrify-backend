@@ -1,7 +1,10 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ConnectorTypes;
+using GoElectrify.BLL.Dtos.ConnectorTypes;
+using GoElectrify.BLL.Dtos.VehicleModels;
 using GoElectrify.BLL.Entities;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,14 +75,64 @@ namespace GoElectrify.BLL.Services
 
         public async Task DeleteAsync(int id, CancellationToken ct)
         {
+            // Blocked chỉ tính Chargers + Bookings
+            var blocked = await repo.FindBlockedIdsAsync(new[] { id }, ct);
+            if (blocked.Contains(id))
+                throw new InvalidOperationException("Cannot delete ConnectorType: referenced by chargers/bookings.");
+
+            // Không blocked → dọn join M-N và xoá
+            await repo.RemoveAllJoinsAsync(id, ct);
+
             var entity = await repo.GetByIdAsync(id, ct) ?? throw new KeyNotFoundException("ConnectorType not found.");
-
-            // Nếu có quan hệ với VehicleModel → xóa join trước để tránh lỗi FK
-            if (await repo.HasAnyJoinAsync(id, ct))
-                await repo.RemoveAllJoinsAsync(id, ct);
-
             repo.Remove(entity);
             await repo.SaveAsync(ct);
+        }
+
+        // ===== DELETE (batch, all-or-nothing) =====
+        public async Task<DeleteConnectorTypeResultDto> DeleteManyWithReportAsync(List<int> ids, CancellationToken ct)
+        {
+            if (ids is null || ids.Count == 0)
+                throw new ArgumentException("Ids must not be empty.", nameof(ids));
+
+            var input = ids.Where(x => x > 0).Distinct().ToList();
+
+            // NotFound?
+            var existing = await repo.GetExistingIdsAsync(input, ct);
+            var notFound = input.Where(x => !existing.Contains(x)).OrderBy(x => x).ToList();
+            if (notFound.Count > 0)
+            {
+                return new DeleteConnectorTypeResultDto
+                {
+                    Deleted = 0,
+                    DeletedIds = new(),
+                    BlockedIds = new(),
+                    NotFoundIds = notFound
+                };
+            }
+
+            // Blocked? (Chargers + Bookings)
+            var blocked = await repo.FindBlockedIdsAsync(existing, ct);
+            if (blocked.Count > 0)
+            {
+                return new DeleteConnectorTypeResultDto
+                {
+                    Deleted = 0,
+                    DeletedIds = new(),
+                    BlockedIds = blocked.OrderBy(x => x).ToList(),
+                    NotFoundIds = new()
+                };
+            }
+
+            // Sạch → repo lo transaction + retry (dọn join + xoá parent)
+            var deleted = await repo.DeleteManySafeAsync(existing, ct);
+
+            return new DeleteConnectorTypeResultDto
+            {
+                Deleted = deleted,
+                DeletedIds = existing.OrderBy(x => x).ToList(),
+                BlockedIds = new(),
+                NotFoundIds = new()
+            };
         }
     }
 }
