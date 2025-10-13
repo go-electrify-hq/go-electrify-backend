@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace GoElectrify.DAL.Repositories
 {
-    public class VehicleModelRepository(AppDbContext db) : IVehicleModelRepository
+    public class VehicleModelRepository(AppDbContext db) :  IVehicleModelRepository
     {
         public Task<List<VehicleModel>> ListAsync(string? search, CancellationToken ct)
            => db.VehicleModels.AsNoTracking()
@@ -66,6 +66,75 @@ namespace GoElectrify.DAL.Repositories
             return Task.CompletedTask;
         }
 
+        public Task<List<int>> FindIdsInBookingsAsync(IEnumerable<int> ids, CancellationToken ct)
+        {
+            var idList = ids?.Distinct().ToList() ?? new();
+            if (idList.Count == 0) return Task.FromResult(new List<int>());
+
+            return db.Set<Booking>()
+                     .Where(b => idList.Contains(b.VehicleModelId))
+                     .Select(b => b.VehicleModelId)
+                     .Distinct()
+                     .ToListAsync(ct);
+        }
+
+        // Dọn join cho nhiều VM (set-based, nhanh)
+        public Task RemoveAllJoinsForManyAsync(IEnumerable<int> ids, CancellationToken ct)
+        {
+            var idList = ids?.Distinct().ToList() ?? new();
+            if (idList.Count == 0) return Task.CompletedTask;
+
+            return db.VehicleModelConnectorTypes
+                     .Where(j => idList.Contains(j.VehicleModelId))
+                     .ExecuteDeleteAsync(ct);
+        }
+
+        // Xoá nhiều VM (set-based)
+        public Task<int> DeleteManyAsync(IEnumerable<int> ids, CancellationToken ct)
+        {
+            var idList = ids?.Distinct().ToList() ?? new();
+            if (idList.Count == 0) return Task.FromResult(0);
+
+            return db.VehicleModels
+                     .Where(x => idList.Contains(x.Id))
+                     .ExecuteDeleteAsync(ct);
+        }
+
+        // Gộp 2 lệnh DELETE (joins + parent) vào 1 transaction cho an toàn
+        public async Task<int> DeleteManySafeAsync(IEnumerable<int> ids, CancellationToken ct)
+        {
+            var idList = ids?.Distinct().ToList() ?? new();
+            if (idList.Count == 0) return 0;
+
+            var strategy = db.Database.CreateExecutionStrategy(); // cần khi EnableRetryOnFailure
+            int affected = 0;
+
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await db.Database.BeginTransactionAsync(ct);
+                try
+                {
+                    // 1) Dọn join (set-based). Nếu lỗi -> catch -> Rollback toàn bộ.
+                    await db.Set<VehicleModelConnectorType>()
+                            .Where(j => idList.Contains(j.VehicleModelId))
+                            .ExecuteDeleteAsync(ct);
+
+                    // 2) Xóa VehicleModels (set-based). Nếu lỗi -> catch -> Rollback toàn bộ.
+                    affected = await db.VehicleModels
+                                       .Where(x => idList.Contains(x.Id))
+                                       .ExecuteDeleteAsync(ct);
+
+                    await tx.CommitAsync(ct); // chỉ commit khi cả 2 lệnh đều OK
+                }
+                catch
+                {
+                    await tx.RollbackAsync(ct); // rollback mọi thay đổi trong transaction
+                    throw; // ném lỗi ra ngoài cho service/controller xử lý
+                }
+            });
+
+            return affected;
+        }
         public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
     }
 }
