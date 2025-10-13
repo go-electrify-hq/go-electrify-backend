@@ -71,6 +71,8 @@ builder.Services.AddSingleton<IAblyService, AblyService>();
 builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 builder.Services.AddScoped<ITopupIntentService, TopupIntentService>();
 builder.Services.AddHttpClient<IPayOSService, PayOSService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
 
 
 

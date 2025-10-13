@@ -31,6 +31,12 @@ namespace GoElectrify.DAL.Repositories
         }
 
         public Task AddAsync(Wallet wallet, CancellationToken ct) => _db.Wallets.AddAsync(wallet, ct).AsTask();
+        public async Task<Wallet?> GetByUserIdAsync(int userId)
+        {
+            return await _db.Wallets
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.UserId == userId);
+        }
     }
 }
 
