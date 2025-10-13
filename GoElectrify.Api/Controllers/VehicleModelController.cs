@@ -1,5 +1,6 @@
 ﻿using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.VehicleModels;
+using GoElectrify.BLL.Dtos.VehicleModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Runtime.Intrinsics.Arm;
@@ -51,8 +52,36 @@ namespace GoElectrify.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
-            try { await svc.DeleteAsync(id, ct); return NoContent(); }
-            catch (KeyNotFoundException) { return NotFound(); }
+            try
+            {
+                await svc.DeleteAsync(id, ct);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (InvalidOperationException ex) // đang bị bookings tham chiếu
+            {
+                return Conflict(new { error = ex.Message });
+            }
+        }
+
+        // DELETE: /api/v1/vehicle-models/batch
+        [HttpDelete("batch")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> BatchDelete([FromBody] DeleteVehicleModelDto req, CancellationToken ct)
+        {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (req?.Ids == null || req.Ids.Count == 0)
+                return BadRequest(new { error = "The Id list cannot be empty" });
+
+            var result = await svc.DeleteManyWithReportAsync(req.Ids, ct);
+            // Luôn trả 200: FE hiển thị deleted vs blocked rõ ràng
+            if (result.BlockedIds.Count > 0)
+                return Conflict(result); // 409 + { deleted:0, deletedIds:[], blockedIds:[...] }
+
+            return Ok(result); // { deleted:n, deletedIds:[...], blockedIds:[] }
         }
     }
 }
