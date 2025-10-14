@@ -25,12 +25,18 @@ public class TopupIntentService : ITopupIntentService
 
     public async Task<TopupResponseDto> CreateTopupAsync(int walletId, TopupRequestDto dto)
     {
-        var locale = dto.locale ?? "vi";
+        var baseUrl = "https://go-electrify.com";
+        var returnUrl = dto.ReturnUrl ;
+        var cancelUrl = dto.CancelUrl;
+        if (!returnUrl.StartsWith("https://go-electrify.com") && !returnUrl.StartsWith("http://localhost"))
+            throw new ArgumentException("Invalid return URL");
+        if (!cancelUrl.StartsWith("https://go-electrify.com") && !cancelUrl.StartsWith("http://localhost"))
+            throw new ArgumentException("Invalid cancel URL");
         var (checkoutUrl, orderCode) = await _payos.CreatePaymentLinkAsync(
             dto.Amount,
             "nap tien vao vi",
-            $"https://api.go-electrify.com/{locale}/payment/success",
-            $"https://api.go-electrify.com/{locale}/payment/cancel"
+            returnUrl,
+            cancelUrl
         );
 
         var intent = new Entities.TopupIntent
