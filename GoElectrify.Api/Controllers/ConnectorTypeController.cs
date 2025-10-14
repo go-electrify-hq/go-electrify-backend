@@ -11,12 +11,13 @@ namespace GoElectrify.Api.Controllers
     public class ConnectorTypeController(IConnectorTypeService svc) : ControllerBase
     {
         [HttpGet]
-        [AllowAnonymous]
+        //[AllowAnonymous]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> List([FromQuery] string? search, CancellationToken ct)
            => Ok(await svc.ListAsync(search, ct));
 
         [HttpGet("{id:int}")]
-        [AllowAnonymous]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Get(int id, CancellationToken ct)
             => (await svc.GetAsync(id, ct)) is { } dto ? Ok(dto) : NotFound();
 

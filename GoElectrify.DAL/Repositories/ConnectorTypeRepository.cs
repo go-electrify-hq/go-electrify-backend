@@ -13,19 +13,35 @@ namespace GoElectrify.DAL.Repositories
     public class ConnectorTypeRepository(AppDbContext db) : IConnectorTypeRepository
     {
         public Task<List<ConnectorType>> ListAsync(string? search, CancellationToken ct)
-           => db.ConnectorTypes
-                .AsNoTracking()
-                .Where(x => string.IsNullOrWhiteSpace(search) || x.Name.Contains(search))
-                .OrderBy(x => x.Name)
-                .ToListAsync(ct);
+        {
+            var q = db.ConnectorTypes.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToUpper();
+
+                q = q.Where(x =>
+                    x.Name.ToUpper().Contains(s) ||                                  // tìm theo Name
+                    (x.Description != null && x.Description.ToUpper().Contains(s)) // tìm theo Description 
+                );
+            }
+
+            return q.OrderBy(x => x.Name).ToListAsync(ct);
+        }   
 
         public Task<ConnectorType?> GetByIdAsync(int id, CancellationToken ct)
             => db.ConnectorTypes.FirstOrDefaultAsync(x => x.Id == id, ct);
 
         public Task<bool> ExistsByNameAsync(string name, int? excludeId, CancellationToken ct)
-            => db.ConnectorTypes
-                 .Where(x => !excludeId.HasValue || x.Id != excludeId.Value)
-                 .AnyAsync(x => x.Name == name, ct);
+        //=> db.ConnectorTypes
+        //     .Where(x => !excludeId.HasValue || x.Id != excludeId.Value)
+        //     .AnyAsync(x => x.Name == name, ct);
+        {
+            var n = name.Trim().ToUpper();
+            return db.ConnectorTypes
+                     .Where(x => !excludeId.HasValue || x.Id != excludeId.Value)
+                     .AnyAsync(x => x.Name.ToUpper() == n, ct);
+        }
 
         public Task AddAsync(ConnectorType entity, CancellationToken ct)
             => db.ConnectorTypes.AddAsync(entity, ct).AsTask();
