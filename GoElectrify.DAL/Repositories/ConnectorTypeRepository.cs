@@ -32,16 +32,99 @@ namespace GoElectrify.DAL.Repositories
 
         public void Remove(ConnectorType entity) => db.ConnectorTypes.Remove(entity);
 
-        public Task<bool> HasAnyJoinAsync(int connectorTypeId, CancellationToken ct)
-            => db.Set<VehicleModelConnectorType>()
-                 .AnyAsync(j => j.ConnectorTypeId == connectorTypeId, ct);
-
-        public async Task RemoveAllJoinsAsync(int connectorTypeId, CancellationToken ct)
+        public async Task<HashSet<int>> GetExistingIdsAsync(IEnumerable<int> ids, CancellationToken ct)
         {
-            var joins = await db.Set<VehicleModelConnectorType>()
-                                .Where(j => j.ConnectorTypeId == connectorTypeId)
+            var list = ids.Distinct().ToList();
+            if (list.Count == 0) return new();
+
+            var existing = await db.ConnectorTypes.AsNoTracking()
+                                .Where(x => list.Contains(x.Id))
+                                .Select(x => x.Id)
                                 .ToListAsync(ct);
-            db.RemoveRange(joins);
+            return existing.ToHashSet();
+        }
+
+        // CHỈ coi là blocked khi bị tham chiếu bởi Chargers hoặc Bookings
+        public async Task<HashSet<int>> FindBlockedIdsAsync(IEnumerable<int> ids, CancellationToken ct)
+        {
+            var list = ids.Distinct().ToList();
+            if (list.Count == 0) return new();
+
+            var inChargers = await db.Chargers.AsNoTracking()
+                                .Where(c => list.Contains(c.ConnectorTypeId))
+                                .Select(c => c.ConnectorTypeId)
+                                .Distinct()
+                                .ToListAsync(ct);
+
+            var inBookings = await db.Bookings.AsNoTracking()
+                                .Where(b => list.Contains(b.ConnectorTypeId))
+                                .Select(b => b.ConnectorTypeId)
+                                .Distinct()
+                                .ToListAsync(ct);
+
+            return inChargers.Concat(inBookings).ToHashSet();
+        }
+
+        // Xoá join VehicleModelConnectorTypes cho 1 id
+        public Task RemoveAllJoinsAsync(int connectorTypeId, CancellationToken ct)
+            => db.Set<VehicleModelConnectorType>()
+                 .Where(j => j.ConnectorTypeId == connectorTypeId)
+                 .ExecuteDeleteAsync(ct);
+
+        // Xoá join VehicleModelConnectorTypes cho nhiều id
+        public Task RemoveAllJoinsAsync(IEnumerable<int> ids, CancellationToken ct)
+        {
+            var list = ids.Distinct().ToList();
+            if (list.Count == 0) return Task.CompletedTask;
+
+            return db.Set<VehicleModelConnectorType>()
+                     .Where(j => list.Contains(j.ConnectorTypeId))
+                     .ExecuteDeleteAsync(ct);
+        }
+
+        // Xoá parent set-based
+        public Task<int> BulkDeleteAsync(IEnumerable<int> ids, CancellationToken ct)
+        {
+            var list = ids.Distinct().ToList();
+            if (list.Count == 0) return Task.FromResult(0);
+
+            return db.ConnectorTypes
+                     .Where(x => list.Contains(x.Id))
+                     .ExecuteDeleteAsync(ct);
+        }
+
+        // Dọn join + xoá parent trong 1 transaction (có retry) — all-or-nothing
+        public async Task<int> DeleteManySafeAsync(IEnumerable<int> ids, CancellationToken ct)
+        {
+            var list = ids.Distinct().ToList();
+            if (list.Count == 0) return 0;
+
+            var strategy = db.Database.CreateExecutionStrategy();
+            int affected = 0;
+
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await db.Database.BeginTransactionAsync(ct);
+                try
+                {
+                    await db.Set<VehicleModelConnectorType>()
+                            .Where(j => list.Contains(j.ConnectorTypeId))
+                            .ExecuteDeleteAsync(ct);
+
+                    affected = await db.ConnectorTypes
+                                       .Where(x => list.Contains(x.Id))
+                                       .ExecuteDeleteAsync(ct);
+
+                    await tx.CommitAsync(ct);
+                }
+                catch
+                {
+                    await tx.RollbackAsync(ct);
+                    throw;
+                }
+            });
+
+            return affected;
         }
 
         public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);

@@ -1,6 +1,7 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.VehicleModels;
+using GoElectrify.BLL.Dtos.VehicleModels;
 using GoElectrify.BLL.Entities;
 using System;
 using System.Collections.Generic;
@@ -93,9 +94,56 @@ namespace GoElectrify.BLL.Services
 
         public async Task DeleteAsync(int id, CancellationToken ct)
         {
+            var blocked = await repo.FindIdsInBookingsAsync(new[] { id }, ct);
+            if (blocked.Count > 0)
+                throw new InvalidOperationException("Cannot delete VehicleModel: referenced by bookings.");
+
             var vm = await repo.GetByIdAsync(id, ct) ?? throw new KeyNotFoundException("VehicleModel not found.");
-            repo.Remove(vm);
+            repo.Remove(vm); // Cascade join tự lo
             await repo.SaveAsync(ct);
         }
+
+        public async Task<DeleteVehicleModelResultDto> DeleteManyWithReportAsync(List<int> ids, CancellationToken ct)
+        {
+            if (ids is null || ids.Count == 0)
+                throw new ArgumentException("Ids must not be empty.", nameof(ids));
+
+            var input = ids.Distinct().ToList();
+
+            // 1) Tìm những id thực sự đang có trong DB
+            var existingIds = await repo
+                .ListAsync(search: null, ct) // nếu ListAsync load nhiều, đổi sang query gọn:
+                                             // tốt nhất thêm 1 repo method: GetExistingIdsAsync(IEnumerable<int>)
+                .ContinueWith(t => t.Result.Select(v => v.Id).Where(id => input.Contains(id)).ToList(), ct);
+
+            var notFound = input.Except(existingIds).ToList();
+
+            // 2) Kiểm tra bị Booking tham chiếu trong phần còn lại
+            var blocked = await repo.FindIdsInBookingsAsync(existingIds, ct);
+
+            // 3) ALL-OR-NOTHING: nếu có blocked hoặc có notFound → KHÔNG xoá gì
+            if (blocked.Count > 0 || notFound.Count > 0)
+            {
+                return new DeleteVehicleModelResultDto
+                {
+                    Deleted = 0,
+                    DeletedIds = null,       // ẩn khi serialize
+                    BlockedIds = blocked,
+                    NotFoundIds = notFound.Count > 0 ? notFound : null
+                };
+            }
+
+            // 4) Không blocked, không notFound → xoá tất cả
+            var deleted = await repo.DeleteManySafeAsync(existingIds, ct);
+
+            return new DeleteVehicleModelResultDto
+            {
+                Deleted = deleted,
+                DeletedIds = existingIds,
+                BlockedIds = new(),
+                NotFoundIds = null
+            };
+        }
+
     }
 }

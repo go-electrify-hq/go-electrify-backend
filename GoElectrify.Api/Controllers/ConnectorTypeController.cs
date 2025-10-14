@@ -1,5 +1,6 @@
 ﻿using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ConnectorTypes;
+using GoElectrify.BLL.Dtos.ConnectorTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -50,8 +51,37 @@ namespace GoElectrify.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
-            try { await svc.DeleteAsync(id, ct); return NoContent(); }
-            catch (KeyNotFoundException) { return NotFound(); }
+            try
+            {
+                await svc.DeleteAsync(id, ct);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (InvalidOperationException ex) // đang bị bookings/chargers tham chiếu
+            {
+                return Conflict(new { error = ex.Message });
+            }
+        }
+
+        [HttpDelete("batch")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> BatchDelete([FromBody] DeleteConnectorTypeDto req, CancellationToken ct)
+        {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            if (req?.Ids == null || req.Ids.Count == 0)
+                return BadRequest(new { error = "The Id list cannot be empty" });
+
+            var result = await svc.DeleteManyWithReportAsync(req.Ids, ct);
+
+            // Có id không tồn tại hoặc đang bị tham chiếu -> 409, không xóa gì cả
+            if (result.BlockedIds.Count > 0 || result.NotFoundIds.Count > 0)
+                return Conflict(result);
+
+            // Xóa thành công toàn bộ
+            return Ok(result); // { deleted, deletedIds, blockedIds:[], notFoundIds:[] }
         }
     }
 }
