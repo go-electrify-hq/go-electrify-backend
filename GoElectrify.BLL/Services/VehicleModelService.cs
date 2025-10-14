@@ -3,17 +3,12 @@ using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.VehicleModels;
 using GoElectrify.BLL.Dtos.VehicleModels;
 using GoElectrify.BLL.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Services
 {
     public class VehicleModelService(IVehicleModelRepository repo) : IVehicleModelService
     {
-         public async Task<List<VehicleModelDto>> ListAsync(string? search, CancellationToken ct)
+        public async Task<List<VehicleModelDto>> ListAsync(string? search, CancellationToken ct)
         {
             var entities = await repo.ListAsync(search, ct);
             return entities.Select(x => new VehicleModelDto

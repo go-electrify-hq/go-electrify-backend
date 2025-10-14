@@ -1,6 +1,6 @@
-﻿using GoElectrify.BLL.Entities;
+﻿using System.Reflection;
+using GoElectrify.BLL.Entities;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection;
 
 namespace GoElectrify.DAL.Persistence
 {

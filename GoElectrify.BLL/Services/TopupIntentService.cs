@@ -1,12 +1,10 @@
-using GoElectrify.BLL.Services.Interfaces;
-using GoElectrify.DAL.Repositories;
-using GoElectrify.BLL.Entities;
-using GoElectrify.BLL.Contracts.Repositories;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System;
+using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dtos.WalletTopup;
+using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Services.Interfaces;
+using GoElectrify.DAL.Repositories;
 
 namespace GoElectrify.BLL.Services;
 
@@ -27,11 +25,12 @@ public class TopupIntentService : ITopupIntentService
 
     public async Task<TopupResponseDto> CreateTopupAsync(int walletId, TopupRequestDto dto)
     {
+        var locale = dto.locale ?? "vi";
         var (checkoutUrl, orderCode) = await _payos.CreatePaymentLinkAsync(
             dto.Amount,
             "nap tien vao vi",
-            "https://api.go-electrify.com/payment/success",
-            "https://api.go-electrify.com/payment/cancel"
+            $"https://api.go-electrify.com/{locale}/payment/success",
+            $"https://api.go-electrify.com/{locale}/payment/cancel"
         );
 
         var intent = new Entities.TopupIntent

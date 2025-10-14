@@ -1,11 +1,11 @@
-﻿using GoElectrify.Api.Realtime;
+﻿using System.Security.Cryptography;
+using System.Text;
+using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Dto.Charger;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace GoElectrify.Api.Controllers
 {

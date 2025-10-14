@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
+﻿using GoElectrify.BLL.Entities;
 using Microsoft.EntityFrameworkCore;
-using GoElectrify.BLL.Entities;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GoElectrify.DAL.Persistence.Configurations
 {

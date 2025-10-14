@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using GoElectrify.BLL.Entities;
+﻿using GoElectrify.BLL.Entities;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace GoElectrify.BLL.Contracts.Repositories

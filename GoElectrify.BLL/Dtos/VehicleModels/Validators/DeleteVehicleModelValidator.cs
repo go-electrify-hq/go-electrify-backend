@@ -1,15 +1,10 @@
 ﻿using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Dtos.VehicleModels.Validators
 {
     public class DeleteVehicleModelValidator : AbstractValidator<DeleteVehicleModelDto>
     {
-        public DeleteVehicleModelValidator() 
+        public DeleteVehicleModelValidator()
         {
             // Danh sách Id không được null hoặc rỗng
             RuleFor(x => x.Ids)

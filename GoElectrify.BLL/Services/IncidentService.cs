@@ -2,11 +2,6 @@
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Incidents;
 using GoElectrify.BLL.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Services
 {
@@ -40,7 +35,7 @@ namespace GoElectrify.BLL.Services
             {
                 StationId = stationId,
                 ChargerId = dto.ChargerId,                  // nếu bảng có FK, có thể thêm check tồn tại sau
-                ReportedByStationStaffId = assignment.Id,   
+                ReportedByStationStaffId = assignment.Id,
                 Title = title,
                 Description = description,
                 Priority = priority,    // schema của bạn dùng Priority (string)
@@ -114,7 +109,7 @@ namespace GoElectrify.BLL.Services
             Id = x.Id,
             StationId = x.StationId,
             ChargerId = x.ChargerId,
-            ReportedByStationStaffId = x.ReportedByStationStaffId ,
+            ReportedByStationStaffId = x.ReportedByStationStaffId,
             Title = x.Title,
             Description = x.Description,
             Severity = x.Priority,

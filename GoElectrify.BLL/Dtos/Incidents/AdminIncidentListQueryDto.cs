@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GoElectrify.BLL.Dto.Incidents
+﻿namespace GoElectrify.BLL.Dto.Incidents
 {
     public class AdminIncidentListQueryDto
     {
@@ -19,7 +13,7 @@ namespace GoElectrify.BLL.Dto.Incidents
         /// Từ khóa tìm kiếm trên Title/Description.
         /// Ví dụ: "overheat", "charger", "leak"...
         /// </summary>
-        public string? Keyword { get; set; }  
+        public string? Keyword { get; set; }
 
         /// <summary>Bỏ qua N dòng đầu (phân trang phía client)</summary>
         public int Skip { get; set; } = 0;

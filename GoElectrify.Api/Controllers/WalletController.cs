@@ -1,10 +1,8 @@
 ﻿using GoElectrify.Api.Auth;
-using GoElectrify.BLL.Contracts;
 using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dtos.Wallet;
 using GoElectrify.BLL.Dtos.WalletTopup;
-using GoElectrify.BLL.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -124,7 +122,7 @@ namespace GoElectrify.Api.Controllers
             if (wallet == null)
                 return NotFound(new { message = "Wallet not found for current user." });
 
-            
+
             var result = await _topupIntentService.CreateTopupAsync(wallet.Id, new TopupRequestDto
             {
                 Amount = request.Amount

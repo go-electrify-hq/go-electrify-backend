@@ -1,6 +1,4 @@
-﻿using Azure;
-using Azure.Core;
-using GoElectrify.BLL.Contracts.Services;
+﻿using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Incidents;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +8,7 @@ namespace GoElectrify.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/admin/incidents")]
-    [Authorize(Roles = "Admin")] 
+    [Authorize(Roles = "Admin")]
     public class AdminIncidentsController : ControllerBase
     {
         private readonly IAdminIncidentService _svc;

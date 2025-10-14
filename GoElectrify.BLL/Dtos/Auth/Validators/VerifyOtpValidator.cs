@@ -1,5 +1,4 @@
 ﻿using FluentValidation;
-using GoElectrify.BLL.Dto.Auth;
 
 namespace GoElectrify.BLL.Dto.Auth.Validators
 {

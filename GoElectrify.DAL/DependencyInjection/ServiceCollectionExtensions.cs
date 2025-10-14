@@ -1,17 +1,13 @@
 using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
-using GoElectrify.BLL.Services;
 using GoElectrify.DAL.Infra;
 using GoElectrify.DAL.Persistence;
 using GoElectrify.DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using StackExchange.Redis;
-using Microsoft.Extensions.Options;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
-
 using Resend;
+using StackExchange.Redis;
 
 
 namespace GoElectrify.DAL.DependencyInjection

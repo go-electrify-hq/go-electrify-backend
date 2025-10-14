@@ -1,3 +1,4 @@
+using System.Text;
 using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Services;
@@ -10,7 +11,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
@@ -69,12 +69,9 @@ builder.Services.AddSingleton<IAblyService, AblyService>();
 builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 builder.Services.AddScoped<ITopupIntentService, TopupIntentService>();
 builder.Services.AddHttpClient<IPayOSService, PayOSService>();
-<<<<<<< HEAD
 builder.Services.AddHostedService<GoElectrify.Api.Hosted.SessionWatchdog>();
-=======
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
->>>>>>> origin/main
 
 
 

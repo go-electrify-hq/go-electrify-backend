@@ -1,17 +1,11 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
-using GoElectrify.BLL.Dto.VehicleModels;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.DAL.Repositories
 {
-    public class VehicleModelRepository(AppDbContext db) :  IVehicleModelRepository
+    public class VehicleModelRepository(AppDbContext db) : IVehicleModelRepository
     {
         public Task<List<VehicleModel>> ListAsync(string? search, CancellationToken ct)
            => db.VehicleModels.AsNoTracking()

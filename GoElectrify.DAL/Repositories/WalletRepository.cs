@@ -1,9 +1,7 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
-using GoElectrify.DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
 
 namespace GoElectrify.DAL.Repositories
 {

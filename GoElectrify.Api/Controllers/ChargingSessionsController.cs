@@ -2,7 +2,6 @@
 using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
-using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

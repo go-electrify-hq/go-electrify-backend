@@ -1,5 +1,4 @@
 ﻿using IO.Ably;
-using IO.Ably.Rest;
 
 namespace GoElectrify.Api.Realtime
 {
