@@ -15,6 +15,7 @@ namespace GoElectrify.DAL.Repositories
     {
         public Task<List<VehicleModel>> ListAsync(string? search, CancellationToken ct)
            => db.VehicleModels.AsNoTracking()
+               .Include(x => x.VehicleModelConnectorTypes)
                .Where(x => string.IsNullOrWhiteSpace(search) || x.ModelName.Contains(search))
                .OrderBy(x => x.ModelName)
                .ToListAsync(ct);
