@@ -33,7 +33,6 @@ namespace GoElectrify.BLL.Services
                 Name = request.Name,
                 Description = request.Description,
                 Address = request.Address,
-                ImageUrl = request.ImageUrl,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 Status = "Active",
