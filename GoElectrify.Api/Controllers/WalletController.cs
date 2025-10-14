@@ -125,7 +125,9 @@ namespace GoElectrify.Api.Controllers
 
             var result = await _topupIntentService.CreateTopupAsync(wallet.Id, new TopupRequestDto
             {
-                Amount = request.Amount
+                Amount = request.Amount,
+                ReturnUrl = request.ReturnUrl,
+                CancelUrl = request.CancelUrl,
             });
 
             return Ok(new
