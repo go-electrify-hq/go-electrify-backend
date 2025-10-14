@@ -12,12 +12,12 @@ namespace GoElectrify.Api.Controllers
     {
         [HttpGet]
         //[AllowAnonymous]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public async Task<IActionResult> List([FromQuery] string? search, CancellationToken ct)
            => Ok(await svc.ListAsync(search, ct));
 
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public async Task<IActionResult> Get(int id, CancellationToken ct)
             => (await svc.GetAsync(id, ct)) is { } dto ? Ok(dto) : NotFound();
 
