@@ -2,6 +2,7 @@
 {
     public sealed class ChargerDto
     {
+
         public int Id { get; set; }
         public int StationId { get; set; }
         public int ConnectorTypeId { get; set; }

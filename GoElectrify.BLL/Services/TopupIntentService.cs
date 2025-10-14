@@ -25,7 +25,6 @@ public class TopupIntentService : ITopupIntentService
 
     public async Task<TopupResponseDto> CreateTopupAsync(int walletId, TopupRequestDto dto)
     {
-        var baseUrl = "https://go-electrify.com";
         var returnUrl = dto.ReturnUrl ;
         var cancelUrl = dto.CancelUrl;
         var (checkoutUrl, orderCode) = await _payos.CreatePaymentLinkAsync(

@@ -10,5 +10,6 @@ namespace GoElectrify.BLL.Contracts.Repositories
         void Update(StationStaff entity);
         void Remove(StationStaff entity);
         Task SaveAsync(CancellationToken ct);
+        Task<StationStaff?> GetActiveByUserIdAsync(int userId, CancellationToken ct);
     }
 }

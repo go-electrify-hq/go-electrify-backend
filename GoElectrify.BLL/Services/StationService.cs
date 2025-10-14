@@ -8,10 +8,12 @@ namespace GoElectrify.BLL.Services
     public class StationService : IStationService
     {
         private readonly IStationRepository _repo;
+        private readonly IStationStaffRepository _staffRepo;
 
-        public StationService(IStationRepository repo)
+        public StationService(IStationRepository repo, IStationStaffRepository staffRepo)
         {
             _repo = repo;
+            _staffRepo = staffRepo;
         }
 
         public async Task<IEnumerable<Station>> GetAllStationsAsync()
@@ -87,6 +89,13 @@ namespace GoElectrify.BLL.Services
                 Status = r.Status,
                 DistanceKm = r.DistanceKm
             }).ToList();
+        }
+        public async Task<Station?> GetMyStationAsync(int userId, CancellationToken ct)
+        {
+            var assignment = await _staffRepo.GetActiveByUserIdAsync(userId, ct);
+            if (assignment == null) return null;
+            return assignment.Station;
+
         }
     }
 }
