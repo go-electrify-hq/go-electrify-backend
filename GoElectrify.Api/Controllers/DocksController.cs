@@ -45,7 +45,7 @@ namespace GoElectrify.Api.Controllers
         [HttpPost("log")]
         public async Task<IActionResult> IngestLog([FromBody] DockLogRequest req, CancellationToken ct)
         {
-            // 1) Xác thực dock theo Secret (dùng VerifySecret của bạn)
+            // 1) Auth dock bằng secret
             var charger = await _db.Chargers.FirstOrDefaultAsync(c => c.Id == req.DockId, ct);
             if (charger is null)
                 return NotFound(new { ok = false, error = "Charger not found." });
@@ -53,10 +53,11 @@ namespace GoElectrify.Api.Controllers
                 return Unauthorized(new { ok = false, error = "Invalid secret." });
 
             // 2) Ghi log (idempotent theo (ChargerId, SampleAt))
+            var atUtc = (req.SampleAt == default ? DateTimeOffset.UtcNow : req.SampleAt).UtcDateTime;
             var log = new ChargerLog
             {
                 ChargerId = req.DockId,
-                SampleAt = (req.SampleAt == default ? DateTimeOffset.UtcNow : req.SampleAt).UtcDateTime,
+                SampleAt = atUtc,
                 Voltage = req.Voltage,
                 Current = req.Current,
                 PowerKw = req.PowerKw,
@@ -66,7 +67,6 @@ namespace GoElectrify.Api.Controllers
                 ErrorCode = req.ErrorCode
             };
 
-            // Tránh duplicate theo unique index: (ChargerId, SampleAt)
             try
             {
                 _db.ChargerLogs.Add(log);
@@ -74,10 +74,10 @@ namespace GoElectrify.Api.Controllers
             }
             catch (DbUpdateException)
             {
-                // duplicate -> bỏ qua (idempotent)
+                // duplicate -> bỏ qua
             }
 
-            // 3) Cập nhật phiên sạc đang active (nếu có)
+            // 3) Lấy phiên đang chạy (nếu có) rồi cập nhật kWh/SOC
             var session = await _db.ChargingSessions
                 .Where(s => s.ChargerId == req.DockId && s.EndedAt == null)
                 .OrderByDescending(s => s.Id)
@@ -87,10 +87,9 @@ namespace GoElectrify.Api.Controllers
             {
                 bool changed = false;
 
-                // 3a) Cập nhật năng lượng
+                // 3a) Ưu tiên đồng hồ cộng dồn (cẩn thận out-of-order)
                 if (req.SessionEnergyKwh is not null)
                 {
-                    // Nếu dock gửi đồng hồ cộng dồn trong phiên → lấy max để an toàn
                     var newTotal = Math.Max(session.EnergyKwh, req.SessionEnergyKwh.Value);
                     if (newTotal != session.EnergyKwh)
                     {
@@ -100,13 +99,13 @@ namespace GoElectrify.Api.Controllers
                 }
                 else if (req.PowerKw is not null)
                 {
-                    // Không có kWh cộng dồn: xấp xỉ tích phân P theo thời gian giữa 2 mẫu
+                    // 3b) Không có kWh cộng dồn: trapezoid giữa 2 mẫu có power
                     var prev = await _db.ChargerLogs
-                        .Where(l => l.ChargerId == req.DockId && l.SampleAt < log.SampleAt && l.PowerKw != null)
+                        .Where(l => l.ChargerId == req.DockId && l.SampleAt < log.SampleAt && l.SampleAt >= session.StartedAt && l.PowerKw != null)
                         .OrderByDescending(l => l.SampleAt)
                         .FirstOrDefaultAsync(ct);
 
-                    if (prev is not null && prev.PowerKw is not null)
+                    if (prev?.PowerKw is not null)
                     {
                         var dtHours = (decimal)(log.SampleAt - prev.SampleAt).TotalSeconds / 3600.0m;
                         if (dtHours > 0 && dtHours < 1) // chặn outlier
@@ -121,7 +120,6 @@ namespace GoElectrify.Api.Controllers
                     }
                 }
 
-                // 3b) Cập nhật SoC cuối
                 if (req.SocPercent is not null)
                 {
                     var endSoc = Math.Clamp(req.SocPercent.Value, 0, 100);
@@ -136,8 +134,38 @@ namespace GoElectrify.Api.Controllers
                     await _db.SaveChangesAsync(ct);
             }
 
+            // 4) Fan-out realtime sau khi DB đã cập nhật
+            var channel = charger.AblyChannel ?? $"ge:dock:{req.DockId}";
+
+            // 4a) Telemetry thô để FE vẽ chart ngay
+            await _ably.PublishAsync(channel, "dock.telemetry", new
+            {
+                chargerId = req.DockId,
+                at = log.SampleAt,           // UTC
+                voltage = log.Voltage,
+                current = log.Current,
+                powerKw = log.PowerKw,
+                sessionEnergyKwh = log.SessionEnergyKwh,
+                soc = log.SocPercent,
+                state = log.State,
+                error = log.ErrorCode
+            }, ct);
+
+            // 4b) Snapshot tiến độ phiên (nếu đang chạy)
+            if (session is not null)
+            {
+                await _ably.PublishAsync(channel, "session.progress", new
+                {
+                    sessionId = session.Id,
+                    energyKwh = session.EnergyKwh,
+                    soc = session.SocEnd ?? session.SocStart,
+                    at = log.SampleAt
+                }, ct);
+            }
+
             return Ok(new { ok = true });
         }
+
 
         private static bool VerifySecret(string? storedHash, string inputSecret)
         {

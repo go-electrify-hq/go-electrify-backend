@@ -13,12 +13,19 @@ namespace GoElectrify.Api.Controllers
     [ApiController]
     [Route("api/v1/charging-sessions")]
     [Authorize]
-    public sealed class ChargingSessionsController : ControllerBase
+    public class ChargingSessionsController : ControllerBase
     {
         private readonly IChargingSessionService _svc;
         private readonly IAblyService _ably;
         private readonly AppDbContext _db;
-        public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, AppDbContext db) { _svc = svc; _ably = ably; _db = db; }
+        private readonly ILogger<ChargingSessionsController> _logger;
+        public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, AppDbContext db, ILogger<ChargingSessionsController> logger)
+        {
+            _svc = svc;
+            _ably = ably;
+            _db = db;
+            _logger = logger;
+        }
 
         [HttpPost("start")]
         public async Task<IActionResult> Start([FromBody] StartSessionDto dto, CancellationToken ct)
@@ -26,17 +33,36 @@ namespace GoElectrify.Api.Controllers
             var userId = User.GetUserId();
             var data = await _svc.StartForDriverAsync(userId, dto, ct);
 
-            // broadcast để dock và dashboard cùng nhận
-            await _ably.PublishAsync($"ge:dock:{data.ChargerId}", "session.started", new
-            {
-                sessionId = data.Id,
-                chargerId = data.ChargerId,
-                stationId = data.StationId,
-                connectorTypeId = data.ConnectorTypeId,
-                bookingId = data.BookingId,
-                startedAt = data.StartedAt
-            }, ct);
+            var channel = $"ge:dock:{data.ChargerId}";
 
+            // PHÁT SỰ KIỆN BẮT ĐẦU (đã mở rộng trường)
+            try
+            {
+                await _ably.PublishAsync(channel, "session.started", new
+                {
+                    sessionId = data.Id,
+                    chargerId = data.ChargerId,
+                    stationId = data.StationId,
+                    connectorTypeId = data.ConnectorTypeId,
+                    bookingId = data.BookingId,
+                    startedAt = data.StartedAt,
+
+                    // SỐ LIỆU CHO GIẢ LẬP/FE
+                    socStart = data.InitialSoc,
+                    vehicleBatteryKwh = data.VehicleBatteryCapacityKwh,
+                    vehicleMaxPowerKw = data.VehicleMaxPowerKw,
+                    chargerPowerKw = data.ChargerPowerKw,
+                    connectorMaxPowerKw = data.ConnectorMaxPowerKw,
+                    targetSoc = data.TargetSoc ?? 100
+                }, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Publish session.started best-effort failed. SessionId={SessionId}", data.Id);
+                // không fail request – best-effort realtime
+            }
+
+            // Response giữ nguyên cấu trúc cũ (đã có các field mới trong DTO)
             return Ok(new { ok = true, data });
         }
 

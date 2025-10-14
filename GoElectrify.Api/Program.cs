@@ -1,13 +1,10 @@
 using GoElectrify.Api.Realtime;
-using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
-using GoElectrify.BLL.Services;
 using GoElectrify.BLL.Services;
 using GoElectrify.BLL.Services.Interfaces;
 using GoElectrify.DAL.DependencyInjection;
 using GoElectrify.DAL.Infra;
 using GoElectrify.DAL.Persistence;
-using GoElectrify.DAL.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -16,7 +13,10 @@ using Serilog;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
+    .AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
+builder.Logging.ClearProviders();
 // Serilog + Swagger
 builder.Host.UseSerilog((ctx, cfg) => cfg.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
 builder.Services.AddEndpointsApiExplorer();
@@ -60,8 +60,6 @@ builder.Services.AddScoped<IStationStaffService, StationStaffService>();
 builder.Services.AddScoped<IStationService, StationService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IChargerService, ChargerService>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IStationStaffService, StationStaffService>();
 builder.Services.AddScoped<IIncidentService, IncidentService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
@@ -71,6 +69,7 @@ builder.Services.AddSingleton<IAblyService, AblyService>();
 builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 builder.Services.AddScoped<ITopupIntentService, TopupIntentService>();
 builder.Services.AddHttpClient<IPayOSService, PayOSService>();
+builder.Services.AddHostedService<GoElectrify.Api.Hosted.SessionWatchdog>();
 
 
 
@@ -139,7 +138,7 @@ app.UseSwaggerUI(o =>
 app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
 
 //app.UseHttpsRedirection();
-
+app.UseCors();
 app.UseAuthentication();   // phải trước UseAuthorization
 app.UseAuthorization();
 

@@ -36,5 +36,24 @@ namespace GoElectrify.DAL.Repositories
         public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 
         public async Task<IDbContextTransaction> BeginSerializableTxAsync(CancellationToken ct) => await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+
+        public Task<Charger?> FindAvailableChargerAsync(int stationId, int connectorTypeId, CancellationToken ct)
+        => db.Chargers
+            .AsNoTracking()
+            .Where(c => c.StationId == stationId
+                     && c.ConnectorTypeId == connectorTypeId
+                     && c.Status == "ONLINE")
+            .Where(c => !db.ChargingSessions.Any(s => s.ChargerId == c.Id && s.EndedAt == null))
+            .OrderByDescending(c => c.PowerKw)
+            .ThenBy(c => c.Id)
+            .FirstOrDefaultAsync(ct);
+
+        public Task<VehicleModel?> GetVehicleModelAsync(int id, CancellationToken ct)
+        => db.VehicleModels.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+
+        public Task<ConnectorType?> GetConnectorTypeAsync(int id, CancellationToken ct)
+        => db.ConnectorTypes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+
+
     }
 }

@@ -66,21 +66,15 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
             services.AddScoped<ITopupIntentRepository, TopupIntentRepository>();
             services.AddScoped<IVehicleModelRepository, VehicleModelRepository>();
-            services.AddScoped<IVehicleModelService, VehicleModelService>();
             services.AddScoped<IConnectorTypeRepository, ConnectorTypeRepository>();
             services.AddScoped<IStationRepository, StationRepository>();
             services.AddScoped<IStationStaffRepository, StationStaffRepository>();
             services.AddScoped<ITransactionRepository, TransactionRepository>();
-
-
             services.AddScoped<INotificationRepository, NotificationRepository>();
-
-            services.AddScoped<IStationRepository, StationRepository>();
             services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
             services.AddScoped<IChargerRepository, ChargerRepository>();
             services.AddScoped<IIncidentRepository, IncidentRepository>();
             services.AddScoped<IAdminIncidentRepository, AdminIncidentRepository>();
-
             services.AddScoped<IBookingRepository, BookingRepository>();
             services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
 

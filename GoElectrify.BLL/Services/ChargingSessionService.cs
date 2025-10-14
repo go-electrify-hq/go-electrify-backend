@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
@@ -16,42 +17,62 @@ namespace GoElectrify.BLL.Services
 
         public async Task<ChargingSessionDto> StartForDriverAsync(int userId, StartSessionDto dto, CancellationToken ct)
         {
-            // 1) Lấy charger và dùng nó làm nguồn StationId/ConnectorTypeId
-            var charger = await repo.GetChargerAsync(dto.ChargerId, ct)
-                ?? throw new InvalidOperationException("Charger not found.");
-            if (string.Equals(charger.Status, "OFFLINE", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Charger is offline.");
-
-            var stationId = charger.StationId;
-            var connectorTypeId = charger.ConnectorTypeId;
-
-            // 2) Vehicle phải hỗ trợ connector của CHARGER
-            var okCompat = await repo.VehicleSupportsConnectorAsync(dto.VehicleModelId, connectorTypeId, ct);
-            if (!okCompat) throw new InvalidOperationException("Vehicle not compatible with this connector.");
-
-            // 3) Nếu có booking code → kiểm tra match với charger
+            // 0) Đọc booking (nếu có)
             Booking? booking = null;
             if (!string.IsNullOrWhiteSpace(dto.BookingCode))
             {
-                booking = await repo.FindBookingByCodeForUserAsync(dto.BookingCode!, userId, ct)
-                          ?? throw new InvalidOperationException("Booking not found for this user.");
+                booking = await repo.FindBookingByCodeForUserAsync(dto.BookingCode!, userId, ct);
 
+                if (booking is null) throw new InvalidOperationException("Booking not found for this user.");
+                if (booking.UserId != userId) throw new InvalidOperationException("Booking not owned by user.");
                 if (booking.Status is "CANCELED" or "EXPIRED" or "CONSUMED")
                     throw new InvalidOperationException($"Booking is not usable: {booking.Status}.");
 
                 var expireAt = booking.ScheduledStart.AddMinutes(SLOT_MINUTES + 10);
                 if (DateTime.UtcNow >= expireAt) throw new InvalidOperationException("Booking has expired.");
-
-                if (booking.StationId != stationId || booking.ConnectorTypeId != connectorTypeId)
-                    throw new InvalidOperationException("Booking does not match this charger.");
             }
 
-            // 4) Transaction + re-check charger rảnh
-            await using var tx = await repo.BeginSerializableTxAsync(ct);
-            if (await repo.CountActiveOnChargerAsync(charger.Id, ct) > 0)
-                throw new InvalidOperationException("This charger is currently in use.");
+            // 1) Xác định CHARGER
+            Charger? charger = null;
 
-            // 5) Tạo session 
+            if (dto.ChargerId.HasValue)
+            {
+                charger = await repo.GetChargerAsync(dto.ChargerId.Value, ct)
+                    ?? throw new InvalidOperationException("Charger not found.");
+                if (string.Equals(charger.Status, "OFFLINE", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Charger is offline.");
+
+                // Nếu có booking => phải khớp station/connector
+                if (booking is not null &&
+                    (booking.StationId != charger.StationId || booking.ConnectorTypeId != charger.ConnectorTypeId))
+                    throw new InvalidOperationException("Booking does not match this charger.");
+            }
+            else
+            {
+                // Không gửi ChargerId => bắt buộc có booking để auto-assign
+                if (booking is null) throw new InvalidOperationException("ChargerId is required when not using a booking.");
+
+                charger = await repo.FindAvailableChargerAsync(booking.StationId, booking.ConnectorTypeId, ct)
+                    ?? throw new InvalidOperationException("No available charger matching this booking.");
+            }
+
+            var stationId = charger.StationId;
+            var connectorTypeId = charger.ConnectorTypeId;
+
+            // 2) Kiểm tra compatibility Vehicle x Connector
+            var okCompat = await repo.VehicleSupportsConnectorAsync(dto.VehicleModelId, connectorTypeId, ct);
+            if (!okCompat) throw new InvalidOperationException("Vehicle not compatible with this connector.");
+
+            // 2b) LẤY THÊM số liệu phục vụ giả lập
+            //     - VehicleModel: BatteryCapacityKwh, MaxPowerKw
+            //     - ConnectorType: MaxPowerKw
+            var vehicleModel = await repo.GetVehicleModelAsync(dto.VehicleModelId, ct)
+                ?? throw new InvalidOperationException("Vehicle model not found.");
+
+            var connectorType = await repo.GetConnectorTypeAsync(connectorTypeId, ct)
+                ?? throw new InvalidOperationException("Connector type not found.");
+
+            // 3) Tạo session 
             var session = new ChargingSession
             {
                 ChargerId = charger.Id,
@@ -61,19 +82,27 @@ namespace GoElectrify.BLL.Services
                 SocStart = dto.InitialSoc,
             };
 
-            await repo.AddSessionAsync(session, ct);
-
-            if (booking is not null)
+            try
             {
-                booking.Status = "CONSUMED";
-                booking.UpdatedAt = DateTime.UtcNow;
-                await bookingRepo.UpdateAsync(booking, ct);
+                await repo.AddSessionAsync(session, ct);
+
+                if (booking is not null)
+                {
+                    booking.Status = "CONSUMED";
+                    booking.UpdatedAt = DateTime.UtcNow;
+                    await bookingRepo.UpdateAsync(booking, ct);
+                }
+
+                await repo.SaveChangesAsync(ct);
             }
+            catch (DbUpdateException ex)
+            {
+                // va đập unique index: có phiên khác vừa chiếm dock
+                throw new InvalidOperationException("This charger is currently in use.", ex);
+            }
+            var targetSoc = dto.TargetSoc is null ? 100 : dto.TargetSoc;
 
-            await repo.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-
-            // 6) Trả DTO: lấy StationId/ConnectorTypeId từ CHARGER
+            // 4) Trả DTO (giữ đúng tên InitialSoc như code cũ)
             return new ChargingSessionDto
             {
                 Id = session.Id,
@@ -82,7 +111,16 @@ namespace GoElectrify.BLL.Services
                 ChargerId = session.ChargerId,
                 StationId = stationId,
                 ConnectorTypeId = connectorTypeId,
-                BookingId = session.BookingId
+                BookingId = session.BookingId,
+
+                InitialSoc = session.SocStart,
+
+                // === BỔ SUNG ===
+                VehicleBatteryCapacityKwh = vehicleModel.BatteryCapacityKwh, // decimal(12,4)
+                VehicleMaxPowerKw = vehicleModel.MaxPowerKw,          // int
+                ChargerPowerKw = charger.PowerKw,                  // decimal
+                ConnectorMaxPowerKw = connectorType.MaxPowerKw,        // int
+                TargetSoc = targetSoc
             };
         }
 

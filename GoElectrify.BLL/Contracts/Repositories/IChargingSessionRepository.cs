@@ -18,5 +18,9 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task<ChargingSession?> GetSessionAsync(int id, CancellationToken ct);
         Task SaveChangesAsync(CancellationToken ct);
         Task<IDbContextTransaction> BeginSerializableTxAsync(CancellationToken ct);
+        Task<Charger?> FindAvailableChargerAsync(int stationId, int connectorTypeId, CancellationToken ct);
+        Task<VehicleModel?> GetVehicleModelAsync(int vehicleModelId, CancellationToken ct);
+        Task<ConnectorType?> GetConnectorTypeAsync(int connectorTypeId, CancellationToken ct);
+
     }
 }
