@@ -143,7 +143,7 @@ app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
 app.UseCors();
 app.UseAuthentication();   // phải trước UseAuthorization
 app.UseAuthorization();
-
+app.UseStaticFiles();
 app.MapControllers();
 app.MapGet("/healthz", () => "ok");
 

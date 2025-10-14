@@ -45,6 +45,10 @@ namespace GoElectrify.DAL.Repositories
             await _context.SaveChangesAsync();
         }
 
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
         public async Task<IReadOnlyList<StationNearResult>> FindNearestAsync(
         double lat, double lng, double radiusKm, int limit, CancellationToken ct)
         {

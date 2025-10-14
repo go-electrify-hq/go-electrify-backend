@@ -15,7 +15,6 @@ public class StationController : ControllerBase
 {
     private readonly IStationService _service;
     private readonly IStationStaffRepository _staffRepo;
-
     public StationController(IStationService service, IStationStaffRepository staffRepo)
     {
         _service = service;
@@ -95,6 +94,36 @@ public class StationController : ControllerBase
         var deleted = await _service.DeleteStationAsync(id);
         if (!deleted) return NotFound();
         return NoContent();
+    }
+
+    [HttpPost("{id}/image")]
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<IActionResult> UploadImage(int id, IFormFile file)
+    {
+        if (file == null)
+            return BadRequest(new { error = "No file uploaded." });
+
+        try
+        {
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+
+            var imageUrl = await _service.UploadStationImageAsync(id, file, baseUrl);
+
+            return Ok(new { imageUrl });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Internal server error", detail = ex.Message });
+        }
     }
 
     [HttpGet("nearby")]
