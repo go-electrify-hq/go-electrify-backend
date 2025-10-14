@@ -69,12 +69,12 @@ builder.Services.AddSingleton<IAblyService, AblyService>();
 builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 builder.Services.AddScoped<ITopupIntentService, TopupIntentService>();
 builder.Services.AddHttpClient<IPayOSService, PayOSService>();
-<<<<<<< HEAD
+
 builder.Services.AddHostedService<GoElectrify.Api.Hosted.SessionWatchdog>();
-=======
+
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
->>>>>>> origin/main
+
 
 
 
