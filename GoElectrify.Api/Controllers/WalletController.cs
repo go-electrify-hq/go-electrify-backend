@@ -67,8 +67,8 @@ namespace GoElectrify.Api.Controllers
 
             return Ok(new
             {
-                walletId = wallet.Id,
-                balance = wallet.Balance
+                WalletId = wallet.Id,
+                Balance = wallet.Balance
             });
         }
 
@@ -99,11 +99,11 @@ namespace GoElectrify.Api.Controllers
 
             return Ok(new
             {
-                walletId = wallet.Id,
-                total,
-                page,
-                pageSize,
-                data = items
+                WalletId = wallet.Id,
+                Total = total,
+                Page = page,
+                PageSize = pageSize,
+                Data = items
             });
         }
 
@@ -132,10 +132,10 @@ namespace GoElectrify.Api.Controllers
 
             return Ok(new
             {
-                message = "Top-up intent created successfully.",
-                topupIntentId = result.TopupIntentId,
-                orderCode = result.OrderCode,
-                checkoutUrl = result.CheckoutUrl
+                Message = "Top-up intent created successfully.",
+                TopupIntentId = result.TopupIntentId,
+                OrderCode = result.OrderCode,
+                CheckoutUrl = result.CheckoutUrl
             });
         }
     }
