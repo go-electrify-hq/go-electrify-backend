@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using GoElectrify.BLL.Contracts.Repositories;
+﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace GoElectrify.BLL.Services
 {

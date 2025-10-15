@@ -1,15 +1,10 @@
 ﻿using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Dto.ConnectorTypes.Validators
 {
     public class CreateConnectorTypeDtoValidator : AbstractValidator<CreateConnectorTypeDto>
     {
-        public CreateConnectorTypeDtoValidator() 
+        public CreateConnectorTypeDtoValidator()
         {
             RuleFor(x => x.Name)
                .NotEmpty().WithMessage("Name is required.")

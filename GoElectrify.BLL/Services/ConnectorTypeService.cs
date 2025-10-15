@@ -2,14 +2,7 @@
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ConnectorTypes;
 using GoElectrify.BLL.Dtos.ConnectorTypes;
-using GoElectrify.BLL.Dtos.VehicleModels;
 using GoElectrify.BLL.Entities;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Services
 {

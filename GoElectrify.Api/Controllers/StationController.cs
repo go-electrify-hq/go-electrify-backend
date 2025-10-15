@@ -1,6 +1,10 @@
-﻿using GoElectrify.BLL.Contracts.Services;
-using GoElectrify.BLL.Dto;
+﻿using GoElectrify.Api.Auth;
+using GoElectrify.BLL.Contracts.Repositories;
+using GoElectrify.BLL.Contracts.Services;
+using GoElectrify.BLL.Dto.Charger;
 using GoElectrify.BLL.Dto.Station;
+using GoElectrify.BLL.Dtos.Station;
+using GoElectrify.BLL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,13 +14,47 @@ namespace go_electrify_backend.Controllers;
 public class StationController : ControllerBase
 {
     private readonly IStationService _service;
-
-    public StationController(IStationService service)
+    private readonly IStationStaffRepository _staffRepo;
+    public StationController(IStationService service, IStationStaffRepository staffRepo)
     {
         _service = service;
+        _staffRepo = staffRepo;
     }
 
-    [HttpGet]
+    [Authorize(Roles = "Staff")]
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMyStation()
+    {
+        var userId = User.GetUserId();
+        var station = await _service.GetMyStationAsync(userId, CancellationToken.None);
+        if (station == null)
+            return NotFound(new { error = "You are not assigned to any active station." });
+
+        var dto = new StationDto
+        {
+            Id = station.Id,
+            Name = station.Name,
+            Address = station.Address,
+            Status = station.Status,
+            Latitude = (decimal)station.Latitude,
+            Longitude = (decimal)station.Longitude,
+            Chargers = station.Chargers.Select(c => new ChargerDto
+            {
+                Id = c.Id,
+                StationId = c.StationId,
+                ConnectorTypeId = c.ConnectorTypeId,
+                Code = c.Code,
+                PowerKw = c.PowerKw,
+                Status = c.Status,
+                PricePerKwh = c.PricePerKwh,
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt
+            }).ToList()
+        };
+
+        return Ok(dto);
+    }
+        [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var stations = await _service.GetAllStationsAsync();
@@ -70,6 +108,36 @@ public class StationController : ControllerBase
         var deleted = await _service.DeleteStationAsync(id);
         if (!deleted) return NotFound();
         return NoContent();
+    }
+
+    [HttpPost("{id}/image")]
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<IActionResult> UploadImage(int id, IFormFile file)
+    {
+        if (file == null)
+            return BadRequest(new { error = "No file uploaded." });
+
+        try
+        {
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+
+            var imageUrl = await _service.UploadStationImageAsync(id, file, baseUrl);
+
+            return Ok(new { imageUrl });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Internal server error", detail = ex.Message });
+        }
     }
 
     [HttpGet("nearby")]

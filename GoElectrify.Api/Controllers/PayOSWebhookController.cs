@@ -1,7 +1,7 @@
-﻿using GoElectrify.DAL.Persistence;
-using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
+﻿using System.Text.Json;
 using GoElectrify.BLL.Entities;
+using GoElectrify.DAL.Persistence;
+using Microsoft.AspNetCore.Mvc;
 namespace GoElectrify.Api.Controllers
 {
     [ApiController]
@@ -27,7 +27,7 @@ namespace GoElectrify.Api.Controllers
 
                 long orderCode = data.GetProperty("orderCode").GetInt64();
                 decimal amount = data.GetProperty("amount").GetDecimal();
-                string code = data.GetProperty("code").GetString();
+                string code = data.GetProperty("code").GetString() ?? string.Empty;
 
                 if (code == "00")
                 {
@@ -43,7 +43,7 @@ namespace GoElectrify.Api.Controllers
                     if (wallet == null)
                         return Ok(new { code = "98", desc = "Wallet not found" });
                     wallet.Balance += amount;
-                    wallet.UpdatedAt = DateTime.UtcNow;                                     
+                    wallet.UpdatedAt = DateTime.UtcNow;
                     var transaction = new Transaction
                     {
                         WalletId = wallet.Id,

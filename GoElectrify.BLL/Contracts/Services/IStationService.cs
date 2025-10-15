@@ -1,12 +1,9 @@
 ﻿using GoElectrify.BLL.Dto;
 using GoElectrify.BLL.Dto.Charger;
 using GoElectrify.BLL.Dto.Station;
+﻿using GoElectrify.BLL.Dto.Station;
 using GoElectrify.BLL.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 namespace GoElectrify.BLL.Contracts.Services;
 public interface IStationService
 {
@@ -19,5 +16,7 @@ public interface IStationService
     Task<IReadOnlyList<StationNearbyDto>> GetNearbyAsync(
        double lat, double lng, double radiusKm = 10, int limit = 20, CancellationToken ct = default);
 
+    Task<Station?> GetMyStationAsync(int userId, CancellationToken ct);
+    Task<string> UploadStationImageAsync(int stationId, IFormFile file, string baseUrl);
 }
 

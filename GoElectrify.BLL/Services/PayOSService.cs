@@ -1,10 +1,9 @@
-﻿using GoElectrify.BLL.Services.Interfaces;
-using Microsoft.Extensions.Configuration;
-using System.Net.Http;
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using GoElectrify.BLL.Services.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 namespace GoElectrify.BLL.Services
 {
@@ -17,11 +16,12 @@ namespace GoElectrify.BLL.Services
 
         public PayOSService(IConfiguration config, HttpClient http)
         {
-            _clientId = config["PayOS:ClientId"];
-            _apiKey = config["PayOS:ApiKey"];
-            _checksumKey = config["PayOS:ChecksumKey"];
+            _clientId = config["PayOS:ClientId"] ?? throw new ArgumentNullException(nameof(_clientId));
+            _apiKey = config["PayOS:ApiKey"] ?? throw new ArgumentNullException(nameof(_apiKey));
+            _checksumKey = config["PayOS:ChecksumKey"] ?? throw new ArgumentNullException(nameof(_checksumKey));
             _http = http;
         }
+
 
         private string CreateSignature(Dictionary<string, string> fields)
         {

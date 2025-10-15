@@ -1,9 +1,4 @@
 ﻿using GoElectrify.BLL.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Contracts.Repositories
 {
@@ -15,5 +10,6 @@ namespace GoElectrify.BLL.Contracts.Repositories
         void Update(StationStaff entity);
         void Remove(StationStaff entity);
         Task SaveAsync(CancellationToken ct);
+        Task<StationStaff?> GetActiveByUserIdAsync(int userId, CancellationToken ct);
     }
 }

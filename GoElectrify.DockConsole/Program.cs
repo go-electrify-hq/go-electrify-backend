@@ -1,9 +1,8 @@
 ﻿using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
 using GoElectrify.DockConsole.Contracts;
-using GoElectrify.DockConsole.Internal;
 using GoElectrify.DockConsole.Infrastructure;
+using GoElectrify.DockConsole.Internal;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);

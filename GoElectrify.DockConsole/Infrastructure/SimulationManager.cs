@@ -1,9 +1,8 @@
-﻿using GoElectrify.DockConsole.Contracts;
+﻿using System.Collections.Concurrent;
+using System.Net.Http.Headers;
+using GoElectrify.DockConsole.Contracts;
 using GoElectrify.DockConsole.Internal;
 using Microsoft.Extensions.Options;
-using System.Collections.Concurrent;
-using System.Net.Http.Headers;
-using System.Text.Json;
 
 namespace GoElectrify.DockConsole.Infrastructure
 {

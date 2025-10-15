@@ -1,5 +1,4 @@
 ﻿using GoElectrify.BLL.Entities;
-using System.Threading.Tasks;
 
 namespace GoElectrify.DAL.Repositories;
 

@@ -2,11 +2,6 @@
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.DAL.Repositories
 {
@@ -32,5 +27,12 @@ namespace GoElectrify.DAL.Repositories
         public void Remove(StationStaff entity) => db.StationStaff.Remove(entity);
 
         public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+
+        public Task<StationStaff?> GetActiveByUserIdAsync(int userId, CancellationToken ct)
+        => db.StationStaff
+             .Include(s => s.Station)
+                .ThenInclude(st => st.Chargers)
+                    .ThenInclude(c => c.ConnectorType)
+             .FirstOrDefaultAsync(s => s.UserId == userId && s.RevokedAt == null, ct);
     }
 }

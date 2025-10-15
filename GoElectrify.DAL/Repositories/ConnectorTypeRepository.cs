@@ -2,11 +2,6 @@
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.DAL.Repositories
 {
@@ -27,7 +22,7 @@ namespace GoElectrify.DAL.Repositories
             }
 
             return q.OrderBy(x => x.Name).ToListAsync(ct);
-        }   
+        }
 
         public Task<ConnectorType?> GetByIdAsync(int id, CancellationToken ct)
             => db.ConnectorTypes.FirstOrDefaultAsync(x => x.Id == id, ct);

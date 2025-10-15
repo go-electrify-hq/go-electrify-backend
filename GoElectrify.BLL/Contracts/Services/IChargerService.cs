@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using GoElectrify.BLL.Dto.Charger;
+﻿using GoElectrify.BLL.Dto.Charger;
 
 namespace GoElectrify.BLL.Contracts.Services
 {

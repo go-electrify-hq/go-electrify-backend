@@ -1,5 +1,4 @@
 ﻿using GoElectrify.Api.Realtime;
-using GoElectrify.BLL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

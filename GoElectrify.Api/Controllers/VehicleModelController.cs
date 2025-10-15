@@ -3,7 +3,6 @@ using GoElectrify.BLL.Dto.VehicleModels;
 using GoElectrify.BLL.Dtos.VehicleModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Runtime.Intrinsics.Arm;
 
 namespace GoElectrify.Api.Controllers
 {

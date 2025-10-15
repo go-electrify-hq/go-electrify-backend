@@ -1,7 +1,4 @@
-﻿using GoElectrify.BLL.Entities;
-using System.Security.Claims;
-
-namespace GoElectrify.BLL.Contracts.Services
+﻿namespace GoElectrify.BLL.Contracts.Services
 {
     public interface ITokenService
     {

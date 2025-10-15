@@ -1,8 +1,8 @@
-﻿using GoElectrify.BLL.Contracts.Services;
+﻿using System.Security.Claims;
+using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Incidents;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace GoElectrify.Api.Controllers
 {

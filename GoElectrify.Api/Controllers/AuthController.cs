@@ -1,10 +1,8 @@
-﻿using GoElectrify.BLL.Contracts.Services;
+﻿using System.Security.Claims;
+using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Auth;
-using GoElectrify.BLL.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-using static System.Net.WebRequestMethods;
 
 namespace go_electrify_backend.Controllers
 {

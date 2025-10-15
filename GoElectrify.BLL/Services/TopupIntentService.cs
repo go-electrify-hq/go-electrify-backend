@@ -1,12 +1,10 @@
-using GoElectrify.BLL.Services.Interfaces;
-using GoElectrify.DAL.Repositories;
-using GoElectrify.BLL.Entities;
-using GoElectrify.BLL.Contracts.Repositories;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System;
+using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dtos.WalletTopup;
+using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Services.Interfaces;
+using GoElectrify.DAL.Repositories;
 
 namespace GoElectrify.BLL.Services;
 
@@ -27,11 +25,22 @@ public class TopupIntentService : ITopupIntentService
 
     public async Task<TopupResponseDto> CreateTopupAsync(int walletId, TopupRequestDto dto)
     {
+        var baseUrl = "https://api.go-electrify.com";
+        var returnUrl = dto.ReturnUrl ??  baseUrl;
+        var cancelUrl = dto.CancelUrl ?? baseUrl;
+        //if (string.IsNullOrEmpty(returnUrl) ||
+        //   (!returnUrl.StartsWith("https://go-electrify.com") && !returnUrl.StartsWith("http://localhost")))
+        //    throw new ArgumentException("Invalid return URL");
+
+        //if (string.IsNullOrEmpty(cancelUrl) ||
+        //    (!cancelUrl.StartsWith("https://go-electrify.com") && !cancelUrl.StartsWith("http://localhost")))
+        //    throw new ArgumentException("Invalid cancel URL");
+
         var (checkoutUrl, orderCode) = await _payos.CreatePaymentLinkAsync(
             dto.Amount,
             "nap tien vao vi",
-            "https://api.go-electrify.com/payment/success",
-            "https://api.go-electrify.com/payment/cancel"
+            returnUrl,
+            cancelUrl
         );
 
         var intent = new Entities.TopupIntent

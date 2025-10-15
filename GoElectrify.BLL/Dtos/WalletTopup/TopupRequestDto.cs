@@ -6,4 +6,6 @@ public class TopupRequestDto
 {
     [Range(10000, double.MaxValue, ErrorMessage = "Amount must be greater than or equal to 10.000")]
     public decimal Amount { get; set; }
+    public string? ReturnUrl { get; set; }
+    public string? CancelUrl { get; set; }
 }

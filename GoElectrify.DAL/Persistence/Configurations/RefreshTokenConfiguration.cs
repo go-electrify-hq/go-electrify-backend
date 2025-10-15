@@ -1,6 +1,6 @@
 ﻿using GoElectrify.BLL.Entities;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GoElectrify.DAL.Persistence.Configurations
 {
