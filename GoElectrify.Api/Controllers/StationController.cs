@@ -61,6 +61,20 @@ public class StationController : ControllerBase
         return Ok(stations);
     }
 
+    [HttpGet("{stationId:int}/chargers")]
+    public async Task<IActionResult> GetChargersByStation(
+    int stationId,
+    [FromServices] IStationService stations,    // inject cục bộ, không đổi constructor
+    [FromServices] IChargerService chargers,    // inject cục bộ, không đổi constructor
+    CancellationToken ct = default)
+    {
+
+        var list = await chargers.GetByStationAsync(stationId, ct);
+
+        // Trả đúng pattern của project: { ok, data }
+        return Ok(new { ok = true, data = list });
+    }
+
     [Authorize(Roles = "Admin,Staff")]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)

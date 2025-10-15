@@ -2,6 +2,14 @@
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Station;
 using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Contracts.Repositories;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using GoElectrify.BLL.Contracts.Services;
+using GoElectrify.BLL.Dto.Charger;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 
@@ -28,6 +36,8 @@ namespace GoElectrify.BLL.Services
         {
             return await _repo.GetByIdAsync(id);
         }
+
+
 
         public async Task<Station> CreateStationAsync(StationCreateDto request)
         {
@@ -92,6 +102,8 @@ namespace GoElectrify.BLL.Services
                 DistanceKm = r.DistanceKm
             }).ToList();
         }
+
+
         public async Task<Station?> GetMyStationAsync(int userId, CancellationToken ct)
         {
             var assignment = await _staffRepo.GetActiveByUserIdAsync(userId, ct);

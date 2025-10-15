@@ -44,5 +44,11 @@ namespace GoElectrify.DAL.Repositories
                 c.StationId == stationId &&
                 c.Code == code &&
                 (exceptId == null || c.Id != exceptId.Value), ct);
+
+        public Task<List<Charger>> GetByStationAsync(int stationId, CancellationToken ct) =>
+            _db.Chargers.AsNoTracking()
+                .Where(c => c.StationId == stationId)
+                .OrderBy(c => c.Code)
+                .ToListAsync(ct);
     }
 }

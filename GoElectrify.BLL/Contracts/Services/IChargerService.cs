@@ -6,6 +6,7 @@ namespace GoElectrify.BLL.Contracts.Services
     {
         Task<IReadOnlyList<ChargerDto>> GetAllAsync(CancellationToken ct);
         Task<ChargerDto?> GetByIdAsync(int id, CancellationToken ct);
+        Task<IReadOnlyList<ChargerDto>> GetByStationAsync(int stationId, CancellationToken ct);
         Task<ChargerDto> CreateAsync(ChargerCreateDto dto, CancellationToken ct);
         Task<ChargerDto?> UpdateAsync(int id, ChargerUpdateDto dto, CancellationToken ct);
         Task<bool> DeleteAsync(int id, CancellationToken ct);

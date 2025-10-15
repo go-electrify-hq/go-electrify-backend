@@ -6,6 +6,7 @@ namespace GoElectrify.BLL.Contracts.Repositories
     {
         Task<List<Charger>> GetAllAsync(CancellationToken ct);
         Task<Charger?> GetByIdAsync(int id, CancellationToken ct);
+        Task<List<Charger>> GetByStationAsync(int stationId, CancellationToken ct);
         Task AddAsync(Charger entity, CancellationToken ct);
         Task UpdateAsync(Charger entity, CancellationToken ct);
         Task<bool> DeleteAsync(int id, CancellationToken ct);
