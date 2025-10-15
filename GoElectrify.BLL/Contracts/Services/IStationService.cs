@@ -1,4 +1,5 @@
 ﻿using GoElectrify.BLL.Dto;
+using GoElectrify.BLL.Dto.Charger;
 using GoElectrify.BLL.Dto.Station;
 using GoElectrify.BLL.Entities;
 using System;
@@ -17,5 +18,6 @@ public interface IStationService
 
     Task<IReadOnlyList<StationNearbyDto>> GetNearbyAsync(
        double lat, double lng, double radiusKm = 10, int limit = 20, CancellationToken ct = default);
+
 }
 

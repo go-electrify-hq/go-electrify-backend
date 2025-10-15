@@ -39,6 +39,11 @@ namespace GoElectrify.BLL.Services
             string hashHex = Convert.ToHexString(hash).ToLowerInvariant();
             return $"{saltHex}.{hashHex}";
         }
+        public async Task<IReadOnlyList<ChargerDto>> GetByStationAsync(int stationId, CancellationToken ct)
+        {
+            var list = await _repo.GetByStationAsync(stationId, ct);
+            return list.Select(Map).ToList();
+        }
 
         public async Task<ChargerDto> CreateAsync(ChargerCreateDto dto, CancellationToken ct)
         {

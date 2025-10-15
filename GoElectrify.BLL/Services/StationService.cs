@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using GoElectrify.BLL.Contracts.Services;
+using GoElectrify.BLL.Dto.Charger;
 
 namespace GoElectrify.BLL.Services
 {
@@ -29,6 +30,8 @@ namespace GoElectrify.BLL.Services
         {
             return await _repo.GetByIdAsync(id);
         }
+
+
 
         public async Task<Station> CreateStationAsync(StationCreateDto request)
         {
@@ -94,5 +97,7 @@ namespace GoElectrify.BLL.Services
                 DistanceKm = r.DistanceKm
             }).ToList();
         }
+
+
     }
 }

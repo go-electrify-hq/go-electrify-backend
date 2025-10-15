@@ -1,4 +1,5 @@
-﻿using GoElectrify.BLL.Contracts.Services;
+﻿using System.Runtime.Intrinsics.Arm;
+using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Charger;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,14 @@ namespace GoElectrify.Api.Controllers
             var x = await _svc.GetByIdAsync(id, ct);
             return x is null ? NotFound() : Ok(x);
         }
+
+        //[HttpGet("~/api/v1/stations/{stationId:int}/chargers")]
+        //[AllowAnonymous]
+        //public async Task<IActionResult> ListByStation([FromRoute] int stationId, CancellationToken ct)
+        //{
+        //    var items = await _svc.GetByStationAsync(stationId, ct);
+        //    return Ok(new { ok = true, data = items });
+        //}
 
         // CREATE: Admin|Staff
         [HttpPost]
