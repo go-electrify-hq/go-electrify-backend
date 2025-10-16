@@ -1,6 +1,7 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
+using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -142,6 +143,51 @@ namespace GoElectrify.BLL.Services
                 ConnectorTypeId = charger.ConnectorTypeId,
                 BookingId = s.BookingId
             };
+        }
+        public async Task<IReadOnlyList<ChargingSessionDto>> GetByStationAsync(
+        int stationId,
+        StationSessionQueryDto q,
+        CancellationToken ct)
+        {
+            // Chuẩn hoá UTC cho khoảng thời gian
+            DateTime? ToUtc(DateTime? d) => d.HasValue ? d.Value.ToUniversalTime() : null;
+
+            var list = await repo.GetByStationAsync(
+                stationId,
+                string.IsNullOrWhiteSpace(q.Status) ? null : q.Status!.Trim().ToUpperInvariant(),
+                ToUtc(q.From),
+                ToUtc(q.To),
+                q.Page,
+                q.PageSize,
+                ct);
+
+            // Map entity -> DTO ĐÚNG THEO CLASS BẠN ĐÃ CHO
+            var result = list.Select(s => new ChargingSessionDto
+            {
+                Id = s.Id,
+                Status = s.Status,
+                StartedAt = s.StartedAt,
+                ChargerId = s.ChargerId,
+
+                // Lấy từ CHARGER như bạn ghi chú trong DTO
+                StationId = s.Charger?.StationId ?? 0,
+                ConnectorTypeId = s.Charger?.ConnectorTypeId ?? 0,
+
+                BookingId = s.BookingId,
+                InitialSoc = s.SocStart,
+
+                // Từ VehicleModel
+                VehicleBatteryCapacityKwh = s.Booking.VehicleModel?.BatteryCapacityKwh ?? 0m,
+                VehicleMaxPowerKw = s.Booking.VehicleModel?.MaxPowerKw ?? 0,
+
+                // Từ Charger và ConnectorType
+                ChargerPowerKw = s.Charger?.PowerKw ?? 0m,
+                ConnectorMaxPowerKw = s.Charger?.ConnectorType?.MaxPowerKw ?? 0,
+
+                TargetSoc = s.SocEnd
+            }).ToList();
+
+            return result;
         }
     }
 }

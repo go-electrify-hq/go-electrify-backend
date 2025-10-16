@@ -1,7 +1,6 @@
 ﻿using GoElectrify.BLL.Dto;
 using GoElectrify.BLL.Dto.Charger;
 using GoElectrify.BLL.Dto.Station;
-﻿using GoElectrify.BLL.Dto.Station;
 using GoElectrify.BLL.Entities;
 using Microsoft.AspNetCore.Http;
 namespace GoElectrify.BLL.Contracts.Services;
@@ -18,5 +17,6 @@ public interface IStationService
 
     Task<Station?> GetMyStationAsync(int userId, CancellationToken ct);
     Task<string> UploadStationImageAsync(int stationId, IFormFile file, string baseUrl);
+    Task<bool> ExistsAsync(int id, CancellationToken ct);
 }
 

@@ -2,6 +2,7 @@
 using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Booking;
+using GoElectrify.BLL.Dtos.Booking;
 using GoElectrify.BLL.Entities;
 
 namespace GoElectrify.BLL.Services
@@ -102,6 +103,33 @@ namespace GoElectrify.BLL.Services
                 .Replace('/', 'B');
 
             return s.ToUpperInvariant();
+        }
+
+        public async Task<IReadOnlyList<BookingDto>> GetByStationAsync(int stationId, StationBookingQueryDto q, CancellationToken ct)
+        {
+            // Validate status nếu có
+            if (!string.IsNullOrWhiteSpace(q.Status) && !AllowedStatuses.Contains(q.Status))
+                throw new InvalidOperationException("Invalid status filter.");
+
+            // Chuẩn hoá UTC cho khoảng thời gian
+            DateTime? ToUtc(DateTime? d) => d.HasValue ? d.Value.ToUniversalTime() : null;
+            var fromUtc = ToUtc(q.From);
+            var toUtc = ToUtc(q.To);
+
+            var list = await _repo.GetByStationAsync(
+                stationId,
+                q.Status,
+                fromUtc,
+                toUtc,
+                q.Page <= 0 ? 1 : q.Page,
+                (q.PageSize <= 0 || q.PageSize > 200) ? 20 : q.PageSize,
+                ct
+            );
+
+            // Gán EXPIRED kiểu “derived” trước khi map (đúng logic GetMyAsync)
+            foreach (var b in list) ApplyDerivedExpiry(b);
+
+            return list.Select(Map).ToList();
         }
 
         private static BookingDto Map(Booking e) => new()

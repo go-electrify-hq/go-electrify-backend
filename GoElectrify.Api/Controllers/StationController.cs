@@ -3,6 +3,8 @@ using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Charger;
 using GoElectrify.BLL.Dto.Station;
+using GoElectrify.BLL.Dtos.Booking;
+using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Dtos.Station;
 using GoElectrify.BLL.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -54,7 +56,7 @@ public class StationController : ControllerBase
 
         return Ok(dto);
     }
-        [HttpGet]
+    [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var stations = await _service.GetAllStationsAsync();
@@ -149,6 +151,38 @@ public class StationController : ControllerBase
     CancellationToken ct = default)
     {
         var data = await _service.GetNearbyAsync(lat, lng, radiusKm, limit, ct);
+        return Ok(new { ok = true, data });
+    }
+
+    [HttpGet("{stationId:int}/bookings")]
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<IActionResult> GetBookingsByStation(
+       int stationId,
+       [FromQuery] StationBookingQueryDto q,
+       [FromServices] IBookingService bookings,
+       [FromServices] IStationService stationsSvc,
+       CancellationToken ct = default)
+    {
+        if (!await stationsSvc.ExistsAsync(stationId, ct))
+            return NotFound(new { ok = false, error = "Station not found" });
+
+        var data = await bookings.GetByStationAsync(stationId, q, ct);
+        return Ok(new { ok = true, data });
+    }
+
+    [HttpGet("{stationId:int}/sessions")]
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<IActionResult> GetSessionsByStation(
+        int stationId,
+        [FromQuery] StationSessionQueryDto q,
+        [FromServices] IChargingSessionService sessions,
+        [FromServices] IStationService stations,
+        CancellationToken ct = default)
+    {
+        if (!await stations.ExistsAsync(stationId, ct))
+            return NotFound(new { ok = false, error = "Station not found" });
+
+        var data = await sessions.GetByStationAsync(stationId, q, ct);
         return Ok(new { ok = true, data });
     }
 }

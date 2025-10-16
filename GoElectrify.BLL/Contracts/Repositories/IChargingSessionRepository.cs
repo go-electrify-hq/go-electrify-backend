@@ -16,6 +16,14 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task<Charger?> FindAvailableChargerAsync(int stationId, int connectorTypeId, CancellationToken ct);
         Task<VehicleModel?> GetVehicleModelAsync(int vehicleModelId, CancellationToken ct);
         Task<ConnectorType?> GetConnectorTypeAsync(int connectorTypeId, CancellationToken ct);
+        Task<List<ChargingSession>> GetByStationAsync(
+        int stationId,
+        string? status,
+        DateTime? from,
+        DateTime? to,
+        int page,
+        int pageSize,
+        CancellationToken ct);
 
     }
 }

@@ -2,13 +2,11 @@
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Station;
 using GoElectrify.BLL.Entities;
-using GoElectrify.BLL.Contracts.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Charger;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -144,5 +142,7 @@ namespace GoElectrify.BLL.Services
 
             return imageUrl;
         }
+        public Task<bool> ExistsAsync(int id, CancellationToken ct)
+        => _repo.ExistsAsync(id, ct);
     }
 }

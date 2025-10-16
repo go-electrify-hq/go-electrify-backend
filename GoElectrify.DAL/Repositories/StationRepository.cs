@@ -102,5 +102,7 @@ namespace GoElectrify.DAL.Repositories
 
             return await query.Take(limit).ToListAsync(ct);
         }
+        public Task<bool> ExistsAsync(int id, CancellationToken ct)
+        => _context.Stations.AsNoTracking().AnyAsync(s => s.Id == id, ct);
     }
 }

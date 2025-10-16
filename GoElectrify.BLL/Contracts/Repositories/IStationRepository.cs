@@ -13,5 +13,6 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task SaveChangesAsync();
         Task<IReadOnlyList<StationNearResult>> FindNearestAsync(
         double lat, double lng, double radiusKm, int limit, CancellationToken ct);
+        Task<bool> ExistsAsync(int id, CancellationToken ct);
     }
 }

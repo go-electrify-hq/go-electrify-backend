@@ -73,5 +73,33 @@ namespace GoElectrify.DAL.Repositories
 
         public Task<bool> StationExistsAsync(int stationId, CancellationToken ct)
             => db.Stations.AnyAsync(s => s.Id == stationId, ct);
+        public async Task<List<Booking>> GetByStationAsync(
+        int stationId,
+        string? status,
+        DateTime? from,
+        DateTime? to,
+        int page,
+        int pageSize,
+        CancellationToken ct)
+        {
+            var q = db.Bookings.AsNoTracking()
+                .Where(b => b.StationId == stationId);
+
+            if (!string.IsNullOrWhiteSpace(status))
+                q = q.Where(b => b.Status == status);
+
+            if (from.HasValue)
+                q = q.Where(b => b.ScheduledStart >= from.Value);
+
+            if (to.HasValue)
+                q = q.Where(b => b.ScheduledStart < to.Value);
+
+            var skip = (page <= 0 ? 0 : (page - 1) * pageSize);
+
+            return await q.OrderByDescending(b => b.ScheduledStart)
+                          .Skip(skip)
+                          .Take(pageSize)
+                          .ToListAsync(ct);
+        }
     }
 }

@@ -23,5 +23,6 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task<bool> VehicleSupportsConnectorAsync(int vehicleModelId, int connectorTypeId, CancellationToken ct);
 
         Task<bool> StationExistsAsync(int stationId, CancellationToken ct);
+        Task<List<Booking>> GetByStationAsync(int stationId, string? status, DateTime? from, DateTime? to, int page, int pageSize, CancellationToken ct);
     }
 }
