@@ -74,8 +74,6 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
 
 
-
-// JWT (để ở Program là hợp lý)
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 // JWT auth

@@ -118,11 +118,10 @@ namespace GoElectrify.BLL.Services
             }
 
             // 3) So sánh OTP người dùng nhập với Redis
-            //    (tối thiểu: so sánh chuỗi; có thể nâng cấp lên hash + FixedTimeEquals)
             if (!string.Equals(cached, otp, StringComparison.Ordinal))
                 throw new InvalidOperationException("Invalid or expired OTP.");
 
-            // 4) Upsert user + đảm bảo Wallet + gán role (y như bạn đang làm)
+            // 4) Upsert user + đảm bảo Wallet + gán role 
             var user = await users.FindByEmailAsync(emailKey, ct);
             if (user is null)
             {
@@ -166,8 +165,8 @@ namespace GoElectrify.BLL.Services
             // 5) ĐÃ VERIFY THÀNH CÔNG → XÓA OTP & COUNTERS
             await redis.DeleteAsync(otpKey); // <-- xóa đúng key OTP
             await redis.DeleteAsync(vKey);   // reset đếm verify
-            await redis.DeleteAsync(reqKey); // tùy bạn: reset đếm request OTP
-            await redis.DeleteAsync(lockKey);// phòng hờ: gỡ lock nếu có
+            await redis.DeleteAsync(reqKey);
+            await redis.DeleteAsync(lockKey);
 
             return new TokenResponse(access, accessExp, refresh, refreshExp);
         }

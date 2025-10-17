@@ -23,7 +23,7 @@ namespace GoElectrify.DAL.Infra
             IssueTokens(int userId, string? email, string role, string? fullName, string? avatarUrl, string authMethod = "otp")
         {
             var now = DateTime.UtcNow;
-            var accessExp = now.AddMinutes(_opt.AccessMinutes);
+            var accessExp = now.AddSeconds(_opt.AccessSeconds);
             var refreshExp = now.AddDays(_opt.RefreshDays);
 
             var claims = new List<Claim>
