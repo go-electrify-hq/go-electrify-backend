@@ -2,6 +2,7 @@
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Auth;
 using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Exceptions;
 
 
 namespace GoElectrify.BLL.Services
@@ -47,47 +48,36 @@ namespace GoElectrify.BLL.Services
 
         public async Task RequestOtpAsync(string rawEmail, CancellationToken ct)
         {
-            // 1) Chuẩn hoá & validate email (đồng nhất với Verify)
             var email = NormalizeEmail(rawEmail);
 
-            // => nếu email lỗi, vẫn return 200 ở Controller, nhưng dừng logic.
-            if (!IsValidEmail(email))
-            {
-                await Task.Delay(RandomJitter(180, 320), ct);
-                return;
-            }
+            // (Không cần tự validate email ở đây nữa; controller đã làm)
 
-            // 2) Kiểm tra lockout 15 phút
+            // 1) Lockout?
             var lockKey = $"{OtpLockPrefix}{email}";
             if (await redis.ExistsAsync(lockKey))
-            {
-                await Task.Delay(RandomJitter(180, 320), ct);
-                return; // Không tiết lộ lý do, Controller luôn trả message đồng phục
-            }
+                throw new OtpLockedException((int)LockoutDuration.TotalSeconds);
 
-            // 3) Rate-limit gửi OTP: ≤3 request / 10 phút
+            // 2) Rate-limit gửi: ≤3 / 10 phút
             var reqKey = $"{OtpReqCountPrefix}{email}";
             var reqCount = await redis.IncrementAsync(reqKey);
-            if (reqCount == 1) await redis.ExpireAsync(reqKey, RequestWindow); // cửa sổ 10 phút
+            if (reqCount == 1) await redis.ExpireAsync(reqKey, RequestWindow);
 
             if (reqCount > RequestLimit)
             {
-                // Chạm ngưỡng → lock 15 phút
                 await redis.SetAsync(lockKey, "1", LockoutDuration);
-                await Task.Delay(RandomJitter(180, 320), ct);
-                return;
+                throw new OtpRateLimitedException((int)LockoutDuration.TotalSeconds);
             }
 
-            // 4) Tạo & lưu OTP 6 số, TTL=5 phút
+            // 3) Sinh & lưu OTP
             var otpKey = $"{OtpKeyPrefix}{email}";
             var otp = Generate6Digits();
             await redis.SetAsync(otpKey, otp, OtpTtl);
 
-            // 5) Gửi email OTP (Resend/SMTP) – KHÔNG log lộ OTP trong production
+            // 4) Gửi email (để lỗi ném ra cho controller mapping)
             await emailSender.SendOtpAsync(email, otp, ct);
 
-            // 6) Jitter nhẹ để làm phẳng thời gian phản hồi (BR-ENUM-01)
-            //await Task.Delay(RandomJitter(180, 320), ct);
+            // 5) Log thông tin server-side (đừng log mã OTP)
+            //log.LogInformation("OTP sent to {Email}", email);
         }
 
         // Jitter 180–320ms để responses khó phân biệt (đồng phục thời gian)
@@ -100,18 +90,25 @@ namespace GoElectrify.BLL.Services
 
         public async Task<TokenResponse> VerifyOtpAsync(string emailAddr, string otp, CancellationToken ct)
         {
-
-
-            // 1) Lấy OTP từ Redis bằng email đã chuẩn hoá
             var emailKey = NormalizeEmail(emailAddr);
-            var lockKey = $"{OtpLockPrefix}{emailKey}";
+            if (!IsValidEmail(emailKey))
+                throw new InvalidOperationException("Invalid or expired OTP.");
 
-            // Nếu đang lock → trả lỗi generic (đồng phục)
+            var otpKey = $"{OtpKeyPrefix}{emailKey}";
+            var lockKey = $"{OtpLockPrefix}{emailKey}";
+            var vKey = $"{OtpVerifyCountPrefix}{emailKey}";
+            var reqKey = $"{OtpReqCountPrefix}{emailKey}";
+
+            // 0) Đang bị lock?
             if (await redis.ExistsAsync(lockKey))
                 throw new InvalidOperationException("Invalid or expired OTP.");
 
-            // Đếm số lần verify trong 10 phút
-            var vKey = $"{OtpVerifyCountPrefix}{emailKey}";
+            // 1) Lấy OTP từ Redis
+            var cached = await redis.GetAsync(otpKey);
+            if (string.IsNullOrEmpty(cached))
+                throw new InvalidOperationException("Invalid or expired OTP.");
+
+            // 2) Tăng đếm verify trong 10'
             var count = await redis.IncrementAsync(vKey);
             if (count == 1) await redis.ExpireAsync(vKey, VerifyWindow);
             if (count > VerifyLimit)
@@ -120,7 +117,12 @@ namespace GoElectrify.BLL.Services
                 throw new InvalidOperationException("Invalid or expired OTP.");
             }
 
-            // 2) Upsert user (mặc định role Driver) + đảm bảo Wallet
+            // 3) So sánh OTP người dùng nhập với Redis
+            //    (tối thiểu: so sánh chuỗi; có thể nâng cấp lên hash + FixedTimeEquals)
+            if (!string.Equals(cached, otp, StringComparison.Ordinal))
+                throw new InvalidOperationException("Invalid or expired OTP.");
+
+            // 4) Upsert user + đảm bảo Wallet + gán role (y như bạn đang làm)
             var user = await users.FindByEmailAsync(emailKey, ct);
             if (user is null)
             {
@@ -129,26 +131,20 @@ namespace GoElectrify.BLL.Services
                 {
                     Email = emailKey,
                     RoleId = driverRole.Id,
-                    Role = driverRole, // gắn navigation để build claim ngay
+                    Role = driverRole,
                 };
 
                 await users.AddAsync(user, ct);
                 await wallets.AddAsync(new Wallet { User = user, Balance = 0m }, ct);
                 await users.SaveAsync(ct);
             }
-            else
+            else if (user.Role is null)
             {
-                // FindByEmailAsync đã Include Role/Wallet, nhưng vẫn "phòng hờ"
-                if (user.Role is null)
-                {
-                    // Nếu DB thiếu role, fallback Driver để không crash khi cấp token
-                    var driverRole = await roles.GetByNameAsync("Driver", ct);
-                    user.RoleId = user.RoleId == default ? driverRole.Id : user.RoleId;
-                    user.Role ??= driverRole;
-                }
+                var driverRole = await roles.GetByNameAsync("Driver", ct);
+                user.RoleId = user.RoleId == default ? driverRole.Id : user.RoleId;
+                user.Role ??= driverRole;
             }
 
-            // 3) Cấp token với đầy đủ thông tin để FE dùng
             var (access, accessExp, refresh, refreshExp) =
                 tokenSvc.IssueTokens(
                     userId: user.Id,
@@ -159,7 +155,6 @@ namespace GoElectrify.BLL.Services
                     authMethod: "otp"
                 );
 
-            // 4) Lưu refresh token (hash) vào DB
             await refreshTokens.AddAsync(new RefreshToken
             {
                 UserId = user.Id,
@@ -168,10 +163,12 @@ namespace GoElectrify.BLL.Services
             }, ct);
             await refreshTokens.SaveAsync(ct);
 
-            // 5) Tiêu thụ OTP: xoá khỏi Redis
-            await redis.DeleteAsync(lockKey);
+            // 5) ĐÃ VERIFY THÀNH CÔNG → XÓA OTP & COUNTERS
+            await redis.DeleteAsync(otpKey); // <-- xóa đúng key OTP
+            await redis.DeleteAsync(vKey);   // reset đếm verify
+            await redis.DeleteAsync(reqKey); // tùy bạn: reset đếm request OTP
+            await redis.DeleteAsync(lockKey);// phòng hờ: gỡ lock nếu có
 
-            // 6) Trả về cho client
             return new TokenResponse(access, accessExp, refresh, refreshExp);
         }
 
@@ -185,36 +182,7 @@ namespace GoElectrify.BLL.Services
             rt.RevokedAt = DateTime.UtcNow;
             await refreshTokens.SaveAsync(ct);
         }
-        //public async Task<TokenResponse> RefreshAsync(string refreshToken, CancellationToken ct)
-        //{
-        //    if (string.IsNullOrWhiteSpace(refreshToken))
-        //        throw new InvalidOperationException("Refresh token is required.");
 
-        //    var hash = tokenSvc.HashToken(refreshToken);
-        //    var existing = await refreshTokens.FindActiveByHashAsync(hash, ct);
-        //    if (existing is null)
-        //        throw new UnauthorizedAccessException("Invalid or expired refresh token.");
-
-        //    var user = await users.GetByIdAsync(existing.UserId, ct);
-        //    if (user is null)
-        //        throw new UnauthorizedAccessException("User not found.");
-
-        //    // phát hành token mới
-        //    var (access, accessExp, newRefresh, newRefreshExp) =
-        //        tokenSvc.IssueTokens(user.Id, user.Email, user.Role?.Name ?? "Driver", user.FullName ?? string.Empty, user.AvatarUrl ?? string.Empty, authMethod: "otp");
-
-        //    // rotate: revoke token cũ + lưu token mới
-        //    existing.RevokedAt = DateTime.UtcNow;
-        //    await refreshTokens.AddAsync(new RefreshToken
-        //    {
-        //        UserId = user.Id,
-        //        TokenHash = tokenSvc.HashToken(newRefresh),
-        //        ExpiresAt = newRefreshExp
-        //    }, ct);
-        //    await refreshTokens.SaveAsync(ct);
-
-        //    return new TokenResponse(access, accessExp, newRefresh, newRefreshExp);
-        //}
 
         public async Task<TokenResponse> RefreshAsync(string refreshToken, CancellationToken ct)
         {

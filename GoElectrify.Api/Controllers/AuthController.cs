@@ -1,8 +1,10 @@
-﻿using System.Security.Claims;
+﻿using System.Net.Mail;
+using System.Security.Claims;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GoElectrify.BLL.Exceptions;
 
 namespace go_electrify_backend.Controllers
 {
@@ -12,10 +14,42 @@ namespace go_electrify_backend.Controllers
     {
         [HttpPost("request-otp")]
         [AllowAnonymous]
-        public async Task<IActionResult> RequestOtp([FromBody] RequestOtpDto dto, CancellationToken ct)
+        public async Task<IActionResult> RequestOtp([FromBody] RequestOtpDto dto,
+                                            [FromServices] IAuthService auth,
+                                            CancellationToken ct)
         {
-            await auth.RequestOtpAsync(dto.Email, ct);
-            return Ok(new { message = "If the email is valid, an OTP has been sent(valid for 5 minutes)." });
+            // Chỉ che khi email không hợp lệ
+            if (!IsValidEmail(dto.Email))
+                return Ok(new { message = "If the email is valid, an OTP has been sent(valid for 5 minutes)." });
+
+            try
+            {
+                await auth.RequestOtpAsync(dto.Email, ct);
+                return Ok(new { message = "If the email is valid, an OTP has been sent(valid for 5 minutes)." });
+            }
+            catch (OtpLockedException ex)
+            {
+                if (ex.RetryAfterSeconds is not null)
+                    Response.Headers.Append("Retry-After", ex.RetryAfterSeconds.Value.ToString());
+                return StatusCode(423, new { ok = false, error = "Locked. Try again later." });
+            }
+            catch (OtpRateLimitedException ex)
+            {
+                Response.Headers.Append("Retry-After", ex.RetryAfterSeconds.ToString());
+                return StatusCode(429, new { ok = false, error = "Too many OTP requests. Try again later." });
+            }
+            catch (Exception)
+            {
+                // Cho các lỗi khác: 500 (SMTP/Redis, v.v.)
+                return StatusCode(500, new { ok = false, error = "Internal server error." });
+            }
+
+            static bool IsValidEmail(string? email)
+            {
+                if (string.IsNullOrWhiteSpace(email)) return false;
+                try { _ = new MailAddress(email); return true; }
+                catch { return false; }
+            }
         }
 
         [HttpPost("verify-otp")]
