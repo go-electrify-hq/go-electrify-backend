@@ -39,6 +39,8 @@ namespace GoElectrify.BLL.Services
 
         public async Task<Station> CreateStationAsync(StationCreateDto request)
         {
+            var status = (request.Status ?? "ACTIVE").ToUpperInvariant();
+
             var station = new Station
             {
                 Name = request.Name,
@@ -46,7 +48,7 @@ namespace GoElectrify.BLL.Services
                 Address = request.Address,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
-                Status = "Active",
+                Status = status,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -67,6 +69,8 @@ namespace GoElectrify.BLL.Services
             station.Latitude = request.Latitude ?? station.Latitude;
             station.Longitude = request.Longitude ?? station.Longitude;
             station.Status = request.Status ?? station.Status;
+            if (!string.IsNullOrWhiteSpace(request.Status))
+                station.Status = request.Status!.ToUpperInvariant();
             station.UpdatedAt = DateTime.UtcNow;
 
             await _repo.UpdateAsync(station);
