@@ -9,5 +9,6 @@ namespace GoElectrify.BLL.Dto.Station
         [Required] public string Address { get; set; } = string.Empty;
         [Range(-90, 90)] public decimal Latitude { get; set; }
         [Range(-180, 180)] public decimal Longitude { get; set; }
+        public string? Status { get; set; }
     }
 }

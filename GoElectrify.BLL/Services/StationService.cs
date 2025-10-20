@@ -39,6 +39,8 @@ namespace GoElectrify.BLL.Services
 
         public async Task<Station> CreateStationAsync(StationCreateDto request)
         {
+            var status = (request.Status ?? "ACTIVE").ToUpperInvariant();
+
             var station = new Station
             {
                 Name = request.Name,
