@@ -37,7 +37,7 @@ public class StationController : ControllerBase
             Id = station.Id,
             Name = station.Name,
             Address = station.Address,
-            Status = station.Status,
+            Status = station.Status.ToString(),
             Latitude = (decimal)station.Latitude,
             Longitude = (decimal)station.Longitude,
             Chargers = station.Chargers.Select(c => new ChargerDto
