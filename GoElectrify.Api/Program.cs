@@ -73,7 +73,7 @@ builder.Services.AddHostedService<GoElectrify.Api.Hosted.SessionWatchdog>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
 builder.Services.AddScoped<IBookingFeeService, BookingFeeService>();
-
+builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 // JWT auth

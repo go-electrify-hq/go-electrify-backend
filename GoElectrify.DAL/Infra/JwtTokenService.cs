@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using GoElectrify.BLL.Contracts.Services;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -12,10 +13,12 @@ namespace GoElectrify.DAL.Infra
         private readonly JwtOptions _opt;
         private readonly JwtSecurityTokenHandler _handler = new();
         private readonly byte[] _key;
+        private readonly IHostEnvironment _env;
 
-        public TokenService(IOptions<JwtOptions> opt)
+        public TokenService(IOptions<JwtOptions> opt, IHostEnvironment env)
         {
             _opt = opt.Value;
+            _env = env;
             _key = System.Text.Encoding.UTF8.GetBytes(_opt.Secret);
         }
 
@@ -23,7 +26,15 @@ namespace GoElectrify.DAL.Infra
             IssueTokens(int userId, string? email, string role, string? fullName, string? avatarUrl, string authMethod = "otp")
         {
             var now = DateTime.UtcNow;
-            var accessExp = now.AddSeconds(_opt.AccessSeconds);
+
+            // TTL token tùy môi trường
+            double accessSeconds;
+            if (_env.IsDevelopment())
+                accessSeconds = _opt.AccessSeconds > 0 ? _opt.AccessSeconds : 3600;
+            else
+                accessSeconds = _opt.AccessSeconds > 0 ? _opt.AccessSeconds : 30;
+
+            var accessExp = now.AddSeconds(accessSeconds);
             var refreshExp = now.AddDays(_opt.RefreshDays);
 
             var claims = new List<Claim>
@@ -32,15 +43,9 @@ namespace GoElectrify.DAL.Infra
                 new(JwtRegisteredClaimNames.Email, email ?? string.Empty),
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
                 new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-
-                // Role: thêm chuẩn + 'role' cho FE
                 new(ClaimTypes.Role, role),
                 new("role", role),
-
-                // Audit: phương thức xác thực (otp / oauth-google / password)
                 new("amr", authMethod ?? "otp"),
-
-                // Tiện FE parse nhanh
                 new("uid", userId.ToString())
             };
 
@@ -59,6 +64,9 @@ namespace GoElectrify.DAL.Infra
 
             var access = _handler.WriteToken(jwt);
             var refresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+            if (_env.IsDevelopment())
+                Console.WriteLine($"[DEV] Access token TTL = {accessSeconds}s (expires at {accessExp:u})");
 
             return (access, accessExp, refresh, refreshExp);
         }
