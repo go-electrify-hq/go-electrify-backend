@@ -16,16 +16,10 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3.5.0
-        with:
-          cosign-release: 'v2.2.4'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.0.0
@@ -53,12 +47,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Sign the published Docker image
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
       - name: Deploy to Render
         uses: JorgeLNJunior/render-deploy@v1.4.5
