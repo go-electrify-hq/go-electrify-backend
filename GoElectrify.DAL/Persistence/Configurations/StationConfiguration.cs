@@ -21,14 +21,14 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.Longitude).HasPrecision(10, 6).IsRequired();
 
             b.Property(x => x.Status)
-             .HasConversion<string>()                 // LƯU DẠNG TEXT
-             .HasMaxLength(16)
-             .HasDefaultValue(StationStatus.Active)
-             .IsRequired();
+            .HasColumnName("status")
+            .HasConversion<string>()
+            .HasMaxLength(16)
+            .IsRequired();
 
             b.ToTable(t => t.HasCheckConstraint(
                 "ck_stations_status_values",
-                "status IN ('Active','Inactive','Maintenance')"
+                "status IN ('ACTIVE','INACTIVE','MAINTENANCE')"
             ));
 
             b.HasIndex(x => new { x.Status, x.Name });
