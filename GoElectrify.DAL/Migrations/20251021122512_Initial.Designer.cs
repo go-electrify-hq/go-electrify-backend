@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251021083430_AddSystemSettings")]
-    partial class AddSystemSettings
+    [Migration("20251021122512_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -908,10 +908,8 @@ namespace GoElectrify.DAL.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")
-                        .HasDefaultValue("Active")
                         .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -931,7 +929,7 @@ namespace GoElectrify.DAL.Migrations
 
                     b.ToTable("Stations", null, t =>
                         {
-                            t.HasCheckConstraint("ck_stations_status_values", "status IN ('Active','Inactive','Maintenance')");
+                            t.HasCheckConstraint("ck_stations_status_values", "status IN ('ACTIVE','INACTIVE','MAINTENANCE')");
                         });
 
                     b.HasData(
@@ -944,7 +942,7 @@ namespace GoElectrify.DAL.Migrations
                             Latitude = 10.84167829167107m,
                             Longitude = 106.81083314772492m,
                             Name = "FPT University",
-                            Status = "Active",
+                            Status = "ACTIVE",
                             UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -956,7 +954,7 @@ namespace GoElectrify.DAL.Migrations
                             Latitude = 10.876244851905408m,
                             Longitude = 106.80600195446553m,
                             Name = "Nhà Văn hóa Sinh viên TP.HCM",
-                            Status = "Active",
+                            Status = "ACTIVE",
                             UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -968,7 +966,7 @@ namespace GoElectrify.DAL.Migrations
                             Latitude = 10.843429972631098m,
                             Longitude = 106.84260840302923m,
                             Name = "Vincom Mega Mall Grand Park",
-                            Status = "Active",
+                            Status = "ACTIVE",
                             UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
