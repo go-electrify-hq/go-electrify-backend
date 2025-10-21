@@ -28,14 +28,14 @@ namespace GoElectrify.DAL.Repositories
 
         public async Task AddAsync(Station station)
         {
-            station.Status = station.Status == default ? StationStatus.Active : station.Status;
+            station.Status = station.Status == default ? StationStatus.ACTIVE : station.Status;
             await _context.Stations.AddAsync(station);
             await _context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Station station)
         {
-            station.Status = station.Status == default ? StationStatus.Active : station.Status;
+            station.Status = station.Status == default ? StationStatus.ACTIVE : station.Status;
             _context.Stations.Update(station);
             await _context.SaveChangesAsync();
         }

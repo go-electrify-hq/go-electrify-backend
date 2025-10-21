@@ -8,8 +8,8 @@ namespace GoElectrify.BLL.Entities.Enums
 {
     public enum StationStatus
     {
-        Active,
-        Inactive,
-        Maintenance
+        ACTIVE,
+        INACTIVE,
+        MAINTENANCE,
     }
 }

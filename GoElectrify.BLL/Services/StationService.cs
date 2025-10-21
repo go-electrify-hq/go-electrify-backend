@@ -48,7 +48,7 @@ namespace GoElectrify.BLL.Services
                 Address = request.Address,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
-                Status = Entities.Enums.StationStatus.Active,
+                Status = Entities.Enums.StationStatus.ACTIVE,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

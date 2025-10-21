@@ -12,8 +12,7 @@ namespace GoElectrify.BLL.Entities
         public decimal Latitude { get; set; }   // decimal(10,6)
         public decimal Longitude { get; set; }  // decimal(10,6)
 
-        // Gợi ý: ACTIVE | INACTIVE | MAINTENANCE
-        public StationStatus Status { get; set; } 
+        public StationStatus Status { get; set; } = StationStatus.ACTIVE;
 
         public ICollection<Charger> Chargers { get; set; } = new List<Charger>();
         public ICollection<StationStaff> StationStaff { get; set; } = new List<StationStaff>();
