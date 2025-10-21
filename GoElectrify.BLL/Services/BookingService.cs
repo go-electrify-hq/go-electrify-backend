@@ -1,9 +1,11 @@
-﻿using System.Security.Cryptography;
-using GoElectrify.BLL.Contracts.Repositories;
+﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Booking;
 using GoElectrify.BLL.Dtos.Booking;
 using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Exceptions;
+using System.Reflection.PortableExecutable;
+using System.Security.Cryptography;
 
 namespace GoElectrify.BLL.Services
 {
@@ -12,14 +14,22 @@ namespace GoElectrify.BLL.Services
         private readonly IBookingRepository _repo;
         private readonly IStationRepository _stations;
         private readonly IVehicleModelRepository _vehicles;
+        private readonly IWalletRepository _wallets;
+        private readonly ITransactionRepository _tx;
+        private readonly IBookingFeeService _fee;
         private const int SLOT_MINUTES = 30;
         private static readonly string[] AllowedStatuses = ["PENDING", "CONFIRMED", "CANCELED", "EXPIRED", "CONSUMED"];
 
-        public BookingService(IBookingRepository repo, IStationRepository stations, IVehicleModelRepository vehicles)
+        public BookingService(IBookingRepository repo, IStationRepository stations, IVehicleModelRepository vehicles, IWalletRepository wallets,
+            ITransactionRepository tx,
+            IBookingFeeService fee)
         {
             _repo = repo;
             _stations = stations;
             _vehicles = vehicles;
+            _wallets = wallets;
+            _tx = tx;
+            _fee = fee;
         }
 
         public async Task<BookingDto> CreateAsync(int userId, CreateBookingDto dto, CancellationToken ct)
@@ -41,6 +51,42 @@ namespace GoElectrify.BLL.Services
             if (activeBookings >= capacity)
                 throw new InvalidOperationException("No capacity available for this slot.");
 
+            var (feeType, feeVal) = await _fee.GetAsync(ct);
+            decimal estimatedCost = 0m;
+
+            decimal fee;
+            if (feeType == "PERCENT")
+            {
+                var calc = estimatedCost * feeVal / 100m;
+                fee = Math.Ceiling(calc);
+            }
+            else
+            {
+                fee = Math.Round(feeVal, 0, MidpointRounding.AwayFromZero);
+            }
+            if (fee < 0) fee = 0;
+
+            if (fee > 0)
+            {
+                var wallet = await _wallets.GetByUserIdAsync(userId)
+                             ?? throw new InvalidOperationException("Wallet not found.");
+
+                if (wallet.Balance < fee)
+                    throw new InsufficientFundsException(fee, wallet.Balance);
+
+                // Khuyến nghị: bọc các bước dưới trong transaction DbContext
+                wallet.Balance -= fee;
+                await _wallets.UpdateAsync(wallet.Id, wallet.Balance);
+
+                await _tx.AddAsync(new Transaction
+                {
+                    WalletId = wallet.Id,
+                    Amount = fee,                 
+                    Type = "BOOKING_FEE",
+                    Status = "SUCCEEDED",
+                    Note = $"Booking fee"
+                });
+            }
             var e = new Booking
             {
                 UserId = userId,

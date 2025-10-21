@@ -1,6 +1,7 @@
 ﻿using GoElectrify.Api.Auth;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Booking;
+using GoElectrify.BLL.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GoElectrify.Api.Controllers
@@ -21,9 +22,27 @@ namespace GoElectrify.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateBookingDto dto, CancellationToken ct)
         {
-            var userId = User.GetUserId();
-            var data = await _svc.CreateAsync(userId, dto, ct);
-            return CreatedAtAction(nameof(GetById), new { id = data.Id }, new { ok = true, data });
+            try
+            {
+                var userId = User.GetUserId();
+                var data = await _svc.CreateAsync(userId, dto, ct);
+                return CreatedAtAction(nameof(GetById), new { id = data.Id }, new { ok = true, data });
+            }
+            catch (InsufficientFundsException ex)
+            {
+                return StatusCode(402, new
+                {
+                    ok = false,
+                    code = "INSUFFICIENT_FUNDS",
+                    message = "Số dư ví không đủ để thanh toán phí đặt chỗ.",
+                    need = Math.Round(ex.Need, 0, MidpointRounding.AwayFromZero),
+                    balance = Math.Round(ex.Balance, 0, MidpointRounding.AwayFromZero)
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { ok = false, message = ex.Message });
+            }
         }
 
         [HttpGet("my")]
