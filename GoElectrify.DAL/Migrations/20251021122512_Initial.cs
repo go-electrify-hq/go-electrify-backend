@@ -87,6 +87,23 @@ namespace GoElectrify.DAL.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SystemSettings",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    key = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    value = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    updated_by = table.Column<int>(type: "integer", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_system_settings", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "VehicleModels",
                 columns: table => new
                 {
@@ -779,6 +796,12 @@ namespace GoElectrify.DAL.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "ix_system_settings_key",
+                table: "SystemSettings",
+                column: "key",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "ix_topup_intents_wallet_id_created_at",
                 table: "TopupIntents",
                 columns: new[] { "wallet_id", "created_at" });
@@ -856,6 +879,9 @@ namespace GoElectrify.DAL.Migrations
 
             migrationBuilder.DropTable(
                 name: "RefreshTokens");
+
+            migrationBuilder.DropTable(
+                name: "SystemSettings");
 
             migrationBuilder.DropTable(
                 name: "TopupIntents");
