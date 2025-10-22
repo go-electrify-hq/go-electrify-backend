@@ -20,6 +20,13 @@ namespace GoElectrify.DAL.Persistence.Configurations
 
             b.Property(x => x.SocStart).IsRequired();
             b.Property(x => x.SocEnd);
+            b.Property(x => x.AblyChannel).HasMaxLength(100);
+            b.Property(x => x.JoinCode).HasMaxLength(12);
+            b.Property(x => x.TargetSoc);
+            b.Property(x => x.FinalSoc);
+
+            // JoinCode duy nhất để join
+            b.HasIndex(x => x.JoinCode).IsUnique();
 
             b.Property(x => x.Status)
              .HasMaxLength(32)
@@ -35,7 +42,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
                 "status = UPPER(status)"));
 
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_status_allowed",
-                "status IN ('RUNNING','STOPPED','COMPLETED','FAILED')"));
+                "status in ('PENDING','RUNNING','COMPLETED','ABORTED','TIMEOUT')"));
 
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_timespan",
                 "ended_at IS NULL OR ended_at >= started_at"));
