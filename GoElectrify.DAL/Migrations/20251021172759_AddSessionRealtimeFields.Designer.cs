@@ -3,6 +3,7 @@ using System;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251021172759_AddSessionRealtimeFields")]
+    partial class AddSessionRealtimeFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -483,10 +486,6 @@ namespace GoElectrify.DAL.Migrations
                         .HasDefaultValue("RUNNING")
                         .HasColumnName("status");
 
-                    b.Property<int?>("TargetSoc")
-                        .HasColumnType("integer")
-                        .HasColumnName("target_soc");
-
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -529,7 +528,7 @@ namespace GoElectrify.DAL.Migrations
 
                             t.HasCheckConstraint("ck_charging_sessions_soc_range", "soc_start BETWEEN 0 AND 100 AND (soc_end IS NULL OR soc_end BETWEEN 0 AND 100)");
 
-                            t.HasCheckConstraint("ck_charging_sessions_status_allowed", "status in ('PENDING','RUNNING','COMPLETED','ABORTED','TIMEOUT')");
+                            t.HasCheckConstraint("ck_charging_sessions_status_allowed", "status IN ('RUNNING','STOPPED','COMPLETED','FAILED')");
 
                             t.HasCheckConstraint("ck_charging_sessions_status_upper", "status = UPPER(status)");
 

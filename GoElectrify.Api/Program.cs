@@ -107,8 +107,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return Task.CompletedTask;
             }
         };
+    })
+    .AddJwtBearer("DockJwt", o =>
+    {
+        var issuer = builder.Configuration["DockAuth:Issuer"];
+        var audience = builder.Configuration["DockAuth:Audience"];
+        var key = builder.Configuration["DockAuth:SigningKey"];
+
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = issuer,
+            ValidAudience = audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key!)),
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ClockSkew = TimeSpan.Zero
+        };
     });
-builder.Services.AddAuthorization();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("DockSessionWrite", p => p.RequireClaim("role", "Dock"));
+});
 
 // Đăng ký token service (phát hành access/refresh)
 builder.Services.AddScoped<ITokenService, TokenService>();
