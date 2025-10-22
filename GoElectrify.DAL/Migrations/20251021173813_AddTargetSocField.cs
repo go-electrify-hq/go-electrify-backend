@@ -5,24 +5,23 @@
 namespace GoElectrify.DAL.Migrations
 {
     /// <inheritdoc />
-    public partial class AddActiveSessionUniqueIndex : Migration
+    public partial class AddTargetSocField : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateIndex(
-                name: "ux_charging_sessions_active_per_charger",
+            migrationBuilder.AddColumn<int>(
+                name: "target_soc",
                 table: "ChargingSessions",
-                column: "charger_id",
-                unique: true,
-                filter: "ended_at IS NULL");
+                type: "integer",
+                nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "ux_charging_sessions_active_per_charger",
+            migrationBuilder.DropColumn(
+                name: "target_soc",
                 table: "ChargingSessions");
         }
     }

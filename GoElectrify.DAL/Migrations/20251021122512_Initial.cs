@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
@@ -57,14 +58,14 @@ namespace GoElectrify.DAL.Migrations
                     image_url = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
                     latitude = table.Column<decimal>(type: "numeric(10,6)", precision: 10, scale: 6, nullable: false),
                     longitude = table.Column<decimal>(type: "numeric(10,6)", precision: 10, scale: 6, nullable: false),
-                    status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                    status = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_stations", x => x.id);
-                    table.CheckConstraint("CK_Stations_Status_UPPER", "status = UPPER(status)");
+                    table.CheckConstraint("ck_stations_status_values", "status IN ('ACTIVE','INACTIVE','MAINTENANCE')");
                 });
 
             migrationBuilder.CreateTable(
@@ -83,6 +84,23 @@ namespace GoElectrify.DAL.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_subscriptions", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SystemSettings",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    key = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    value = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    updated_by = table.Column<int>(type: "integer", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_system_settings", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -138,6 +156,10 @@ namespace GoElectrify.DAL.Migrations
                     power_kw = table.Column<int>(type: "integer", nullable: false),
                     status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     price_per_kwh = table.Column<decimal>(type: "numeric(18,4)", precision: 18, scale: 4, nullable: true),
+                    dock_secret_hash = table.Column<string>(type: "character varying(256)", unicode: false, maxLength: 256, nullable: true),
+                    ably_channel = table.Column<string>(type: "character varying(128)", unicode: false, maxLength: 128, nullable: true),
+                    dock_status = table.Column<string>(type: "character varying(20)", unicode: false, maxLength: 20, nullable: true),
+                    last_connected_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")
                 },
@@ -458,7 +480,7 @@ namespace GoElectrify.DAL.Migrations
                     wallet_id = table.Column<int>(type: "integer", nullable: false),
                     amount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     provider = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    provider_ref = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    order_code = table.Column<long>(type: "bigint", maxLength: 128, nullable: false),
                     status = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     qr_content = table.Column<string>(type: "text", nullable: true),
                     expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -614,19 +636,19 @@ namespace GoElectrify.DAL.Migrations
 
             migrationBuilder.InsertData(
                 table: "Chargers",
-                columns: new[] { "id", "code", "connector_type_id", "created_at", "power_kw", "price_per_kwh", "station_id", "status", "updated_at" },
+                columns: new[] { "id", "ably_channel", "code", "connector_type_id", "created_at", "dock_secret_hash", "dock_status", "last_connected_at", "power_kw", "price_per_kwh", "station_id", "status", "updated_at" },
                 values: new object[,]
                 {
-                    { 400, "FU-DC1", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 401, "FU-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 22, 4500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 402, "FU-DC2", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 403, "FU-DC3", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 404, "FU-AC2", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 22, 4500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 410, "SC-DC1", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 200, 6500.0000m, 301, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 411, "SC-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 22, 4500.0000m, 301, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 420, "GP-DC1", 1, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 120, 6500.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 421, "GP-CHA1", 5, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 50, 6000.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { 422, "GP-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 22, 4500.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
+                    { 400, null, "FU-DC1", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 401, null, "FU-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 22, 4500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 402, null, "FU-DC2", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 403, null, "FU-DC3", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 150, 6500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 404, null, "FU-AC2", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 22, 4500.0000m, 300, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 410, null, "SC-DC1", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 200, 6500.0000m, 301, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 411, null, "SC-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 22, 4500.0000m, 301, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 420, null, "GP-DC1", 1, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 120, 6500.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 421, null, "GP-CHA1", 5, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 50, 6000.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
+                    { 422, null, "GP-AC1", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "DISCONNECTED", null, 22, 4500.0000m, 302, "ONLINE", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
                 });
 
             migrationBuilder.InsertData(
@@ -694,6 +716,13 @@ namespace GoElectrify.DAL.Migrations
                 name: "ix_charging_sessions_status",
                 table: "ChargingSessions",
                 column: "status");
+
+            migrationBuilder.CreateIndex(
+                name: "ux_charging_sessions_active_per_charger",
+                table: "ChargingSessions",
+                column: "charger_id",
+                unique: true,
+                filter: "ended_at IS NULL");
 
             migrationBuilder.CreateIndex(
                 name: "ix_connector_types_name",
@@ -764,6 +793,12 @@ namespace GoElectrify.DAL.Migrations
                 name: "ix_subscriptions_name",
                 table: "Subscriptions",
                 column: "name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_system_settings_key",
+                table: "SystemSettings",
+                column: "key",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -844,6 +879,9 @@ namespace GoElectrify.DAL.Migrations
 
             migrationBuilder.DropTable(
                 name: "RefreshTokens");
+
+            migrationBuilder.DropTable(
+                name: "SystemSettings");
 
             migrationBuilder.DropTable(
                 name: "TopupIntents");

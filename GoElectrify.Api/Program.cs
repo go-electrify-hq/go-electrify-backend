@@ -72,9 +72,14 @@ builder.Services.AddHttpClient<IPayOSService, PayOSService>();
 builder.Services.AddHostedService<GoElectrify.Api.Hosted.SessionWatchdog>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
+<<<<<<< HEAD
 
 builder.Services.AddDistributedMemoryCache();
 
+=======
+builder.Services.AddScoped<IBookingFeeService, BookingFeeService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+>>>>>>> main
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 // JWT auth
@@ -108,14 +113,42 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return Task.CompletedTask;
             }
         };
+    })
+    .AddJwtBearer("DockJwt", o =>
+    {
+        var issuer = builder.Configuration["DockAuth:Issuer"];
+        var audience = builder.Configuration["DockAuth:Audience"];
+        var key = builder.Configuration["DockAuth:SigningKey"];
+
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = issuer,
+            ValidAudience = audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key!)),
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ClockSkew = TimeSpan.Zero
+        };
     });
-builder.Services.AddAuthorization();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("DockSessionWrite", p => p.RequireClaim("role", "Dock"));
+});
 
 // Đăng ký token service (phát hành access/refresh)
 builder.Services.AddScoped<ITokenService, TokenService>();
 
 // Controllers
-builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.PropertyNamingPolicy = null);
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.PropertyNamingPolicy = null;
+        o.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter(allowIntegerValues: false));
+    });
 
 var app = builder.Build();
 

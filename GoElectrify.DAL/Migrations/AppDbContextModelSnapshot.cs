@@ -408,6 +408,11 @@ namespace GoElectrify.DAL.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AblyChannel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("ably_channel");
+
                     b.Property<decimal?>("AvgPowerKw")
                         .HasPrecision(12, 4)
                         .HasColumnType("numeric(12,4)")
@@ -445,6 +450,15 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnType("numeric(12,4)")
                         .HasColumnName("energy_kwh");
 
+                    b.Property<int?>("FinalSoc")
+                        .HasColumnType("integer")
+                        .HasColumnName("final_soc");
+
+                    b.Property<string>("JoinCode")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("join_code");
+
                     b.Property<int?>("ParkingMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("parking_minutes");
@@ -469,6 +483,10 @@ namespace GoElectrify.DAL.Migrations
                         .HasDefaultValue("RUNNING")
                         .HasColumnName("status");
 
+                    b.Property<int?>("TargetSoc")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_soc");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -486,6 +504,10 @@ namespace GoElectrify.DAL.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_charging_sessions_active_per_charger")
                         .HasFilter("ended_at IS NULL");
+
+                    b.HasIndex("JoinCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_charging_sessions_join_code");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_charging_sessions_status");
@@ -507,7 +529,7 @@ namespace GoElectrify.DAL.Migrations
 
                             t.HasCheckConstraint("ck_charging_sessions_soc_range", "soc_start BETWEEN 0 AND 100 AND (soc_end IS NULL OR soc_end BETWEEN 0 AND 100)");
 
-                            t.HasCheckConstraint("ck_charging_sessions_status_allowed", "status IN ('RUNNING','STOPPED','COMPLETED','FAILED')");
+                            t.HasCheckConstraint("ck_charging_sessions_status_allowed", "status in ('PENDING','RUNNING','COMPLETED','ABORTED','TIMEOUT')");
 
                             t.HasCheckConstraint("ck_charging_sessions_status_upper", "status = UPPER(status)");
 
@@ -905,8 +927,8 @@ namespace GoElectrify.DAL.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
                         .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -926,7 +948,7 @@ namespace GoElectrify.DAL.Migrations
 
                     b.ToTable("Stations", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Stations_Status_UPPER", "status = UPPER(status)");
+                            t.HasCheckConstraint("ck_stations_status_values", "status IN ('ACTIVE','INACTIVE','MAINTENANCE')");
                         });
 
                     b.HasData(
@@ -1113,6 +1135,49 @@ namespace GoElectrify.DAL.Migrations
                             TotalKwh = 50m,
                             UpdatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
+                });
+
+            modelBuilder.Entity("GoElectrify.BLL.Entities.SystemSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("pk_system_settings");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_system_settings_key");
+
+                    b.ToTable("SystemSettings", (string)null);
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.TopupIntent", b =>

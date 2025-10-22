@@ -27,6 +27,14 @@ namespace GoElectrify.DAL.Repositories
             wallet.Balance += amount;
             await _db.SaveChangesAsync();
         }
+        public async Task UpdateAsync(int walletId, decimal amount)
+        {
+            var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.Id == walletId);
+            if (wallet == null)
+                throw new Exception($"Wallet with id {walletId} not found");
+            wallet.Balance = amount;
+            await _db.SaveChangesAsync();
+        }
 
         public Task AddAsync(Wallet wallet, CancellationToken ct) => _db.Wallets.AddAsync(wallet, ct).AsTask();
         public async Task<Wallet?> GetByUserIdAsync(int userId)

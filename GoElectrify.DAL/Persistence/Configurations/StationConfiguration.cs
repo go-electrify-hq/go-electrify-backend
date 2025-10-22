@@ -1,4 +1,5 @@
 ﻿using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,8 +20,16 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.Latitude).HasPrecision(10, 6).IsRequired();
             b.Property(x => x.Longitude).HasPrecision(10, 6).IsRequired();
 
-            b.Property(x => x.Status).HasMaxLength(32).IsRequired();
-            b.ToTable(t => t.HasCheckConstraint("CK_Stations_Status_UPPER", "status = UPPER(status)"));
+            b.Property(x => x.Status)
+            .HasColumnName("status")
+            .HasConversion<string>()
+            .HasMaxLength(16)
+            .IsRequired();
+
+            b.ToTable(t => t.HasCheckConstraint(
+                "ck_stations_status_values",
+                "status IN ('ACTIVE','INACTIVE','MAINTENANCE')"
+            ));
 
             b.HasIndex(x => new { x.Status, x.Name });
             b.HasIndex(x => new { x.Latitude, x.Longitude });

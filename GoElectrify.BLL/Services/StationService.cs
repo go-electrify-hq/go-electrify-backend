@@ -48,7 +48,7 @@ namespace GoElectrify.BLL.Services
                 Address = request.Address,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
-                Status = status,
+                Status = Entities.Enums.StationStatus.ACTIVE,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -68,9 +68,14 @@ namespace GoElectrify.BLL.Services
             station.ImageUrl = request.ImageUrl ?? station.ImageUrl;
             station.Latitude = request.Latitude ?? station.Latitude;
             station.Longitude = request.Longitude ?? station.Longitude;
-            station.Status = request.Status ?? station.Status;
             if (!string.IsNullOrWhiteSpace(request.Status))
-                station.Status = request.Status!.ToUpperInvariant();
+            {
+                if (!Enum.TryParse<GoElectrify.BLL.Entities.Enums.StationStatus>(
+                    request.Status, ignoreCase: true, out var parsed))
+                    throw new ArgumentException("Invalid status. Allowed: Active, Inactive, Maintenance.");
+
+                station.Status = parsed;
+            }
             station.UpdatedAt = DateTime.UtcNow;
 
             await _repo.UpdateAsync(station);

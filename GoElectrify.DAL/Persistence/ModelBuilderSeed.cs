@@ -1,4 +1,5 @@
 ﻿using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace GoElectrify.DAL.Persistence
@@ -72,7 +73,7 @@ namespace GoElectrify.DAL.Persistence
                     ImageUrl = null,
                     Latitude = 10.84167829167107m,
                     Longitude = 106.81083314772492m,
-                    Status = "ACTIVE",
+                    Status = StationStatus.ACTIVE,
                     CreatedAt = now,
                     UpdatedAt = now
                 },
@@ -85,7 +86,7 @@ namespace GoElectrify.DAL.Persistence
                     ImageUrl = null,
                     Latitude = 10.876244851905408m,
                     Longitude = 106.80600195446553m,
-                    Status = "ACTIVE",
+                    Status = StationStatus.ACTIVE,
                     CreatedAt = now,
                     UpdatedAt = now
                 },
@@ -98,7 +99,7 @@ namespace GoElectrify.DAL.Persistence
                     ImageUrl = null,
                     Latitude = 10.843429972631098m,
                     Longitude = 106.84260840302923m,
-                    Status = "ACTIVE",
+                    Status = StationStatus.ACTIVE,
                     CreatedAt = now,
                     UpdatedAt = now
                 }

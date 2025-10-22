@@ -1,6 +1,7 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Dto.Station;
 using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Entities.Enums;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,14 +28,14 @@ namespace GoElectrify.DAL.Repositories
 
         public async Task AddAsync(Station station)
         {
-            station.Status = string.IsNullOrWhiteSpace(station.Status) ? "ACTIVE" : station.Status.ToUpper();
+            station.Status = station.Status == default ? StationStatus.ACTIVE : station.Status;
             await _context.Stations.AddAsync(station);
             await _context.SaveChangesAsync();
         }
 
         public async Task UpdateAsync(Station station)
         {
-            station.Status = string.IsNullOrWhiteSpace(station.Status) ? "ACTIVE" : station.Status.ToUpper();
+            station.Status = station.Status == default ? StationStatus.ACTIVE : station.Status;
             _context.Stations.Update(station);
             await _context.SaveChangesAsync();
         }
@@ -96,7 +97,7 @@ namespace GoElectrify.DAL.Repositories
                     s.Address,
                     s.Latitude,
                     s.Longitude,
-                    s.Status,
+                    s.Status.ToString(),
                     Math.Round(distKm, 3)
                 );
 
