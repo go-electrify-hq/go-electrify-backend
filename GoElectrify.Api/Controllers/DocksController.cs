@@ -353,8 +353,12 @@ namespace GoElectrify.Api.Controllers
         }
         private string IssueDockSessionJwt(int dockId, int sessionId, TimeSpan ttl)
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_cfg["DockAuth:SigningKey"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var issuer = _cfg["DockAuth:Issuer"];
+            var audience = _cfg["DockAuth:Audience"];
+            var key = _cfg["DockAuth:SigningKey"]!;
+            var creds = new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
             {
@@ -364,43 +368,44 @@ namespace GoElectrify.Api.Controllers
             };
 
             var token = new JwtSecurityToken(
-                issuer: _cfg["DockAuth:Issuer"],
-                audience: _cfg["DockAuth:Audience"],
+                issuer: issuer,
+                audience: audience,
                 claims: claims,
                 notBefore: DateTime.UtcNow,
                 expires: DateTime.UtcNow.Add(ttl),
-                signingCredentials: creds
-            );
+                signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
         private static bool JwtMatchesSession(ClaimsPrincipal user, int sessionId)
             => int.TryParse(user.FindFirst("sessionId")?.Value, out var sid) && sid == sessionId;
 
         [Authorize(AuthenticationSchemes = "DockJwt", Policy = "DockSessionWrite")]
         [HttpPost("/api/v1/sessions/{id:int}/start")]
         public async Task<IActionResult> StartSession([FromRoute] int id,
-                                             [FromBody] StartSessionRequest req,
-                                             CancellationToken ct)
+                                              [FromBody] StartSessionRequest req,
+                                              CancellationToken ct)
         {
             if (!JwtMatchesSession(User, id)) return Forbid();
 
-            var s = await _db.ChargingSessions.FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
+            var s = await _db.ChargingSessions
+                             .FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
+            if (s is null) return NotFound(new { ok = false, error = "Session not found or ended." });
+
             var claimDockId = int.TryParse(User.FindFirst("dockId")?.Value, out var did) ? did : (int?)null;
             if (claimDockId is null || claimDockId.Value != s.ChargerId)
                 return Forbid();
-            if (s is null) return NotFound(new { ok = false, error = "Session not found or ended." });
 
             s.Status = "RUNNING";
-            // Nếu Handshake trước đó đã set StartedAt, ta vẫn “chuẩn hoá” lại tại thời điểm start:
             s.StartedAt = DateTime.UtcNow;
             if (req.TargetSoc.HasValue) s.TargetSoc = req.TargetSoc.Value;
 
             await _db.SaveChangesAsync(ct);
 
-            // (tuỳ chọn) bắn realtime trên kênh phiên
             if (!string.IsNullOrWhiteSpace(s.AblyChannel))
-                await _ably.PublishAsync(s.AblyChannel, "session.started", new { sessionId = s.Id, targetSOC = s.TargetSoc }, ct);
+                await _ably.PublishAsync(s.AblyChannel, "session.started",
+                    new { sessionId = s.Id, targetSOC = s.TargetSoc }, ct);
 
             return Ok(new { ok = true, data = new { s.Id, s.Status, s.StartedAt, s.TargetSoc } });
         }
@@ -408,16 +413,18 @@ namespace GoElectrify.Api.Controllers
         [Authorize(AuthenticationSchemes = "DockJwt", Policy = "DockSessionWrite")]
         [HttpPost("/api/v1/sessions/{id:int}/complete")]
         public async Task<IActionResult> CompleteSession([FromRoute] int id,
-                                                [FromBody] CompleteSessionRequest req,
-                                                CancellationToken ct)
+                                                         [FromBody] CompleteSessionRequest req,
+                                                         CancellationToken ct)
         {
             if (!JwtMatchesSession(User, id)) return Forbid();
 
-            var s = await _db.ChargingSessions.FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
+            var s = await _db.ChargingSessions
+                             .FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
+            if (s is null) return NotFound(new { ok = false, error = "Session not found or already ended." });
+
             var claimDockId = int.TryParse(User.FindFirst("dockId")?.Value, out var did) ? did : (int?)null;
             if (claimDockId is null || claimDockId.Value != s.ChargerId)
                 return Forbid();
-            if (s is null) return NotFound(new { ok = false, error = "Session not found or already ended." });
 
             s.Status = "COMPLETED";
             s.FinalSoc = Math.Clamp(req.FinalSoc, 0, 100);
@@ -426,7 +433,8 @@ namespace GoElectrify.Api.Controllers
             await _db.SaveChangesAsync(ct);
 
             if (!string.IsNullOrWhiteSpace(s.AblyChannel))
-                await _ably.PublishAsync(s.AblyChannel, "session.completed", new { sessionId = s.Id, finalSOC = s.FinalSoc }, ct);
+                await _ably.PublishAsync(s.AblyChannel, "session.completed",
+                    new { sessionId = s.Id, finalSOC = s.FinalSoc }, ct);
 
             return Ok(new { ok = true, data = new { s.Id, s.Status, s.FinalSoc, s.EndedAt } });
         }

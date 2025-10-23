@@ -126,7 +126,7 @@ namespace GoElectrify.BLL.Services
             if (s.EndedAt is null)
             {
                 s.EndedAt = DateTime.UtcNow;
-                s.Status = "STOPPED";
+                s.Status = "TIMEOUT";
                 s.DurationMinutes = (int)Math.Max(0, (s.EndedAt.Value - s.StartedAt).TotalMinutes);
                 await repo.SaveChangesAsync(ct);
             }
