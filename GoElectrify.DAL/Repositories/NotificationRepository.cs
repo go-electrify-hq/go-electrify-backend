@@ -48,7 +48,6 @@ namespace GoElectrify.DAL.Repositories
             List<int> staffStations = new List<int>();
             if (isStaff)
             {
-                // ✅ KHÔNG dùng Entities.*, cứ dùng _db.StationStaff (DbSet đã biết kiểu)
                 var qStaff = _db.StationStaff.AsNoTracking()
                     .Where(x => x.UserId == userId && x.RevokedAt == null)
                     .Select(x => x.StationId);
