@@ -3,6 +3,7 @@ using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Notification;
 using GoElectrify.BLL.Dtos.Notification;
 using Microsoft.Extensions.Caching.Distributed;
+using System.Text;
 
 namespace GoElectrify.BLL.Services
 {
@@ -17,53 +18,50 @@ namespace GoElectrify.BLL.Services
             _cache = cache;
         }
 
+        private static string LastSeenKey(int userId) => $"notif:lastseen:{userId}";
+
         public async Task<IReadOnlyList<NotificationDto>> GetDashboardAsync(
-            NotificationQueryDto query, int userId, string role, CancellationToken cancellationToken)
+            NotificationQueryDto query, int userId, string role, CancellationToken ct)
         {
-            // Lấy danh sách thô
-            var items = await _repository.GetDashboardBaseAsync(query, userId, role, cancellationToken);
+            var list = await _repository.GetDashboardBaseAsync(query, userId, role, ct);
 
-            // Đọc LastSeen từ cache (viết thẳng; không dùng helper)
-            string key = "notif:lastseen:" + userId;
-            byte[]? bytes = await _cache.GetAsync(key, cancellationToken);
-            DateTime? lastSeen = null;
-            if (bytes != null)
-            {
-                string str = System.Text.Encoding.UTF8.GetString(bytes);
-                DateTime parsed;
-                bool ok = DateTime.TryParse(str, out parsed);
-                if (ok) lastSeen = DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
-            }
+            // lấy lastSeen từ cache
+            DateTime? lastSeen = await GetLastSeenAsync(userId, ct);
 
-            // Gắn IsNew
-            if (lastSeen == null)
+            if (lastSeen.HasValue)
             {
-                foreach (var n in items) n.IsNew = true;
+                var t = lastSeen.Value;
+                foreach (var n in list)
+                    n.IsNew = n.CreatedAt > t;
             }
             else
             {
-                foreach (var n in items)
-                {
-                    if (n.CreatedAt > lastSeen.Value) n.IsNew = true;
-                    else n.IsNew = false;
-                }
+                // Nếu chưa có lastSeen → coi tất cả là mới
+                foreach (var n in list) n.IsNew = true;
             }
 
-            return items;
+            return list;
         }
 
-        public async Task<DateTime> MarkAllReadNowAsync(int userId, CancellationToken cancellationToken)
+        public async Task MarkAllReadNowAsync(int userId, CancellationToken ct)
         {
-            // Lưu LastSeen = Now (UTC) vào cache (viết thẳng; không helper)
-            DateTime nowUtc = DateTime.UtcNow;
-            string key = "notif:lastseen:" + userId;
-            byte[] payload = System.Text.Encoding.UTF8.GetBytes(nowUtc.ToString("O"));
+            var key = LastSeenKey(userId);
+            var nowIso = DateTime.UtcNow.ToString("O");
+            await _cache.SetAsync(key, Encoding.UTF8.GetBytes(nowIso), new DistributedCacheEntryOptions
+            {
+                SlidingExpiration = TimeSpan.FromDays(30)
+            }, ct);
+        }
 
-            var options = new DistributedCacheEntryOptions();
-            options.SlidingExpiration = TimeSpan.FromDays(30);
-
-            await _cache.SetAsync(key, payload, options, cancellationToken);
-            return nowUtc;
+        private async Task<DateTime?> GetLastSeenAsync(int userId, CancellationToken ct)
+        {
+            var key = LastSeenKey(userId);
+            var data = await _cache.GetAsync(key, ct);
+            if (data is null || data.Length == 0) return null;
+            var iso = Encoding.UTF8.GetString(data);
+            if (DateTime.TryParse(iso, null, System.Globalization.DateTimeStyles.AdjustToUniversal, out var dt))
+                return dt.ToUniversalTime();
+            return null;
         }
     }
 }

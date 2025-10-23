@@ -9,47 +9,40 @@ namespace GoElectrify.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/notifications")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Roles = "Admin,Staff,Driver")]
     public class NotificationController : ControllerBase
     {
         private readonly INotificationService _service;
-        public NotificationController(INotificationService service) { _service = service; }
+        public NotificationController(INotificationService service) => _service = service;
 
-        // GET: /api/v1/notifications
         [HttpGet]
-        public async Task<IActionResult> Get([FromQuery] NotificationQueryDto query, CancellationToken cancellationToken)
+        public async Task<IActionResult> Get([FromQuery] NotificationQueryDto query, CancellationToken ct)
         {
-            // Lấy userId từ JWT: ưu tiên "userId", fallback "uid"
-            string? idStr = User.FindFirst("userId")?.Value;
-            if (string.IsNullOrWhiteSpace(idStr))
-                idStr = User.FindFirst("uid")?.Value;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value
+                       ?? User.FindFirst("role")?.Value
+                       ?? "Driver";
 
-            int userId;
-            bool ok = int.TryParse(idStr, out userId);
-            if (!ok)
-                return Unauthorized(new { error = "Thiếu hoặc sai mã người dùng (userId) trong token." });
+            var userIdStr = User.FindFirst("userId")?.Value
+                         ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            string role = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
+            if (!int.TryParse(userIdStr, out var userId))
+                return Unauthorized(new { error = "Thiếu hoặc sai userId trong token." });
 
-            var data = await _service.GetDashboardAsync(query, userId, role, cancellationToken);
-            return Ok(data);
+            var items = await _service.GetDashboardAsync(query, userId, role, ct);
+            return Ok(items);
         }
 
-        // POST: /api/v1/notifications/mark-all-read
-        [HttpPost("mark-all-read")]
-        public async Task<IActionResult> MarkAllRead(CancellationToken cancellationToken)
+        [HttpPost("read-all")]
+        public async Task<IActionResult> MarkAllRead(CancellationToken ct)
         {
-            string? idStr = User.FindFirst("userId")?.Value;
-            if (string.IsNullOrWhiteSpace(idStr))
-                idStr = User.FindFirst("uid")?.Value;
+            var userIdStr = User.FindFirst("userId")?.Value
+                         ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            int userId;
-            bool ok = int.TryParse(idStr, out userId);
-            if (!ok)
-                return Unauthorized(new { error = "Thiếu hoặc sai mã người dùng (userId) trong token." });
+            if (!int.TryParse(userIdStr, out var userId))
+                return Unauthorized(new { error = "Thiếu hoặc sai userId trong token." });
 
-            DateTime lastSeen = await _service.MarkAllReadNowAsync(userId, cancellationToken);
-            return Ok(new { message = "Đã đánh dấu tất cả thông báo là đã đọc.", lastSeen });
+            await _service.MarkAllReadNowAsync(userId, ct);
+            return NoContent();
         }
     }
 }

@@ -10,6 +10,6 @@ namespace GoElectrify.BLL.Contracts.Services
             NotificationQueryDto query, int userId, string role, CancellationToken cancellationToken);
 
         // Đánh dấu tất cả thông báo là đã đọc
-        Task<DateTime> MarkAllReadNowAsync(int userId, CancellationToken cancellationToken);
+        Task MarkAllReadNowAsync(int userId, CancellationToken ct);
     }
 }
