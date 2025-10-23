@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
@@ -70,7 +71,6 @@ builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 builder.Services.AddScoped<ITopupIntentService, TopupIntentService>();
 builder.Services.AddHttpClient<IPayOSService, PayOSService>();
 builder.Services.AddHostedService<GoElectrify.Api.Hosted.SessionWatchdog>();
-builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
 builder.Services.AddScoped<IBookingFeeService, BookingFeeService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
@@ -125,11 +125,29 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ClockSkew = TimeSpan.Zero
         };
+        o.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                Console.WriteLine($"Dock JWT failed: {ctx.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = ctx =>
+            {
+                var sid = ctx.Principal?.FindFirst("sessionId")?.Value;
+                var did = ctx.Principal?.FindFirst("dockId")?.Value;
+                var role = ctx.Principal?.FindFirst("role")?.Value;
+                Console.WriteLine($"[DockJwt] OK role={role} sessionId={sid} dockId={did}");
+                return Task.CompletedTask;
+            }
+        };
+
     });
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("DockSessionWrite", p => p.RequireClaim("role", "Dock"));
+    options.AddPolicy("DockSessionWrite", p =>
+        p.RequireRole("Dock"));
 });
 
 // Đăng ký token service (phát hành access/refresh)
