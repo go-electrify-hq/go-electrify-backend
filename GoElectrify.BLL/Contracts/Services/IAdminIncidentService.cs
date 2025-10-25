@@ -13,5 +13,7 @@ namespace GoElectrify.BLL.Contracts.Services
 
         //Lấy chi tiết 1 Incident theo id. Ném KeyNotFoundException nếu không tồn tại.
         Task<AdminIncidentListItemDto> GetAsync(int incidentId, CancellationToken ct);
+        Task<AdminIncidentListItemDto> UpdateStatusAsync(
+           int incidentId, string newStatus, int adminUserId, string? note, CancellationToken ct);
     }
 }

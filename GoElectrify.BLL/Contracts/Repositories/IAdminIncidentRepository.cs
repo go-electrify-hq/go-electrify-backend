@@ -10,5 +10,6 @@ namespace GoElectrify.BLL.Contracts.Repositories
 
         // Lấy 1 incident đã project sang DTO; trả null nếu không có.
         Task<AdminIncidentListItemDto?> GetProjectedByIdAsync(int incidentId, CancellationToken ct);
+        Task<AdminIncidentListItemDto> UpdateStatusAsync(int incidentId, string newStatus, int adminUserId, string? note, CancellationToken ct);
     }
 }

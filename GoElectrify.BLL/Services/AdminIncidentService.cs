@@ -25,5 +25,8 @@ namespace GoElectrify.BLL.Services
             if (dto == null) throw new KeyNotFoundException("Incident not found.");
             return dto;
         }
+
+        public Task<AdminIncidentListItemDto> UpdateStatusAsync(int incidentId, string newStatus, int adminUserId, string? note, CancellationToken ct)
+            => _repo.UpdateStatusAsync(incidentId, newStatus, adminUserId, note, ct);
     }
 }
