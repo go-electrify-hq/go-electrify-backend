@@ -9,6 +9,7 @@ namespace GoElectrify.BLL.Dtos.Notification
     public class NotificationQueryDto
     {
         public DateTime? Since { get; set; }
+        public DateTime? Before { get; set; }  // lấy cũ hơn mốc này (dùng cho "Xem tất cả" cuộn xuống)
 
         // Giới hạn số lượng thông báo trả về (1..100, mặc định 20)
         public int Limit { get; set; } = 20;
