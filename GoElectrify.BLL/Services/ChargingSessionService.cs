@@ -1,4 +1,5 @@
-﻿using GoElectrify.BLL.Contracts.Repositories;
+﻿using System;
+using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Dtos.ChargingSession;
@@ -10,6 +11,7 @@ namespace GoElectrify.BLL.Services
     public sealed class ChargingSessionService(IChargingSessionRepository repo, IBookingRepository bookingRepo) : IChargingSessionService
     {
         private const int SLOT_MINUTES = 30;
+
 
         public async Task<ChargingSessionDto> StartForDriverAsync(int userId, StartSessionDto dto, CancellationToken ct)
         {
@@ -120,6 +122,54 @@ namespace GoElectrify.BLL.Services
             };
         }
 
+        public async Task<StopResult> StopAsync(int sessionId, string? reason, int? finalSoc, decimal? energyKwh, CancellationToken ct)
+        {
+            var s = await repo.GetSessionAsync(sessionId, ct)
+                    ?? throw new InvalidOperationException("Session not found.");
+
+            // Idempotent: nếu chưa kết thúc thì chốt lại
+            if (s.EndedAt is null)
+            {
+                s.EndedAt = DateTime.UtcNow;
+
+                // Map reason → status (COMPLETED/TIMEOUT/FAILED)
+                s.Status = MapReasonToStatus(reason);
+
+                // Tính phút làm tròn “away from zero” để sát thực tế hơn
+                var totalMinutes = (s.EndedAt.Value - s.StartedAt).TotalMinutes;
+                s.DurationMinutes = Math.Max(0, (int)Math.Round(totalMinutes, MidpointRounding.AwayFromZero));
+
+                // Final SOC: ưu tiên tham số truyền vào → s.SocEnd (được IngestLog cập nhật) → SocStart
+                var finalSocResolved = finalSoc ?? s.SocEnd ?? s.SocStart;
+                s.FinalSoc = Math.Clamp(finalSocResolved, 0, 100);
+
+                // Energy: nếu Dock gửi đồng hồ cộng dồn thì lấy MAX với DB (không cho chạy lùi)
+                if (energyKwh.HasValue)
+                {
+                    var k = Math.Round(energyKwh.Value, 4, MidpointRounding.AwayFromZero);
+                    if (k > s.EnergyKwh) s.EnergyKwh = k;
+                }
+
+                await repo.SaveChangesAsync(ct);
+            }
+
+            // Tính avg power (đơn giản): energy / giờ
+            decimal? avgPowerKw = null;
+            if (s.DurationMinutes > 0)
+            {
+                var hours = s.DurationMinutes / 60m;
+                avgPowerKw = Math.Round(s.EnergyKwh / hours, 3, MidpointRounding.AwayFromZero);
+            }
+
+            // (Chưa có pricing) để Cost = null
+            return new StopResult(
+                EndedAt: s.EndedAt!.Value,
+                DurationMinutes: s.DurationMinutes,
+                EnergyKwh: s.EnergyKwh,
+                AvgPowerKw: avgPowerKw,
+                Cost: null
+            );
+        }
         public async Task<ChargingSessionDto> StopAsync(int userId, int sessionId, string reason, CancellationToken ct)
         {
             var s = await repo.GetSessionAsync(sessionId, ct) ?? throw new InvalidOperationException("Session not found.");
@@ -189,5 +239,13 @@ namespace GoElectrify.BLL.Services
 
             return result;
         }
+        private static string MapReasonToStatus(string? r) => r switch
+        {
+            "target_soc" => "COMPLETED",
+            "user_request" => "COMPLETED",
+            "timeout" => "TIMEOUT",
+            "error" => "FAILED",
+            _ => "COMPLETED"
+        };
     }
 }

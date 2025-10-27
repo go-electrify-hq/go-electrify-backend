@@ -3,14 +3,19 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using GoElectrify.Api.Realtime;
+using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Charger;
 using GoElectrify.BLL.Dtos.Dock;
+using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
+
 
 namespace GoElectrify.Api.Controllers
 {
@@ -21,34 +26,11 @@ namespace GoElectrify.Api.Controllers
         private readonly AppDbContext _db;
         private readonly IAblyService _ably;
         private readonly IConfiguration _cfg;
-        public DocksController(AppDbContext db, IAblyService ably, IConfiguration cfg)
+        private readonly ILogger<DocksController> _logger;
+        private readonly IChargingSessionService _svc;
+        public DocksController(IChargingSessionService svc, AppDbContext db, IAblyService ably, IConfiguration cfg, ILogger<DocksController> logger)
         {
-            _db = db; _ably = ably; _cfg = cfg;
-        }
-
-        public sealed record DockConnectRequest(int DockId, string SecretKey, string? FirmwareVersion);
-        public sealed record DockConnectResponse(string ChannelId, string AblyToken, DateTime ExpiresAt);
-
-        [HttpPost("connect")]
-        public async Task<IActionResult> Connect([FromBody] DockConnectRequest req, CancellationToken ct)
-        {
-            var charger = await _db.Chargers.FirstOrDefaultAsync(c => c.Id == req.DockId, ct);
-            if (charger is null) return Unauthorized(new { ok = false, error = "Dock not found" });
-
-            if (!VerifySecret(charger.DockSecretHash, req.SecretKey))
-                return Unauthorized(new { ok = false, error = "Invalid secret" });
-
-            var channel = charger.AblyChannel ?? $"ge:dock:{req.DockId}";
-            var cap = $@"{{""{channel}"":[""publish"",""subscribe""]}}";
-            var ttl = TimeSpan.FromHours(2);
-            var token = await _ably.CreateTokenAsync(channel, $"dock-{req.DockId}", cap, ttl, ct);
-
-            charger.AblyChannel = channel;
-            charger.DockStatus = "CONNECTED";
-            charger.LastConnectedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync(ct);
-
-            return Ok(new { ok = true, data = new DockConnectResponse(channel, token, DateTime.UtcNow.Add(ttl)) });
+            _db = db; _ably = ably; _cfg = cfg; _logger = logger; _svc = svc;
         }
 
         [HttpPost("log")]
@@ -190,8 +172,6 @@ namespace GoElectrify.Api.Controllers
                 if (sessionChannel is not null)
                     await _ably.PublishAsync(sessionChannel, "session.progress", progress, ct);
 
-                // (tuỳ) vẫn bắn về kênh dock để không phá FE cũ
-                await _ably.PublishAsync(channel, "session.progress", progress, ct);
             }
 
             return Ok(new { ok = true });
@@ -200,19 +180,16 @@ namespace GoElectrify.Api.Controllers
 
         [HttpPost("{dockId:int}/handshake")]
         public async Task<IActionResult> Handshake([FromRoute] int dockId,
-                                                   [FromBody] DockHandshakeRequest body,
-                                                   [FromServices] IAblyService ably,
-                                                   CancellationToken ct)
+                                           [FromBody] DockHandshakeRequest body,
+                                           CancellationToken ct)
         {
-            // 1) Tìm Charger (Dock)
             var charger = await _db.Chargers.FirstOrDefaultAsync(c => c.Id == dockId, ct);
             if (charger is null) return NotFound(new { ok = false, error = "Dock not found." });
 
-            // 2) Verify secret
             if (!VerifySecret(charger.DockSecretHash, body.SecretKey))
                 return Unauthorized(new { ok = false, error = "Invalid secret." });
 
-            // 3) Idempotent: nếu đã có phiên active (EndedAt == null), dùng lại
+            // Idempotent session
             var session = await _db.ChargingSessions
                 .Where(s => s.ChargerId == charger.Id && s.EndedAt == null)
                 .OrderByDescending(s => s.Id)
@@ -220,39 +197,31 @@ namespace GoElectrify.Api.Controllers
 
             if (session is null)
             {
-                // 3a) Tạo session PENDING
                 session = new ChargingSession
                 {
                     ChargerId = charger.Id,
                     Status = "PENDING",
-                    // StartedAt để trống, chỉ set khi Start
-                    //StartedAt = DateTime.UtcNow, 
                     SocStart = 0,
                     DurationMinutes = 0
                 };
                 _db.ChargingSessions.Add(session);
-                await _db.SaveChangesAsync(ct); // lấy SessionId
+                await _db.SaveChangesAsync(ct);
             }
 
-            // 4) Gán AblyChannel & JoinCode nếu chưa có
             if (string.IsNullOrWhiteSpace(session.AblyChannel))
                 session.AblyChannel = $"ge:session:{session.Id}";
-
             if (string.IsNullOrWhiteSpace(session.JoinCode))
-                session.JoinCode = await GenerateUniqueJoinCodeAsync(_db, length: 6, ct);
-
+                session.JoinCode = await GenerateUniqueJoinCodeAsync(_db, 6, ct);
             await _db.SaveChangesAsync(ct);
 
-            // 5) Ably token scoped theo kênh phiên
+            // Ably token + Dock JWT
             var channel = session.AblyChannel!;
             var capability = $@"{{""{channel}"":[""publish"",""subscribe""]}}";
-            var ttl = TimeSpan.FromHours(2);
-            var token = await ably.CreateTokenAsync(channel, $"dock-{dockId}", capability, ttl, ct);
-
-            // 5b) Dock JWT scoped theo session (dùng ở A3 để gọi /sessions/{id}/start|complete)
+            var ttl = TimeSpan.FromHours(1);
+            var ablyToken = await _ably.CreateTokenAsync(channel, $"dock-{dockId}", capability, ttl, ct);
             var dockJwt = IssueDockSessionJwt(dockId, session.Id, ttl);
 
-            // 6) Cập nhật trạng thái Dock (giữ logic cũ)
+            // cập nhật dock
             charger.AblyChannel = charger.AblyChannel ?? $"ge:dock:{dockId}";
             charger.DockStatus = "CONNECTED";
             charger.LastConnectedAt = DateTime.UtcNow;
@@ -260,23 +229,25 @@ namespace GoElectrify.Api.Controllers
 
             return Ok(new
             {
+                status = "success",
+                channelId = session.AblyChannel,
                 ok = true,
                 data = new
                 {
                     sessionId = session.Id,
                     channelId = session.AblyChannel,
                     joinCode = session.JoinCode,
-                    ablyToken = token,
-                    dockJwt,                           // <-- NEW
+                    ablyToken,
+                    dockJwt,
                     expiresAt = DateTime.UtcNow.Add(ttl)
                 }
             });
         }
 
-        // Helper: tạo join code không trùng
+
         private static async Task<string> GenerateUniqueJoinCodeAsync(AppDbContext db, int length, CancellationToken ct)
         {
-            const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bỏ O/0/1/I để dễ đọc
+            const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
             var rnd = Random.Shared;
 
             while (true)
@@ -325,10 +296,9 @@ namespace GoElectrify.Api.Controllers
 
         public sealed record JoinByCodeRequest(string Code, string Role = "dashboard");
 
-        [AllowAnonymous] // hoặc [Authorize] tuỳ nhu cầu
+        [AllowAnonymous]
         [HttpPost("join")]
         public async Task<IActionResult> JoinByCode([FromBody] JoinByCodeRequest body,
-                                                    [FromServices] IAblyService ably,
                                                     CancellationToken ct)
         {
             var s = await _db.ChargingSessions
@@ -336,14 +306,14 @@ namespace GoElectrify.Api.Controllers
             if (s is null) return NotFound(new { ok = false, error = "Invalid or expired code." });
 
             var channel = s.AblyChannel!;
-            var canPublish = body.Role == "dashboard"; // dashboard có thể publish start_session
+            var canPublish = body.Role == "dashboard";
             var cap = canPublish
                 ? $@"{{""{channel}"":[""subscribe"",""publish""]}}"
                 : $@"{{""{channel}"":[""subscribe""]}}";
             var ttl = TimeSpan.FromHours(1);
 
             var clientId = $"{body.Role}-{Guid.NewGuid():N}";
-            var token = await ably.CreateTokenAsync(channel, clientId, cap, ttl, ct);
+            var token = await _ably.CreateTokenAsync(channel, clientId, cap, ttl, ct);
 
             return Ok(new
             {
@@ -356,15 +326,16 @@ namespace GoElectrify.Api.Controllers
             var issuer = _cfg["DockAuth:Issuer"];
             var audience = _cfg["DockAuth:Audience"];
             var key = _cfg["DockAuth:SigningKey"]!;
-            var creds = new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
-                SecurityAlgorithms.HmacSha256);
+
+            var secKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)) { KeyId = "dock-v1" };
+            var creds = new SigningCredentials(secKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
             {
                 new Claim("role", "Dock"),
                 new Claim("dockId", dockId.ToString()),
                 new Claim("sessionId", sessionId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Sub, $"dock:{dockId}")
             };
 
             var token = new JwtSecurityToken(
@@ -373,71 +344,9 @@ namespace GoElectrify.Api.Controllers
                 claims: claims,
                 notBefore: DateTime.UtcNow,
                 expires: DateTime.UtcNow.Add(ttl),
-                signingCredentials: creds);
-
+                signingCredentials: creds
+            );
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-
-        private static bool JwtMatchesSession(ClaimsPrincipal user, int sessionId)
-            => int.TryParse(user.FindFirst("sessionId")?.Value, out var sid) && sid == sessionId;
-
-        [Authorize(AuthenticationSchemes = "DockJwt", Policy = "DockSessionWrite")]
-        [HttpPost("/api/v1/sessions/{id:int}/start")]
-        public async Task<IActionResult> StartSession([FromRoute] int id,
-                                              [FromBody] StartSessionRequest req,
-                                              CancellationToken ct)
-        {
-            if (!JwtMatchesSession(User, id)) return Forbid();
-
-            var s = await _db.ChargingSessions
-                             .FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
-            if (s is null) return NotFound(new { ok = false, error = "Session not found or ended." });
-
-            var claimDockId = int.TryParse(User.FindFirst("dockId")?.Value, out var did) ? did : (int?)null;
-            if (claimDockId is null || claimDockId.Value != s.ChargerId)
-                return Forbid();
-
-            s.Status = "RUNNING";
-            s.StartedAt = DateTime.UtcNow;
-            if (req.TargetSoc.HasValue) s.TargetSoc = req.TargetSoc.Value;
-
-            await _db.SaveChangesAsync(ct);
-
-            if (!string.IsNullOrWhiteSpace(s.AblyChannel))
-                await _ably.PublishAsync(s.AblyChannel, "session.started",
-                    new { sessionId = s.Id, targetSOC = s.TargetSoc }, ct);
-
-            return Ok(new { ok = true, data = new { s.Id, s.Status, s.StartedAt, s.TargetSoc } });
-        }
-
-        [Authorize(AuthenticationSchemes = "DockJwt", Policy = "DockSessionWrite")]
-        [HttpPost("/api/v1/sessions/{id:int}/complete")]
-        public async Task<IActionResult> CompleteSession([FromRoute] int id,
-                                                         [FromBody] CompleteSessionRequest req,
-                                                         CancellationToken ct)
-        {
-            if (!JwtMatchesSession(User, id)) return Forbid();
-
-            var s = await _db.ChargingSessions
-                             .FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
-            if (s is null) return NotFound(new { ok = false, error = "Session not found or already ended." });
-
-            var claimDockId = int.TryParse(User.FindFirst("dockId")?.Value, out var did) ? did : (int?)null;
-            if (claimDockId is null || claimDockId.Value != s.ChargerId)
-                return Forbid();
-
-            s.Status = "COMPLETED";
-            s.FinalSoc = Math.Clamp(req.FinalSoc, 0, 100);
-            s.EndedAt = DateTime.UtcNow;
-
-            await _db.SaveChangesAsync(ct);
-
-            if (!string.IsNullOrWhiteSpace(s.AblyChannel))
-                await _ably.PublishAsync(s.AblyChannel, "session.completed",
-                    new { sessionId = s.Id, finalSOC = s.FinalSoc }, ct);
-
-            return Ok(new { ok = true, data = new { s.Id, s.Status, s.FinalSoc, s.EndedAt } });
-        }
-
     }
 }
