@@ -24,5 +24,10 @@ namespace GoElectrify.BLL.Contracts.Repositories
 
         Task<bool> StationExistsAsync(int stationId, CancellationToken ct);
         Task<List<Booking>> GetByStationAsync(int stationId, string? status, DateTime? from, DateTime? to, int page, int pageSize, CancellationToken ct);
+
+        /// <summary>
+        /// Gets the email address of the user by userId.
+        /// </summary>
+        Task<string?> GetUserEmailAsync(int userId, CancellationToken ct);
     }
 }

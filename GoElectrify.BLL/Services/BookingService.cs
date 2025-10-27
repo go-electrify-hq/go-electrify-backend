@@ -4,6 +4,7 @@ using GoElectrify.BLL.Dto.Booking;
 using GoElectrify.BLL.Dtos.Booking;
 using GoElectrify.BLL.Entities;
 using GoElectrify.BLL.Exceptions;
+using Microsoft.Extensions.Logging;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 
@@ -17,12 +18,19 @@ namespace GoElectrify.BLL.Services
         private readonly IWalletRepository _wallets;
         private readonly ITransactionRepository _tx;
         private readonly IBookingFeeService _fee;
+
+        // [MAIL]
+        private readonly INotificationMailService _notifMail;
+        private readonly ILogger<BookingService> _logger;
+
         private const int SLOT_MINUTES = 30;
         private static readonly string[] AllowedStatuses = ["PENDING", "CONFIRMED", "CANCELED", "EXPIRED", "CONSUMED"];
 
         public BookingService(IBookingRepository repo, IStationRepository stations, IVehicleModelRepository vehicles, IWalletRepository wallets,
             ITransactionRepository tx,
-            IBookingFeeService fee)
+            IBookingFeeService fee,
+            INotificationMailService notifMail,
+            ILogger<BookingService> logger)
         {
             _repo = repo;
             _stations = stations;
@@ -30,6 +38,8 @@ namespace GoElectrify.BLL.Services
             _wallets = wallets;
             _tx = tx;
             _fee = fee;
+            _notifMail = notifMail;
+            _logger = logger;
         }
 
         public async Task<BookingDto> CreateAsync(int userId, CreateBookingDto dto, CancellationToken ct)
@@ -99,6 +109,33 @@ namespace GoElectrify.BLL.Services
                 Code = GenerateCode()
             };
             await _repo.AddAsync(e, ct);
+
+            // ================== [MAIL] gửi email "Đặt chỗ thành công" ==================
+            try
+            {
+                // Hiển thị đơn giản, không phụ thuộc tên (tránh phải JOIN thêm)
+                var stationDisplay = $"Trạm #{e.StationId}";
+                string? chargerDisplay = null; // nếu có ChargerId thì set $"Charger #{e.ChargerId}"
+
+                var userEmail = await _repo.GetUserEmailAsync(userId, ct);
+                if (!string.IsNullOrWhiteSpace(userEmail))
+                {
+                    await _notifMail.SendBookingSuccessAsync(
+                        toEmail: userEmail,
+                        bookingCode: e.Code,
+                        stationName : stationDisplay,
+                        chargerName: chargerDisplay,
+                        startTimeUtc: e.ScheduledStart,
+                        endTimeUtc: null,
+                        ct: ct
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Send booking success email failed (bookingCode={Code})", e.Code);
+            }
+            // ================== [/MAIL] ==================
             return Map(e);
         }
 

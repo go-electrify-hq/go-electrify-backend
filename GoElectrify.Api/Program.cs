@@ -97,6 +97,7 @@ builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddScoped<IBookingFeeService, BookingFeeService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<INotificationMailService, NotificationMailService>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 

@@ -101,5 +101,14 @@ namespace GoElectrify.DAL.Repositories
                           .Take(pageSize)
                           .ToListAsync(ct);
         }
+
+        public async Task<string?> GetUserEmailAsync(int userId, CancellationToken ct)
+        {
+            return await db.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => u.Email)
+                .FirstOrDefaultAsync(ct);
+        }
     }
 }
