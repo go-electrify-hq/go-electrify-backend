@@ -11,5 +11,6 @@ namespace GoElectrify.BLL.Contracts.Services
 
         // Đánh dấu tất cả thông báo là đã đọc
         Task MarkAllReadNowAsync(int userId, CancellationToken ct);
+        Task MarkOneReadAsync(int userId, string notificationId, CancellationToken ct);
     }
 }

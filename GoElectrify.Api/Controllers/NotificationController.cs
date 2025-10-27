@@ -44,5 +44,21 @@ namespace GoElectrify.Api.Controllers
             await _service.MarkAllReadNowAsync(userId, ct);
             return NoContent();
         }
+
+        [HttpPost("{id}/read")]
+        public async Task<IActionResult> MarkOneRead([FromRoute] string id, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return BadRequest(new { error = "Thiếu id thông báo." });
+
+            var userIdStr = User.FindFirst("userId")?.Value
+                         ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!int.TryParse(userIdStr, out var userId))
+                return Unauthorized(new { error = "Thiếu hoặc sai userId trong token." });
+
+            await _service.MarkOneReadAsync(userId, id.Trim(), ct);
+            return NoContent();
+        }
     }
 }
