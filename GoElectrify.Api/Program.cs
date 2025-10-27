@@ -90,6 +90,7 @@ builder.Services.AddHttpClient<IPayOSService, PayOSService>();
 builder.Services.AddHostedService<GoElectrify.Api.Hosted.SessionWatchdog>();
 builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
 builder.Services.AddScoped<IWalletSubscriptionService, WalletSubscriptionService>();
+builder.Services.AddScoped<IChargingPaymentService, ChargingPaymentService>();
 
 builder.Services.AddDistributedMemoryCache();
 

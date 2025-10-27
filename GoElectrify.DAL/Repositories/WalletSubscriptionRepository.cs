@@ -72,5 +72,18 @@ namespace GoElectrify.DAL.Repositories
 
             return (ws, tx);
         }
+        public async Task<List<WalletSubscription>> GetActiveByWalletIdAsync(
+       int walletId, DateTime nowUtc, CancellationToken ct)
+        {
+            nowUtc = DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc);
+
+            return await _db.WalletSubscriptions
+                .Where(ws => ws.WalletId == walletId
+                          && ws.Status == "ACTIVE"
+                          && ws.StartDate <= nowUtc && nowUtc <= ws.EndDate
+                          && ws.RemainingKwh > 0)
+                .OrderBy(ws => ws.EndDate) // ưu tiên gói sắp hết hạn
+                .ToListAsync(ct);
+        }
     }
 }
