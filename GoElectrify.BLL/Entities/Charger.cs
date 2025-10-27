@@ -7,9 +7,8 @@
 
         public int ConnectorTypeId { get; set; }
         public ConnectorType ConnectorType { get; set; } = default!;
-
         public string Code { get; set; } = default!;      // mã trụ/QR
-        public int PowerKw { get; set; }                   // công suất danh định
+        public int PowerKw { get; set; }
         public string Status { get; set; } = "ONLINE";     // ONLINE | OFFLINE | MAINTENANCE
 
         // Giá—tuỳ mô hình: có thể để ở Station, hoặc override theo Charger

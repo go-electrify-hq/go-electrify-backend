@@ -12,14 +12,31 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-    .AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy("DashboardDev", p =>
+        p
+            .WithOrigins(
+                "http://localhost:5500",
+                "http://127.0.0.1:5500",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+    );
+});
+
 
 builder.Logging.ClearProviders();
 // Serilog + Swagger
-builder.Host.UseSerilog((ctx, cfg) => cfg.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
+builder.Host.UseSerilog((ctx, cfg) => cfg.ReadFrom.Configuration(ctx.Configuration));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -133,6 +150,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
         o.Events = new JwtBearerEvents
         {
+            OnMessageReceived = ctx =>
+            {
+                var tok = ctx.Token;
+                if (!string.IsNullOrEmpty(tok))
+                {
+                    try
+                    {
+                        var h = new JwtSecurityTokenHandler();
+                        var jwt = h.ReadJwtToken(tok); // KHÔNG validate
+                        Console.WriteLine($"[DockJwt] Received token {tok[..10]}...{tok[^10..]}");
+                        Console.WriteLine($"[DockJwt] Token iss={jwt.Issuer} aud={string.Join(",", jwt.Audiences)}");
+                    }
+                    catch { /* ignore */ }
+                }
+                return Task.CompletedTask;
+            },
             OnAuthenticationFailed = ctx =>
             {
                 Console.WriteLine($"Dock JWT failed: {ctx.Exception.Message}");
@@ -153,7 +186,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("DockSessionWrite", p =>
-        p.RequireRole("Dock"));
+        p.RequireAssertion(ctx =>
+            ctx.User.HasClaim("role", "Dock") || ctx.User.IsInRole("Dock")));
+
+    options.AddPolicy("DockOrStaffOrAdmin", p =>
+        p.RequireAssertion(ctx =>
+            ctx.User.HasClaim("role", "Dock") || ctx.User.IsInRole("Dock")
+         || ctx.User.IsInRole("Staff") || ctx.User.IsInRole("Admin")));
 });
 
 // Đăng ký token service (phát hành access/refresh)
@@ -186,12 +225,10 @@ app.UseSwaggerUI(o =>
     o.RoutePrefix = "swagger";
 });
 
-// Redirect "/" -> "/swagger"
 app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
-
-//app.UseHttpsRedirection();
-app.UseCors();
-app.UseAuthentication();   // phải trước UseAuthorization
+app.UseRouting();
+app.UseCors("DashboardDev");
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
 app.MapControllers();
