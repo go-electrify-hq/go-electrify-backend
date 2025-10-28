@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,17 +12,13 @@ namespace GoElectrify.BLL.Services
     public class NotificationMailService : INotificationMailService
     {
         private readonly IEmailSender _email;
-
-        public NotificationMailService(IEmailSender email)
-        {
-            _email = email;
-        }
+        public NotificationMailService(IEmailSender email) => _email = email;
 
         public Task SendTopupSuccessAsync(
             string toEmail,
             decimal amount,
             string provider,
-            string orderCode,
+            long orderCode,
             DateTime completedAtUtc,
             CancellationToken ct = default)
         {
@@ -34,8 +31,8 @@ namespace GoElectrify.BLL.Services
 <html><body style=""font-family:Segoe UI,Arial,sans-serif"">
   <h2>Nạp ví thành công</h2>
   <p>Số tiền: <b>{vnd}₫</b></p>
-  <p>Nhà cung cấp: <b>{provider}</b></p>
-  <p>Mã đơn: <b>{orderCode}</b></p>
+  <p>Nhà cung cấp: <b>{WebUtility.HtmlEncode(provider)}</b></p>
+  <p>Mã đơn: <b>{WebUtility.HtmlEncode(orderCode.ToString())}</b></p>
   <p>Thời gian: {time}</p>
   <hr>
   <p>Cảm ơn bạn đã sử dụng GoElectrify.</p>
@@ -47,26 +44,26 @@ namespace GoElectrify.BLL.Services
         public Task SendBookingSuccessAsync(
             string toEmail,
             string bookingCode,
-            string stationName,
-            string? chargerName,
+            string stationName,     
+            string? chargerName,    
             DateTime startTimeUtc,
             DateTime? endTimeUtc,
             CancellationToken ct = default)
         {
             var start = startTimeUtc.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
-            var end = endTimeUtc?.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+            var endText = endTimeUtc?.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
             var subject = "[GoElectrify] Đặt chỗ thành công";
 
             var sb = new StringBuilder($@"
 <!doctype html>
 <html><body style=""font-family:Segoe UI,Arial,sans-serif"">
   <h2>Đặt chỗ thành công</h2>
-  <p>Mã đặt chỗ: <b>{System.Net.WebUtility.HtmlEncode(bookingCode)}</b></p>
-  <p>Trạm: <b>{System.Net.WebUtility.HtmlEncode(stationName)}</b></p>");
+  <p>Mã đặt chỗ: <b>{WebUtility.HtmlEncode(bookingCode)}</b></p>
+  <p>Trạm: <b>{WebUtility.HtmlEncode(stationName)}</b></p>");
             if (!string.IsNullOrWhiteSpace(chargerName))
-                sb.Append($"<p>Charger: <b>{System.Net.WebUtility.HtmlEncode(chargerName)}</b></p>");
+                sb.Append($"<p>Charger: <b>{WebUtility.HtmlEncode(chargerName)}</b></p>");
             sb.Append($"<p>Bắt đầu: {start}</p>");
-            if (end != null) sb.Append($"<p>Kết thúc dự kiến: {end}</p>");
+            if (endText != null) sb.Append($"<p>Kết thúc dự kiến: {endText}</p>");
             sb.Append(@"
   <hr>
   <p>Chúc bạn có hành trình thuận lợi!</p>

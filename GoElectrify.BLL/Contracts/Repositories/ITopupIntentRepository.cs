@@ -7,4 +7,6 @@ public interface ITopupIntentRepository
     Task<TopupIntent?> GetByProviderRefAsync(long orderCode);
     Task<TopupIntent> AddAsync(TopupIntent entity);
     Task UpdateAsync(TopupIntent entity);
+
+    //Task<string?> GetUserEmailByWalletAsync(int walletId, CancellationToken ct);
 }

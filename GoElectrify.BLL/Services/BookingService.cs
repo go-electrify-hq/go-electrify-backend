@@ -111,20 +111,24 @@ namespace GoElectrify.BLL.Services
             await _repo.AddAsync(e, ct);
 
             // ================== [MAIL] gửi email "Đặt chỗ thành công" ==================
+            // === EMAIL: Đặt chỗ thành công ===
             try
             {
-                // Hiển thị đơn giản, không phụ thuộc tên (tránh phải JOIN thêm)
-                var stationDisplay = $"Trạm #{e.StationId}";
-                string? chargerDisplay = null; // nếu có ChargerId thì set $"Charger #{e.ChargerId}"
-
                 var userEmail = await _repo.GetUserEmailAsync(userId, ct);
                 if (!string.IsNullOrWhiteSpace(userEmail))
                 {
+                    // Lấy tên trạm thật; nếu null → fallback
+                    var stationName = await _stations.GetNameByIdAsync(e.StationId, ct)
+                                     ?? $"Trạm #{e.StationId}";
+
+                    // Booking của bạn hiện chưa có ChargerId → để null
+                    string? chargerName = null;
+
                     await _notifMail.SendBookingSuccessAsync(
                         toEmail: userEmail,
                         bookingCode: e.Code,
-                        stationName : stationDisplay,
-                        chargerName: chargerDisplay,
+                        stationName: stationName,
+                        chargerName: chargerName,
                         startTimeUtc: e.ScheduledStart,
                         endTimeUtc: null,
                         ct: ct
@@ -135,6 +139,7 @@ namespace GoElectrify.BLL.Services
             {
                 _logger.LogWarning(ex, "Send booking success email failed (bookingCode={Code})", e.Code);
             }
+
             // ================== [/MAIL] ==================
             return Map(e);
         }

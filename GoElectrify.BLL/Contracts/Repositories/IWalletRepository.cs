@@ -9,4 +9,5 @@ public interface IWalletRepository
     Task UpdateBalanceAsync(int walletId, decimal amount);
     Task UpdateAsync(int walletId, decimal amount);
     Task<Wallet?> GetByUserIdAsync(int userId);
+    Task<string?> GetUserEmailByWalletAsync(int walletId);
 }

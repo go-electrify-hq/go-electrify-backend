@@ -12,7 +12,7 @@ namespace GoElectrify.BLL.Contracts.Services
            string toEmail,
            decimal amount,
            string provider,
-           string orderCode,
+           long orderCode,
            DateTime completedAtUtc,
            CancellationToken ct = default);
 
