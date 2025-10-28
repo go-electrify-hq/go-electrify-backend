@@ -26,7 +26,7 @@ namespace GoElectrify.BLL.Services
             CancellationToken ct = default)
         {
             var vi = new CultureInfo("vi-VN");
-            var money = string.Format(vi, "{0:C0}", amount) + "VND";                         // ví dụ: 50.000 ₫
+            var money = string.Format(vi, "{0:C0}", amount) ;                         // ví dụ: 50.000 ₫
             var time = completedAtUtc.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
 
             var subject = "[Go Electrify] NẠP VÍ THÀNH CÔNG"; // theo yêu cầu mới
@@ -112,7 +112,7 @@ namespace GoElectrify.BLL.Services
             CancellationToken ct = default)
                 {
                     var vi = new CultureInfo("vi-VN");
-                    var priceStr = string.Format(vi, "{0:C0}", price) + "VND";
+                    var priceStr = string.Format(vi, "{0:C0}", price);
                     var atLocal = activatedAtUtc.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
                     var usedText = durationDays > 0 ? $"{durationDays} ngày" : "Không giới hạn";
 
