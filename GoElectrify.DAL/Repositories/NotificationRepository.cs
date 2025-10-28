@@ -32,8 +32,11 @@ namespace GoElectrify.DAL.Repositories
                 }
             }
 
-            string minSeverity = NormalizeSeverity(query.MinSeverity);
-            int minRank = SeverityRank(minSeverity);
+            // Severity min (inline normalize + rank)
+            string minSeverity = (query.MinSeverity ?? "LOW").Trim().ToUpperInvariant();
+            if (minSeverity != "CRITICAL" && minSeverity != "HIGH" && minSeverity != "MEDIUM" && minSeverity != "LOW")
+                minSeverity = "LOW";
+            int minRank = minSeverity == "CRITICAL" ? 4 : minSeverity == "HIGH" ? 3 : minSeverity == "MEDIUM" ? 2 : 1;
 
             bool isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
             bool isStaff = string.Equals(role, "Staff", StringComparison.OrdinalIgnoreCase);
@@ -91,15 +94,19 @@ namespace GoElectrify.DAL.Repositories
             bucket.AddRange(await BuildIncidentAsync(
                 sinceUtc, limit, typeSet, isAdmin, isStaff, isDriver, staffStations, driverRelatedStations, cancellationToken));
 
-            // ---------- PAYMENT (Topup + Transaction) ----------
+            // ---------- PAYMENT (Topup + Subscription Purchase) ----------
             bucket.AddRange(await BuildPaymentAsync(
                 sinceUtc, limit, typeSet, isAdmin, isStaff, isDriver, userId, cancellationToken));
 
-            // ===== 4) Áp MinSeverity + Sort + Limit =====
+            // ===== 4) Áp MinSeverity + Sort + Limit (inline rank) =====
             List<NotificationDto> filtered = new List<NotificationDto>(bucket.Count);
             foreach (var n in bucket)
             {
-                if (SeverityRank(n.Severity) >= minRank) filtered.Add(n);
+                string sev = (n.Severity ?? "LOW").Trim().ToUpperInvariant();
+                if (sev != "CRITICAL" && sev != "HIGH" && sev != "MEDIUM" && sev != "LOW")
+                    sev = "LOW";
+                int rank = sev == "CRITICAL" ? 4 : sev == "HIGH" ? 3 : sev == "MEDIUM" ? 2 : 1;
+                if (rank >= minRank) filtered.Add(n);
             }
 
             List<NotificationDto> finalList = filtered
@@ -118,7 +125,7 @@ namespace GoElectrify.DAL.Repositories
             bool isAdmin, bool isStaff, bool isDriver,
             List<int> staffStations, int userId, CancellationToken ct)
         {
-            var result = new List<NotificationDto>(limit * 3);
+            var result = new List<NotificationDto>(limit * 4);
 
             IQueryable<Booking> Scope(IQueryable<Booking> q)
             {
@@ -216,6 +223,55 @@ namespace GoElectrify.DAL.Repositories
                 result.AddRange(items);
             }
 
+            // ---- BOOKING DEPOSIT (BOOKING_FEE thuộc Booking) ----
+            // Hiển thị đặt cọc tại nhóm Booking (không đưa sang Payment).
+            // Nếu chưa join Transaction -> Booking/Station, tạm ẩn với Staff để tránh lộ phạm vi.
+            if (typeSet.Count == 0
+                || typeSet.Contains("booking_deposit_succeeded")
+                || typeSet.Contains("booking_deposit_failed"))
+            {
+                var dq = _db.Transactions.AsNoTracking()
+                    .Include(x => x.Wallet)
+                    .Where(x =>
+                        x.Type == "BOOKING_FEE" &&
+                        (((x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt) >= sinceUtc));
+
+                if (isDriver && !isAdmin)
+                    dq = dq.Where(x => x.Wallet.UserId == userId);
+
+                if (isStaff && !isAdmin)
+                    dq = dq.Where(_ => false); // Ẩn với Staff nếu chưa link tới Station/Booking
+
+                var dlist = await dq
+                    .OrderByDescending(x => (x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt)
+                    .Take(limit)
+                    .Select(x => new
+                    {
+                        x.Id,
+                        x.Status,
+                        x.Amount,
+                        At = (x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt
+                    })
+                    .ToListAsync(ct);
+
+                foreach (var tr in dlist)
+                {
+                    bool ok = tr.Status == "SUCCEEDED";
+                    string nType = ok ? "booking_deposit_succeeded" : "booking_deposit_failed";
+                    if (typeSet.Count > 0 && !typeSet.Contains(nType)) continue;
+
+                    result.Add(new NotificationDto
+                    {
+                        Id = "deposit:" + tr.Id,
+                        Title = ok ? "Đặt cọc thành công" : "Đặt cọc thất bại",
+                        Message = $"Số tiền: {tr.Amount:N0}đ",
+                        Type = nType,
+                        Severity = ok ? "LOW" : "HIGH",
+                        CreatedAt = tr.At
+                    });
+                }
+            }
+
             return result;
         }
 
@@ -261,7 +317,6 @@ namespace GoElectrify.DAL.Repositories
 
             foreach (var s in raw)
             {
-                // Map status → type + title + severity
                 string type;
                 string title;
                 string severity = "LOW";
@@ -293,7 +348,6 @@ namespace GoElectrify.DAL.Repositories
                 }
                 else
                 {
-                    // fallback
                     type = "charging_started";
                     title = "Phiên sạc";
                     if (!needStarted) continue;
@@ -344,7 +398,11 @@ namespace GoElectrify.DAL.Repositories
 
             foreach (var i in raw)
             {
-                string sev = MapPriorityToSeverity(i.Priority);
+                // inline map priority -> severity
+                string sev = (i.Priority ?? "LOW").Trim().ToUpperInvariant();
+                if (sev != "CRITICAL" && sev != "HIGH" && sev != "MEDIUM" && sev != "LOW")
+                    sev = "LOW";
+
                 result.Add(new NotificationDto
                 {
                     Id = "incident:" + i.Id,
@@ -360,7 +418,9 @@ namespace GoElectrify.DAL.Repositories
         }
 
         // =================== PAYMENT ===================
-        // Admin: mọi ví; Driver: ví của mình; Staff: mặc định ẩn
+        // Admin: mọi ví; Driver: ví của mình; Staff: HIỂN THỊ TOPUP (nạp ví) cho khách
+        // Chỉ hiển thị: TopupIntents (nạp ví) + Mua gói (SUBSCRIPTION_PURCHASE)
+        // KHÔNG hiển thị BOOKING_FEE (đặt cọc) bên Payment — đã chuyển qua Booking.
         private async Task<List<NotificationDto>> BuildPaymentAsync(
             DateTime sinceUtc, int limit, HashSet<string> typeSet,
             bool isAdmin, bool isStaff, bool isDriver, int userId, CancellationToken ct)
@@ -375,15 +435,21 @@ namespace GoElectrify.DAL.Repositories
             bool needPaymentSucceeded = typeSet.Count == 0 || typeSet.Contains("payment_succeeded");
             bool needPaymentFailed = typeSet.Count == 0 || typeSet.Contains("payment_failed");
 
-            // ---- TopupIntent ----
-            if ((needTopupPending || needTopupSuccess || needTopupFailed || needTopupExpired) && (isAdmin || isDriver))
+            // ---- TopupIntents (Nạp ví) — Admin, Driver, Staff đều thấy ----
+            if ((needTopupPending || needTopupSuccess || needTopupFailed || needTopupExpired)
+                && (isAdmin || isDriver || isStaff))
             {
                 var tq = _db.TopupIntents.AsNoTracking()
                     .Include(t => t.Wallet)
-                    .Where(t => ((t.UpdatedAt != default(DateTime)) ? t.UpdatedAt : t.CreatedAt) >= sinceUtc);
+                    .Where(t => (((t.UpdatedAt != default(DateTime)) ? t.UpdatedAt : t.CreatedAt) >= sinceUtc));
 
                 if (isDriver && !isAdmin)
+                {
+                    // Driver: chỉ thấy ví của chính mình
                     tq = tq.Where(t => t.Wallet.UserId == userId);
+                }
+                // Staff: hiển thị tất cả topup để phục vụ nạp hộ cho khách.
+                // Nếu có trường CreatedByUserId/HandledByUserId thì filter tại đây.
 
                 var list = await tq
                     .OrderByDescending(t => (t.UpdatedAt != default(DateTime)) ? t.UpdatedAt : t.CreatedAt)
@@ -442,77 +508,53 @@ namespace GoElectrify.DAL.Repositories
                 }
             }
 
-            // ---- Transactions ----
+            // ---- Transactions: CHỈ mua gói (SUBSCRIPTION_PURCHASE) ----
+            // Admin & Driver xem; Staff tạm ẩn (thêm || isStaff nếu muốn staff nhìn thấy).
             if ((needPaymentSucceeded || needPaymentFailed) && (isAdmin || isDriver))
             {
-                var xq = _db.Transactions.AsNoTracking()
+                string[] subscriptionTypes = new[] { "SUBSCRIPTION_PURCHASE" }; // đổi literal nếu khác
+
+                var subQ = _db.Transactions.AsNoTracking()
                     .Include(x => x.Wallet)
-                    .Where(x => ((x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt) >= sinceUtc);
+                    .Where(x =>
+                        subscriptionTypes.Contains(x.Type) &&
+                        (((x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt) >= sinceUtc));
 
                 if (isDriver && !isAdmin)
-                    xq = xq.Where(x => x.Wallet.UserId == userId);
+                    subQ = subQ.Where(x => x.Wallet.UserId == userId);
 
-                var list = await xq
+                var subList = await subQ
                     .OrderByDescending(x => (x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt)
                     .Take(limit)
                     .Select(x => new
                     {
                         x.Id,
-                        x.Type,
                         x.Status,
                         x.Amount,
                         At = (x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt
                     })
                     .ToListAsync(ct);
 
-                foreach (var tr in list)
+                foreach (var tr in subList)
                 {
-                    string type = (tr.Status == "SUCCEEDED") ? "payment_succeeded" : "payment_failed";
-                    if (type == "payment_succeeded" && !needPaymentSucceeded) continue;
-                    if (type == "payment_failed" && !needPaymentFailed) continue;
-
-                    string title = (type == "payment_succeeded") ? "Thanh toán thành công" : "Thanh toán thất bại";
-                    string severity = (type == "payment_failed") ? "HIGH" : "LOW";
+                    bool ok = tr.Status == "SUCCEEDED";
+                    string nType = ok ? "subscription_purchased" : "subscription_purchase_failed";
+                    if (ok && !needPaymentSucceeded) continue;
+                    if (!ok && !needPaymentFailed) continue;
 
                     result.Add(new NotificationDto
                     {
-                        Id = "txn:" + tr.Id,
-                        Title = title,
-                        Message = $"{tr.Type} • Số tiền: {tr.Amount:N0}đ",
-                        Type = type,
-                        Severity = severity,
+                        Id = "sub:" + tr.Id,
+                        Title = ok ? "Mua gói thành công" : "Mua gói thất bại",
+                        Message = $"Số tiền: {tr.Amount:N0}đ",
+                        Type = nType,
+                        Severity = ok ? "LOW" : "HIGH",
                         CreatedAt = tr.At
                     });
                 }
             }
 
             return result;
-        }
-
-        // ===== Helpers local (ngắn gọn, không phải helper method tái sử dụng) =====
-        private static string NormalizeSeverity(string? s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return "LOW";
-            var up = s.Trim().ToUpperInvariant();
-            return (up == "CRITICAL" || up == "HIGH" || up == "MEDIUM" || up == "LOW") ? up : "LOW";
-        }
-
-        private static int SeverityRank(string sev)
-        {
-            if (sev == "CRITICAL") return 4;
-            if (sev == "HIGH") return 3;
-            if (sev == "MEDIUM") return 2;
-            return 1; // LOW
-        }
-
-        private static string MapPriorityToSeverity(string? prio)
-        {
-            if (string.IsNullOrWhiteSpace(prio)) return "LOW";
-            var up = prio.Trim().ToUpperInvariant();
-            if (up == "CRITICAL") return "CRITICAL";
-            if (up == "HIGH") return "HIGH";
-            if (up == "MEDIUM") return "MEDIUM";
-            return "LOW";
         }
     }
 }
