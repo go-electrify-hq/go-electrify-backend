@@ -44,6 +44,7 @@ namespace GoElectrify.DAL.Repositories
                 .FirstOrDefaultAsync(w => w.UserId == userId);
         }
 
+        
         public async Task<string?> GetUserEmailByWalletAsync(int walletId)
         {
             return await (from w in _db.Wallets.AsNoTracking()

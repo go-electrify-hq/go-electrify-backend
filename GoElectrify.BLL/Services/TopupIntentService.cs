@@ -98,7 +98,7 @@ public class TopupIntentService : ITopupIntentService
             Note = $"PayOS order {payload.Data.orderCode}"
         });
 
-        // ======= G?I EMAIL: "N?p ví thành công" (sau khi DB ð? c?p nh?t xong) =======
+        // ======= G?I EMAIL: "Nap ví thành công" (sau khi DB ða update xong) =======
         try
         {
             var userEmail = await _walletRepo.GetUserEmailByWalletAsync(intent.WalletId);
