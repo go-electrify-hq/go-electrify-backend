@@ -43,7 +43,7 @@ public class TopupIntentService : ITopupIntentService
 
         var (checkoutUrl, orderCode) = await _payos.CreatePaymentLinkAsync(
             dto.Amount,
-            "nap tien vao vi",
+            $"GoElectrify-TopUp-User{walletId}",
             returnUrl,
             cancelUrl
         );
