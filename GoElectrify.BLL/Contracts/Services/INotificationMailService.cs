@@ -24,5 +24,15 @@ namespace GoElectrify.BLL.Contracts.Services
             DateTime startTimeUtc,
             DateTime? endTimeUtc,
             CancellationToken ct = default);
+
+        Task SendSubscriptionPurchaseSuccessAsync(
+            string toEmail,
+            string planName,
+            decimal price,        // GIÁ GÓI → hiển thị "Số tiền"
+            string provider,      // "Ví ảo"
+            string orderCode,     // mã đơn/mã giao dịch nội bộ
+            int durationDays,     // THỜI GIAN SỬ DỤNG (ngày)
+            DateTime activatedAtUtc,
+            CancellationToken ct = default);
     }
 }

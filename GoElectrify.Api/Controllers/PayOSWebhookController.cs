@@ -70,61 +70,34 @@ namespace GoElectrify.Api.Controllers
                     // ADD — GỬI EMAIL XÁC NHẬN NẠP VÍ
                     try
                     {
-                        // Lấy email user theo WalletId (trực tiếp từ DbContext để khỏi đụng repo/DI)
-                        var toEmail = await _db.Wallets
+                        // Lấy Email + FullName để format "Họ Tên <email>"
+                        var userInfo = await _db.Wallets
                             .Where(w => w.Id == wallet.Id)
-                            .Select(w => w.User.Email)
+                            .Select(w => new { w.User.Email, w.User.FullName })
                             .AsNoTracking()
                             .FirstOrDefaultAsync(HttpContext.RequestAborted);
 
-                        if (!string.IsNullOrWhiteSpace(toEmail))
+                        if (!string.IsNullOrWhiteSpace(userInfo?.Email))
                         {
-                            // Ưu tiên: NotificationMailService (nếu đã AddScoped trong Program.cs)
+                            var toDisplay = string.IsNullOrWhiteSpace(userInfo.FullName)
+                                ? userInfo.Email
+                                : $"{userInfo.FullName} <{userInfo.Email}>";
+
                             var notif = HttpContext.RequestServices.GetService<INotificationMailService>();
                             if (notif != null)
                             {
                                 await notif.SendTopupSuccessAsync(
-                                    toEmail: toEmail!,
+                                    toEmail: toDisplay,
                                     amount: amount,
                                     provider: "PayOS",
                                     orderCode: orderCode,
-                                    completedAtUtc: DateTime.UtcNow,
+                                    completedAtUtc: intent.CompletedAt ?? DateTime.UtcNow,
                                     ct: HttpContext.RequestAborted
                                 );
                             }
                             else
                             {
-                                // Fallback: gửi trực tiếp bằng IEmailSender (HTML đơn giản)
-                                var emailSender = HttpContext.RequestServices.GetService<IEmailSender>();
-                                if (emailSender != null)
-                                {
-                                    var vi = new CultureInfo("vi-VN");
-                                    var amountStr = string.Format(vi, "{0:C0}", amount);
-                                    var atLocal = DateTime.UtcNow.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
-
-                                    var html = $@"
-                                    <!doctype html>
-                                    <html>
-                                      <body style='font-family:Segoe UI,Arial,sans-serif'>
-                                        <h2>🎉 Nạp ví thành công</h2>
-                                        <p>Bạn vừa nạp <b>{amountStr}</b> vào ví Go Electrify.</p>
-                                        <ul>
-                                          <li>Mã giao dịch: <b>{orderCode}</b></li>
-                                          <li>Thời gian: <b>{atLocal}</b></li>
-                                          <li>Nguồn thanh toán: <b>PayOS</b></li>
-                                        </ul>
-                                        <p>Nếu không phải bạn thực hiện, vui lòng phản hồi email này để được hỗ trợ.</p>
-                                        <hr/>
-                                        <small>Go Electrify</small>
-                                      </body>
-                                    </html>";
-                                    await emailSender.SendAsync(
-                                        toEmail,
-                                        "[Go Electrify] Nạp ví thành công",
-                                        html,
-                                        HttpContext.RequestAborted
-                                    );
-                                }
+                                Console.WriteLine("⚠️ INotificationMailService not registered; skip sending email.");
                             }
                         }
                         else

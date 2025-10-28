@@ -85,5 +85,15 @@ namespace GoElectrify.DAL.Repositories
                 .OrderBy(ws => ws.EndDate) // ưu tiên gói sắp hết hạn
                 .ToListAsync(ct);
         }
+
+        public async Task<string?> GetUserEmailByWalletAsync(int walletId, CancellationToken ct)
+        {
+            return await _db.Wallets
+                .Where(w => w.Id == walletId)
+                .Select(w => w.User.Email)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ct);
+        }
+
     }
 }

@@ -14,5 +14,6 @@ namespace GoElectrify.BLL.Contracts.Repositories
 
         Task<List<WalletSubscription>> GetActiveByWalletIdAsync(
             int walletId, DateTime nowUtc, CancellationToken ct);
+        Task<string?> GetUserEmailByWalletAsync(int walletId, CancellationToken ct);
     }
 }
