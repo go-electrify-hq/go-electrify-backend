@@ -1,4 +1,5 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
+using GoElectrify.BLL.Dtos.WalletSubscription;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -72,5 +73,51 @@ namespace GoElectrify.DAL.Repositories
 
             return (ws, tx);
         }
+
+        public async Task<List<WalletSubscription>> GetActiveByWalletIdAsync(
+       int walletId, DateTime nowUtc, CancellationToken ct)
+        {
+            nowUtc = DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc);
+
+            return await _db.WalletSubscriptions
+                .Where(ws => ws.WalletId == walletId
+                          && ws.Status == "ACTIVE"
+                          && ws.StartDate <= nowUtc && nowUtc <= ws.EndDate
+                          && ws.RemainingKwh > 0)
+                .OrderBy(ws => ws.EndDate) // ưu tiên gói sắp hết hạn
+                .ToListAsync(ct);
+        }
+
+        public async Task<IReadOnlyList<WalletSubscriptionListDto>> GetByUserIdAsync(int userId, CancellationToken ct)
+        {
+            // Join WalletSubscription -> Wallet (UserId) -> Subscription (Name, Price, TotalKwh)
+            return await _db.WalletSubscriptions
+                .AsNoTracking()
+                .Where(ws => ws.Wallet.UserId == userId)
+                .OrderByDescending(ws => ws.StartDate)
+                .Select(ws => new WalletSubscriptionListDto
+                {
+                    Id = ws.Id,
+                    SubscriptionId = ws.SubscriptionId,
+                    SubscriptionName = ws.Subscription.Name,
+                    Price = ws.Subscription.Price,
+                    TotalKwh = ws.Subscription.TotalKwh,
+                    RemainingKwh = ws.RemainingKwh,
+                    Status = ws.Status,                // đã chuẩn hoá UPPER ở config
+                    StartDate = ws.StartDate,
+                    EndDate = ws.EndDate
+                })
+                .ToListAsync(ct);
+        }
+
+        public async Task<string?> GetUserEmailByWalletAsync(int walletId, CancellationToken ct)
+        {
+            return await _db.Wallets
+                .Where(w => w.Id == walletId)
+                .Select(w => w.User.Email)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ct);
+        }
+
     }
 }

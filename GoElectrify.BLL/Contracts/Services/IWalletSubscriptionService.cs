@@ -11,5 +11,9 @@ namespace GoElectrify.BLL.Contracts.Services
     {
         Task<PurchaseSubscriptionResponseDto> PurchaseAsync(
             int walletId, PurchaseSubscriptionRequestDto req, CancellationToken ct);
+
+
+        Task<IReadOnlyList<WalletSubscriptionListDto>> GetMineAsync(int userId, CancellationToken ct);
+
     }
 }
