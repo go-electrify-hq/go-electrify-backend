@@ -1,4 +1,4 @@
-﻿using GoElectrify.BLL.Dtos.WalletSubscription;
+using GoElectrify.BLL.Dtos.WalletSubscription;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +12,8 @@ namespace GoElectrify.BLL.Contracts.Services
         Task<PurchaseSubscriptionResponseDto> PurchaseAsync(
             int walletId, PurchaseSubscriptionRequestDto req, CancellationToken ct);
 
+
+        Task<IReadOnlyList<WalletSubscriptionListDto>> GetMineAsync(int userId, CancellationToken ct);
 
     }
 }

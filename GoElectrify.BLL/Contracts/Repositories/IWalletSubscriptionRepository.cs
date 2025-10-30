@@ -1,4 +1,5 @@
-﻿using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Dtos.WalletSubscription;
+using GoElectrify.BLL.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,9 @@ namespace GoElectrify.BLL.Contracts.Repositories
 
         Task<List<WalletSubscription>> GetActiveByWalletIdAsync(
             int walletId, DateTime nowUtc, CancellationToken ct);
+
+        Task<IReadOnlyList<WalletSubscriptionListDto>> GetByUserIdAsync(int userId, CancellationToken ct);
         Task<string?> GetUserEmailByWalletAsync(int walletId, CancellationToken ct);
+
     }
 }

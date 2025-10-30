@@ -100,5 +100,8 @@ namespace GoElectrify.BLL.Services
                 Transaction = txDto
             };
         }
+
+        public Task<IReadOnlyList<WalletSubscriptionListDto>> GetMineAsync(int userId, CancellationToken ct)
+            => _walletSubRepo.GetByUserIdAsync(userId, ct);
     }
 }
