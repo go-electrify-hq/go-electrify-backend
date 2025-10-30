@@ -10,7 +10,7 @@ namespace GoElectrify.BLL.Contracts.Services
     public interface IWalletSubscriptionService
     {
         Task<PurchaseSubscriptionResponseDto> PurchaseAsync(
-            int walletId, PurchaseSubscriptionRequestDto req, CancellationToken ct);
+            int userId, PurchaseSubscriptionRequestDto req, CancellationToken ct);
 
 
         Task<IReadOnlyList<WalletSubscriptionListDto>> GetMineAsync(int userId, CancellationToken ct);

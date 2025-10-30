@@ -2,74 +2,78 @@
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Wallet;
 using GoElectrify.BLL.Dtos.WalletSubscription;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Services
 {
     public class WalletSubscriptionService : IWalletSubscriptionService
     {
         private readonly IWalletSubscriptionRepository _walletSubRepo;
-        private readonly ISubscriptionRepository _subRepo;    // lấy Name/Price/DurationDays của gói
-        private readonly IWalletRepository _walletRepo;       // lấy email user theo wallet
+        private readonly ISubscriptionRepository _subRepo;    // lấy Name/Price/DurationDays
+        private readonly IWalletRepository _walletRepo;       // lấy ví theo user
         private readonly INotificationMailService _mail;
+
         public WalletSubscriptionService(
-            IWalletSubscriptionRepository walletSubRepo, 
-            ISubscriptionRepository subRepo,            // ADD
-            IWalletRepository walletRepo,               // ADD
+            IWalletSubscriptionRepository walletSubRepo,
+            ISubscriptionRepository subRepo,
+            IWalletRepository walletRepo,
             INotificationMailService mail)
         {
             _walletSubRepo = walletSubRepo;
-            _subRepo = subRepo;                         // ADD
-            _walletRepo = walletRepo;                   // ADD
+            _subRepo = subRepo;
+            _walletRepo = walletRepo;
             _mail = mail;
         }
 
+        /// <summary>
+        /// Mua gói bằng ví ảo của user hiện tại (KHÔNG nhận walletId từ client).
+        /// </summary>
         public async Task<PurchaseSubscriptionResponseDto> PurchaseAsync(
-           int walletId, PurchaseSubscriptionRequestDto req, CancellationToken ct)
+            int userId, PurchaseSubscriptionRequestDto req, CancellationToken ct)
         {
+            // 1) Suy ra ví từ user
+            var wallet = await _walletRepo.GetByUserIdAsync(userId)
+                ?? throw new InvalidOperationException("Tài khoản chưa có ví ảo.");
+
+            // 2) Chuẩn hoá thời điểm kích hoạt
             var startUtc = req.StartDate?.ToUniversalTime() ?? DateTime.UtcNow;
 
+            // 3) Thực hiện mua gói dưới repo (trừ ví, tạo transaction, tạo wallet-sub)
             var (ws, tx) = await _walletSubRepo.PurchaseSubscriptionAsync(
-                walletId, req.SubscriptionId, startUtc, ct);
+                wallet.Id, req.SubscriptionId, startUtc, ct);
 
-            // ADD: Email "MUA GÓI THÀNH CÔNG" (Ví ảo) — chỉ gửi khi giao dịch OK
+            // 4) Gửi mail (không làm fail purchase nếu lỗi gửi mail)
             try
             {
                 if (tx != null && string.Equals(tx.Status, "SUCCEEDED", StringComparison.OrdinalIgnoreCase))
                 {
-                    // 1) Lấy snapshot gói (Name/Price/DurationDays)
-                    var plan = await _subRepo.GetByIdAsync(ws.SubscriptionId, ct); // adjust tên hàm nếu khác
-                                                                                   // 2) Lấy email user theo wallet
-                    var toEmail = await _walletRepo.GetUserEmailByWalletAsync(walletId);
+                    // Snapshot gói
+                    var plan = await _subRepo.GetByIdAsync(ws.SubscriptionId, ct);
+
+                    // Lấy email theo wallet qua REPO ĐÚNG CHỮ KÝ mà bạn đã định nghĩa
+                    var toEmail = await _walletSubRepo.GetUserEmailByWalletAsync(wallet.Id, ct);
 
                     if (plan != null && !string.IsNullOrWhiteSpace(toEmail))
                     {
-                        // Mã đơn nội bộ (có thể dùng tx.Id hoặc Note)
-                        var orderCode = $"SUB-{tx.Id:D8}";
-
+                        var orderCode = $"SUB-{tx.Id:D8}"; // Mã đơn
                         await _mail.SendSubscriptionPurchaseSuccessAsync(
-                            toEmail: toEmail,           // theo yêu cầu: chào "quý khách" → chỉ cần email
+                            toEmail: toEmail,
                             planName: plan.Name,
-                            price: plan.Price,        // GIÁ GÓI = "Số tiền"
-                            provider: "Ví GoEletrify",
+                            price: plan.Price,
+                            provider: "Ví GoElectrify",
                             orderCode: orderCode,
-                            durationDays: plan.DurationDays, // "Thời gian sử dụng"
+                            durationDays: plan.DurationDays,
                             activatedAtUtc: ws.StartDate,
                             ct: ct
                         );
                     }
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                // không làm fail purchase nếu gửi mail lỗi
-                // TODO: log ex
+                // TODO: log nếu cần; tuyệt đối không ném lỗi ra ngoài
             }
 
+            // 5) Map DTO trả về
             var wsDto = new WalletSubscriptionDto
             {
                 Id = ws.Id,
@@ -86,7 +90,7 @@ namespace GoElectrify.BLL.Services
             {
                 Id = tx.Id,
                 WalletId = tx.WalletId,
-                ChargingSessionId = tx.ChargingSessionId, // null
+                ChargingSessionId = tx.ChargingSessionId, // null với purchase
                 Amount = tx.Amount,                        // số âm
                 Type = tx.Type,                            // "SUBSCRIPTION"
                 Status = tx.Status,                        // "SUCCEEDED"
@@ -101,6 +105,9 @@ namespace GoElectrify.BLL.Services
             };
         }
 
+        /// <summary>
+        /// Danh sách gói đã mua của user hiện tại (suy ra ví, KHÔNG cần walletId).
+        /// </summary>
         public Task<IReadOnlyList<WalletSubscriptionListDto>> GetMineAsync(int userId, CancellationToken ct)
             => _walletSubRepo.GetByUserIdAsync(userId, ct);
     }

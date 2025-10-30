@@ -1,4 +1,4 @@
-using GoElectrify.BLL.Contracts.Repositories;
+﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Dtos.WalletSubscription;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
@@ -73,7 +73,6 @@ namespace GoElectrify.DAL.Repositories
 
             return (ws, tx);
         }
-
         public async Task<List<WalletSubscription>> GetActiveByWalletIdAsync(
        int walletId, DateTime nowUtc, CancellationToken ct)
         {
@@ -87,6 +86,16 @@ namespace GoElectrify.DAL.Repositories
                 .OrderBy(ws => ws.EndDate) // ưu tiên gói sắp hết hạn
                 .ToListAsync(ct);
         }
+
+        public async Task<string?> GetUserEmailByWalletAsync(int walletId, CancellationToken ct)
+        {
+            return await _db.Wallets
+                .Where(w => w.Id == walletId)
+                .Select(w => w.User.Email)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ct);
+        }
+
 
         public async Task<IReadOnlyList<WalletSubscriptionListDto>> GetByUserIdAsync(int userId, CancellationToken ct)
         {
@@ -108,15 +117,6 @@ namespace GoElectrify.DAL.Repositories
                     EndDate = ws.EndDate
                 })
                 .ToListAsync(ct);
-        }
-
-        public async Task<string?> GetUserEmailByWalletAsync(int walletId, CancellationToken ct)
-        {
-            return await _db.Wallets
-                .Where(w => w.Id == walletId)
-                .Select(w => w.User.Email)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(ct);
         }
 
     }
