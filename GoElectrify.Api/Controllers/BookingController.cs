@@ -2,6 +2,7 @@
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Booking;
 using GoElectrify.BLL.Exceptions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GoElectrify.Api.Controllers
@@ -11,14 +12,14 @@ namespace GoElectrify.Api.Controllers
     public sealed class BookingController : ControllerBase
     {
         private readonly IBookingService _svc;
-        private readonly IAuthService _auth; // nếu bạn đã có cách lấy userId khác thì thay
+        private readonly IAuthService _auth;
 
         public BookingController(IBookingService svc, IAuthService auth)
         {
             _svc = svc;
             _auth = auth;
         }
-
+        [Authorize(Policy = "NoUnpaidSessions")]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateBookingDto dto, CancellationToken ct)
         {

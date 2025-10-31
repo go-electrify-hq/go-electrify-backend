@@ -45,6 +45,7 @@ namespace GoElectrify.Api.Controllers
 
             // 2) Ghi log (idempotent theo (ChargerId, SampleAt))
             var atUtc = (req.SampleAt == default ? DateTimeOffset.UtcNow : req.SampleAt).UtcDateTime;
+            charger.LastPingAt = DateTime.UtcNow;
             var log = new ChargerLog
             {
                 ChargerId = req.DockId,
@@ -225,8 +226,8 @@ namespace GoElectrify.Api.Controllers
             charger.AblyChannel = charger.AblyChannel ?? $"ge:dock:{dockId}";
             charger.DockStatus = "CONNECTED";
             charger.LastConnectedAt = DateTime.UtcNow;
+            charger.LastPingAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
-
             return Ok(new
             {
                 status = "success",
@@ -239,7 +240,21 @@ namespace GoElectrify.Api.Controllers
                     joinCode = session.JoinCode,
                     ablyToken,
                     dockJwt,
-                    expiresAt = DateTime.UtcNow.Add(ttl)
+                    expiresAt = DateTime.UtcNow.Add(ttl),
+                    charger = new
+                    {
+                        id = charger.Id,
+                        code = charger.Code,
+                        stationId = charger.StationId,
+                        connectorTypeId = charger.ConnectorTypeId,
+                        powerKw = charger.PowerKw,
+                        status = charger.Status,
+                        dockStatus = charger.DockStatus,
+                        ablyChannel = charger.AblyChannel,
+                        lastConnectedAt = charger.LastConnectedAt,
+                        lastPingAt = charger.LastPingAt,
+                        pricePerKwh = charger.PricePerKwh
+                    }
                 }
             });
         }
@@ -348,5 +363,36 @@ namespace GoElectrify.Api.Controllers
             );
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        public sealed record PingRequest(int DockId, string SecretKey);
+        [HttpPost("ping")]
+        public async Task<IActionResult> Ping([FromBody] PingRequest body,
+                                      CancellationToken ct)
+        {
+            var charger = await _db.Chargers.FirstOrDefaultAsync(c => c.Id == body.DockId, ct);
+            if (charger is null)
+                return NotFound(new { ok = false, error = "Charger not found." });
+
+            if (!VerifySecret(charger.DockSecretHash, body.SecretKey))
+                return Unauthorized(new { ok = false, error = "Invalid secret." });
+
+            // update heartbeat
+            var now = DateTime.UtcNow;
+            charger.LastPingAt = now;
+
+            // Khi có ping thì coi như online/connected
+            if (!string.Equals(charger.Status, "ONLINE", StringComparison.OrdinalIgnoreCase))
+                charger.Status = "ONLINE";
+            charger.DockStatus = "CONNECTED";
+
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new
+            {
+                ok = true,
+                serverTime = now
+            });
+        }
+
     }
 }

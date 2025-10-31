@@ -12,6 +12,6 @@
         public int? SocPercent { get; set; }             // %
         public string? State { get; set; }               // IDLE | CHARGING | FAULT...
         public string? ErrorCode { get; set; }
-        public Dictionary<string, object>? Extra { get; set; } // nếu cần mở rộng, có thể bỏ qua
+        //public Dictionary<string, object>? Extra { get; set; } // nếu cần mở rộng, có thể bỏ qua
     }
 }

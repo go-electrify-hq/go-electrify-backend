@@ -14,6 +14,8 @@ using Serilog;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.Extensions.Options;
+using GoElectrify.Api.Auth;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(opt =>
@@ -88,6 +90,7 @@ builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 builder.Services.AddScoped<ITopupIntentService, TopupIntentService>();
 builder.Services.AddHttpClient<IPayOSService, PayOSService>();
 builder.Services.AddHostedService<GoElectrify.Api.Hosted.SessionWatchdog>();
+builder.Services.AddHostedService<GoElectrify.Api.Hosted.DockHeartbeatWatchdog>();
 builder.Services.AddScoped<IWalletAdminService, WalletAdminService>();
 builder.Services.AddScoped<IWalletSubscriptionService, WalletSubscriptionService>();
 builder.Services.AddScoped<IChargingPaymentService, ChargingPaymentService>();
@@ -100,6 +103,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<INotificationMailService, NotificationMailService>();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddScoped<IAuthorizationHandler, NoUnpaidSessionsHandler>();
 
 // JWT auth
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
@@ -195,6 +199,7 @@ builder.Services.AddAuthorization(options =>
         p.RequireAssertion(ctx =>
             ctx.User.HasClaim("role", "Dock") || ctx.User.IsInRole("Dock")
          || ctx.User.IsInRole("Staff") || ctx.User.IsInRole("Admin")));
+    options.AddPolicy("NoUnpaidSessions", p => p.Requirements.Add(new NoUnpaidSessionsRequirement()));
 });
 
 // Đăng ký token service (phát hành access/refresh)

@@ -46,6 +46,9 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasIndex(x => new { x.StationId, x.Code }).IsUnique();
             b.HasIndex(x => x.ConnectorTypeId);
 
+            b.Property(x => x.LastPingAt);
+            b.HasIndex(x => x.LastPingAt);
+
             b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
             b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
         }
