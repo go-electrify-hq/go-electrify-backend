@@ -43,12 +43,13 @@ namespace GoElectrify.Api.Controllers
         }
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("wallet/{walletId}/deposit/manual")]
-        public async Task<IActionResult> ManualDeposit(int walletId, [FromBody] ManualDepositRequestDto dto)
+        [HttpPost("users/{userId}/wallet/deposit-manual")]
+        public async Task<IActionResult> ManualDepositByUser(int userId, [FromBody] ManualDepositRequestDto dto)
         {
             try
             {
-                await _walletAdminService.DepositManualAsync(walletId, dto);
-                return Ok(new { message = "Manual deposit succeeded", walletId, amount = dto.Amount });
+                await _walletAdminService.DepositManualAsync(userId, dto);
+                return Ok(new { message = "Manual deposit succeeded", userId, amount = dto.Amount });
             }
             catch (Exception ex)
             {

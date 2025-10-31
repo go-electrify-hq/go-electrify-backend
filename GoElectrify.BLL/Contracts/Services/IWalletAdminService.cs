@@ -4,6 +4,6 @@ namespace GoElectrify.BLL.Contracts.Services
 {
     public interface IWalletAdminService
     {
-        Task DepositManualAsync(int walletId, ManualDepositRequestDto dto);
+        Task DepositManualAsync(int userId, ManualDepositRequestDto dto);
     }
 }
