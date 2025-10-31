@@ -8,8 +8,6 @@ using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
-using GoElectrify.BLL.Dtos.ChargingSession;
-using GoElectrify.BLL.Contracts.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
