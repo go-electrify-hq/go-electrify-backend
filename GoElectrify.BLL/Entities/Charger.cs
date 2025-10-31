@@ -17,6 +17,7 @@
         public string? AblyChannel { get; set; }        // ví dụ "ge:dock:{Id}" (có thể để null và compute)
         public string? DockStatus { get; set; } = "DISCONNECTED"; // CONNECTED | DISCONNECTED
         public DateTime? LastConnectedAt { get; set; }
+        public DateTime? LastPingAt { get; set; }
 
         public ICollection<ChargingSession> ChargingSessions { get; set; } = new List<ChargingSession>();
         public ICollection<ChargerLog> ChargerLogs { get; set; } = new List<ChargerLog>();

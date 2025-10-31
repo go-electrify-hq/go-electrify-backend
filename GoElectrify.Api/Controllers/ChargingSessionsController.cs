@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using System.Text.Json;
 using GoElectrify.Api.Auth;
 using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Services;
@@ -23,6 +24,7 @@ namespace GoElectrify.Api.Controllers
         private readonly IAblyService _ably;
         private readonly AppDbContext _db;
         private readonly ILogger<ChargingSessionsController> _logger;
+        private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
         public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, AppDbContext db, ILogger<ChargingSessionsController> logger)
         {
             _svc = svc;
@@ -30,7 +32,7 @@ namespace GoElectrify.Api.Controllers
             _db = db;
             _logger = logger;
         }
-
+        [Authorize(Policy = "NoUnpaidSessions")]
         [HttpPost("start")]
         public async Task<IActionResult> Start([FromBody] StartSessionDto dto, CancellationToken ct)
         {
@@ -176,59 +178,68 @@ namespace GoElectrify.Api.Controllers
             => int.TryParse(user.FindFirst("sessionId")?.Value, out var sid) && sid == sessionId;
 
         [Authorize(AuthenticationSchemes = "DockJwt", Policy = "DockSessionWrite")]
-        [HttpPost("/api/v1/sessions/{id:int}/start")]
-        public async Task<IActionResult> StartSession([FromRoute] int id,
-                                              [FromBody] BLL.Dtos.Dock.StartSessionRequest req,
-                                              CancellationToken ct)
+        [HttpPost("/api/v1/sessions/start")]
+        public async Task<IResult> StartSession(
+                                        [FromBody] BLL.Dtos.Dock.StartSessionRequest req,
+                                        CancellationToken ct)
         {
             // 1) xác thực dock-jwt thuộc đúng session
-            if (!JwtMatchesSession(User, id))
-                return Forbid();
+            if (!JwtMatchesSession(User, req.SessionId))
+                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
 
             // 2) lấy session còn hiệu lực
             var s = await _db.ChargingSessions
-                .FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
+                .FirstOrDefaultAsync(x => x.Id == req.SessionId && x.EndedAt == null, ct);
             if (s is null)
-                return NotFound(new { ok = false, error = "Session not found or ended." });
+                return Results.Json(new { ok = false, error = "session_not_found_or_ended" }, options: Camel, statusCode: 404);
 
             // (A) BẮT BUỘC CÓ BOOKING
             if (s.BookingId is null)
-                return BadRequest(new { ok = false, error = "booking_required" });
+                return Results.Json(new { ok = false, error = "booking_required" }, options: Camel, statusCode: 400);
 
-            // Load booking & charger info (chỉ dùng field đã có)
-            var bk = await _db.Bookings
-                .FirstOrDefaultAsync(x => x.Id == s.BookingId, ct);
+            var bk = await _db.Bookings.FirstOrDefaultAsync(x => x.Id == s.BookingId, ct);
             if (bk is null)
-                return BadRequest(new { ok = false, error = "booking_not_found" });
+                return Results.Json(new { ok = false, error = "booking_not_found" }, options: Camel, statusCode: 400);
 
-            if (bk.Status != "CONFIRMED")
-                return BadRequest(new { ok = false, error = "booking_invalid_status", status = bk.Status });
+            if (!string.Equals(bk.Status, "CONFIRMED", StringComparison.OrdinalIgnoreCase))
+                return Results.Json(new { ok = false, error = "booking_invalid_status", status = bk.Status }, options: Camel, statusCode: 400);
 
-            // (B) Kiểm tra trạm & đầu nối theo cấu trúc sẵn có
+            // (B) Kiểm tra trạm & đầu nối
             var ch = await _db.Chargers
                 .Select(c => new { c.Id, c.StationId, c.ConnectorTypeId })
                 .FirstOrDefaultAsync(c => c.Id == s.ChargerId, ct);
 
             if (ch is null)
-                return BadRequest(new { ok = false, error = "charger_not_found" });
+                return Results.Json(new { ok = false, error = "charger_not_found" }, options: Camel, statusCode: 400);
 
             if (bk.StationId != ch.StationId)
-                return BadRequest(new { ok = false, error = "booking_wrong_station" });
+                return Results.Json(new { ok = false, error = "booking_wrong_station" }, options: Camel, statusCode: 409);
 
             if (bk.ConnectorTypeId != ch.ConnectorTypeId)
-                return BadRequest(new { ok = false, error = "booking_wrong_connector" });
+                return Results.Json(new { ok = false, error = "booking_wrong_connector" }, options: Camel, statusCode: 409);
 
-            // (C) Kiểm tra VehicleModel có hỗ trợ ConnectorType (bảng sẵn có VehicleModelConnectorType)
+            // (C) VehicleModel ⇄ ConnectorType
             var vmOk = await _db.VehicleModelConnectorTypes
-                .AnyAsync(x => x.VehicleModelId == bk.VehicleModelId
-                            && x.ConnectorTypeId == bk.ConnectorTypeId, ct);
+                .AnyAsync(x => x.VehicleModelId == bk.VehicleModelId && x.ConnectorTypeId == bk.ConnectorTypeId, ct);
             if (!vmOk)
-                return BadRequest(new { ok = false, error = "vehicle_connector_incompatible" });
+                return Results.Json(new { ok = false, error = "vehicle_connector_incompatible" }, options: Camel, statusCode: 422);
+
+            // (D) Chặn start nếu chủ booking đang có session UNPAID
+            var hasUnpaid = await _db.ChargingSessions
+                .Where(cs => cs.Status == "UNPAID" && cs.BookingId != null)
+                .Join(_db.Bookings, cs => cs.BookingId, b => b.Id, (cs, b) => new { cs, b })
+                .AnyAsync(x => x.b.UserId == bk.UserId && x.cs.Id != s.Id, ct);
+
+            if (hasUnpaid)
+                return Results.Json(
+                    new { ok = false, error = "user_has_unpaid_sessions", errorMsg = "Bạn đang có phiên sạc chưa thanh toán" },
+                    options: Camel,
+                    statusCode: 409
+                );
 
             // 3) dockId trong token phải khớp trụ của session
-            if (!int.TryParse(User.FindFirst("dockId")?.Value, out var dockIdFromToken) ||
-                dockIdFromToken != s.ChargerId)
-                return Forbid();
+            if (!int.TryParse(User.FindFirst("dockId")?.Value, out var dockIdFromToken) || dockIdFromToken != s.ChargerId)
+                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
 
             // --- phần code có sẵn phía dưới vẫn giữ nguyên ---
             s.Status = "RUNNING";
@@ -238,59 +249,89 @@ namespace GoElectrify.Api.Controllers
 
             await _db.SaveChangesAsync(ct);
 
-            // 5) realtime theo spec: session_started (snake_case)
+            // 5) realtime theo spec: session_started (tên event snake_case là ok)
             if (!string.IsNullOrWhiteSpace(s.AblyChannel))
             {
                 await _ably.PublishAsync(
                     s.AblyChannel,
                     "session_started",
-                    new { sessionId = s.Id, targetSOC = s.TargetSoc },
+                    new { sessionId = s.Id, targetSoc = s.TargetSoc }, // camelCase field
                     ct);
             }
 
-            // 6) trả về chỉ những field chắc chắn có
-            return Ok(new
+            // 6) trả về camelCase
+            return Results.Json(new
             {
                 ok = true,
                 data = new
                 {
-                    Id = s.Id,
-                    Status = s.Status,
-                    StartedAt = s.StartedAt,
-                    TargetSoc = s.TargetSoc,
-                    SocStart = s.SocStart,
-                    BookingId = s.BookingId,
-                    ChargerId = s.ChargerId
+                    id = s.Id,
+                    status = s.Status,
+                    startedAt = s.StartedAt,
+                    targetSoc = s.TargetSoc,
+                    socStart = s.SocStart,
+                    bookingId = s.BookingId,
+                    chargerId = s.ChargerId
                 }
-            });
+            }, options: Camel);
         }
 
 
         [Authorize(AuthenticationSchemes = "DockJwt", Policy = "DockSessionWrite")]
         [HttpPost("/api/v1/sessions/{id:int}/complete")]
-        public async Task<IActionResult> CompleteSession([FromRoute] int id,
-            [FromBody] CompleteSessionRequest req, CancellationToken ct)
+        public async Task<IResult> CompleteSession([FromRoute] int id,
+        [FromBody] CompleteSessionRequest req, CancellationToken ct)
         {
-            if (!JwtMatchesSession(User, id)) return Forbid();
+            // 1) Auth theo session
+            if (!JwtMatchesSession(User, id))
+                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
 
+            // 2) Lấy session còn hiệu lực
             var s = await _db.ChargingSessions.FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
-            if (s is null) return NotFound(new { ok = false, error = "Session not found or already ended." });
+            if (s is null)
+                return Results.Json(new { ok = false, error = "session_not_found_or_already_ended" }, options: Camel, statusCode: 404);
 
+            // 3) dockId phải khớp charger
             var claimDockId = int.TryParse(User.FindFirst("dockId")?.Value, out var did) ? did : (int?)null;
-            if (claimDockId is null || claimDockId.Value != s.ChargerId) return Forbid();
+            if (claimDockId is null || claimDockId.Value != s.ChargerId)
+                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
 
-            s.Status = "COMPLETED";
-            s.FinalSoc = Math.Clamp(req.FinalSoc, 0, 100);
+            // 4) Chốt phiên
             s.EndedAt = DateTime.UtcNow;
+            var totalMinutes = (s.EndedAt.Value - s.StartedAt).TotalMinutes;
+            s.DurationMinutes = Math.Max(0, (int)Math.Round(totalMinutes, MidpointRounding.AwayFromZero));
+            s.FinalSoc = req.EndSoc;
+
+            // 5) Tính Cost nếu có giá (KHÔNG thêm field mới)
+            var price = await _db.Chargers
+                .Where(c => c.Id == s.ChargerId)
+                .Select(c => c.PricePerKwh)
+                .FirstOrDefaultAsync(ct);
+
+            if (price.HasValue)
+                s.Cost = Math.Round(s.EnergyKwh * price.Value, 2, MidpointRounding.AwayFromZero);
+            else
+                s.Cost = null; // giữ null nếu bạn chưa cấu hình giá
+
+            // 6) Đặt trạng thái -> UNPAID
+            s.Status = "UNPAID";
 
             await _db.SaveChangesAsync(ct);
 
-            if (!string.IsNullOrWhiteSpace(s.AblyChannel))
-                await _ably.PublishAsync(s.AblyChannel, "session_completed",
-                    new { sessionId = s.Id, finalSOC = s.FinalSoc }, ct);
-
-            return Ok(new { ok = true, data = new { s.Id, s.Status, s.FinalSoc, s.EndedAt } });
+            return Results.Json(new
+            {
+                ok = true,
+                data = new
+                {
+                    id = s.Id,
+                    status = s.Status,
+                    energyKwh = s.EnergyKwh,
+                    cost = s.Cost,
+                    endedAt = s.EndedAt
+                }
+            }, options: Camel);
         }
+
 
         public sealed record BindBookingRequest(int? BookingId, string? BookingCode, int? InitialSoc, int? TargetSoc);
 
@@ -447,6 +488,83 @@ namespace GoElectrify.Api.Controllers
                     s.SocStart,
                     s.TargetSoc
                 }
+            });
+        }
+        [Authorize] // User JWT
+        [HttpPost("api/v1/charging-sessions/{id:int}/pay")]
+        public async Task<IActionResult> PayUnpaid([FromRoute] int id, CancellationToken ct)
+        {
+            var userId = User.GetUserId();
+
+            // Lấy session UNPAID thuộc về user THÔNG QUA Booking
+            var s = await _db.ChargingSessions
+                .Include(x => x.Booking)
+                .FirstOrDefaultAsync(x =>
+                    x.Id == id &&
+                    x.Status == "UNPAID" &&
+                    x.BookingId != null &&
+                    x.Booking!.UserId == userId, ct);
+
+            if (s is null)
+                return NotFound(new { ok = false, error = "not_found_or_not_unpaid" });
+
+            // Idempotent: đã thanh toán rồi
+            if (string.Equals(s.Status, "PAID", StringComparison.OrdinalIgnoreCase))
+            {
+                var myWallet = await _db.Wallets.AsNoTracking().FirstOrDefaultAsync(w => w.UserId == userId, ct);
+                return Ok(new { ok = true, data = new { sessionId = s.Id, status = s.Status, walletBalance = myWallet?.Balance } });
+            }
+
+            // Số tiền cần trả
+            var amount = s.Cost ?? 0m;
+
+            // Nếu chưa có giá (cost=null) ⇒ coi như 0đ, chuyển PAID
+            if (s.Cost is null)
+            {
+                s.Status = "PAID";
+                await _db.SaveChangesAsync(ct);
+                var myWallet = await _db.Wallets.AsNoTracking().FirstOrDefaultAsync(w => w.UserId == userId, ct);
+                return Ok(new { ok = true, data = new { sessionId = s.Id, status = s.Status, paid = 0m, walletBalance = myWallet?.Balance } });
+            }
+
+            // Lấy ví user
+            var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == userId, ct);
+            if (wallet is null)
+                return BadRequest(new { ok = false, error = "no_wallet" });
+
+            // Check số dư
+            if (wallet.Balance < amount)
+                return BadRequest(new { ok = false, error = "insufficient_funds", errorMsg = "Không đủ số dư" });
+
+            // Trừ tiền + tạo Transaction (Type/Status theo schema hiện có)
+            using var tx = await _db.Database.BeginTransactionAsync(ct);
+
+            // Reload để tránh race
+            await _db.Entry(wallet).ReloadAsync(ct);
+            if (wallet.Balance < amount)
+                return BadRequest(new { ok = false, error = "insufficient_funds", errorMsg = "Không đủ số dư" });
+
+            wallet.Balance -= amount;
+
+            _db.Transactions.Add(new Transaction
+            {
+                WalletId = wallet.Id,
+                ChargingSessionId = s.Id,
+                Amount = -amount,
+                Type = "CHARGING",
+                Status = "SUCCEEDED",
+                Note = $"Pay session #{s.Id}"
+            });
+
+            s.Status = "PAID";
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            return Ok(new
+            {
+                ok = true,
+                data = new { sessionId = s.Id, status = s.Status, paid = amount, walletBalance = wallet.Balance }
             });
         }
     }
