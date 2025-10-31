@@ -4,7 +4,6 @@ using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-
 namespace GoElectrify.DAL.Repositories
 {
     public sealed class ChargingSessionRepository(AppDbContext db) : IChargingSessionRepository
