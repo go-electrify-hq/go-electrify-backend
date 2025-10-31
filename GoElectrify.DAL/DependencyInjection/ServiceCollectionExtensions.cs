@@ -74,6 +74,7 @@ namespace GoElectrify.DAL.DependencyInjection
             services.AddScoped<IBookingRepository, BookingRepository>();
             services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
             services.AddScoped<ISystemSettingRepository, SystemSettingRepository>();
+            services.AddScoped<IWalletSubscriptionRepository, WalletSubscriptionRepository>();
 
 
             // Infra services

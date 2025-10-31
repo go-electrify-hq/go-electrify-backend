@@ -1,7 +1,10 @@
-﻿using System.Text.Json;
+﻿using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Text.Json;
 namespace GoElectrify.Api.Controllers
 {
     [ApiController]
@@ -28,6 +31,13 @@ namespace GoElectrify.Api.Controllers
                 long orderCode = data.GetProperty("orderCode").GetInt64();
                 decimal amount = data.GetProperty("amount").GetDecimal();
                 string code = data.GetProperty("code").GetString() ?? string.Empty;
+
+                if (json.RootElement.TryGetProperty("code", out var rootCodeEl))
+                {
+                    var rootCode = rootCodeEl.GetString();
+                    if (!string.IsNullOrWhiteSpace(rootCode))
+                        code = rootCode; // ghi đè code đã lấy từ data
+                }
 
                 if (code == "00")
                 {
@@ -56,6 +66,49 @@ namespace GoElectrify.Api.Controllers
 
                     await _db.SaveChangesAsync();
                     Console.WriteLine($"Wallet {wallet.Id} +{amount}");
+
+                    // ADD — GỬI EMAIL XÁC NHẬN NẠP VÍ
+                    try
+                    {
+                        // Lấy Email + FullName để format "Họ Tên <email>"
+                        var userInfo = await _db.Wallets
+                            .Where(w => w.Id == wallet.Id)
+                            .Select(w => new { w.User.Email, w.User.FullName })
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(HttpContext.RequestAborted);
+
+                        if (!string.IsNullOrWhiteSpace(userInfo?.Email))
+                        {
+                            var toDisplay = string.IsNullOrWhiteSpace(userInfo.FullName)
+                                ? userInfo.Email
+                                : $"{userInfo.FullName} <{userInfo.Email}>";
+
+                            var notif = HttpContext.RequestServices.GetService<INotificationMailService>();
+                            if (notif != null)
+                            {
+                                await notif.SendTopupSuccessAsync(
+                                    toEmail: toDisplay,
+                                    amount: amount,
+                                    provider: "PayOS",
+                                    orderCode: orderCode,
+                                    completedAtUtc: intent.CompletedAt ?? DateTime.UtcNow,
+                                    ct: HttpContext.RequestAborted
+                                );
+                            }
+                            else
+                            {
+                                Console.WriteLine("⚠️ INotificationMailService not registered; skip sending email.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"⚠️ Wallet {wallet.Id} không tìm thấy email user.");
+                        }
+                    }
+                    catch (Exception mailEx)
+                    {
+                        Console.WriteLine("⚠️ Send email failed: " + mailEx.Message);
+                    }
                 }
                 else
                 {

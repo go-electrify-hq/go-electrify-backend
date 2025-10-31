@@ -35,5 +35,11 @@ namespace GoElectrify.DAL.Repositories
             _db.Transactions.Add(entity);
             await _db.SaveChangesAsync();
         }
+
+        public async Task AddRangeAsync(IEnumerable<Transaction> items)
+        {
+            _db.Transactions.AddRange(items);
+            await _db.SaveChangesAsync();
+        }
     }
 }

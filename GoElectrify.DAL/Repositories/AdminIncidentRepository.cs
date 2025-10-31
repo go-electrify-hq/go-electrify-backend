@@ -94,5 +94,73 @@ namespace GoElectrify.DAL.Repositories
             return dto; // service sẽ quyết định ném 404 hay không
         }
 
+        public async Task<AdminIncidentListItemDto> UpdateStatusAsync(int incidentId, string newStatus,int adminUserId, string? note, CancellationToken ct)
+        {
+            // 1) Lấy entity (tracking) để cập nhật
+            var inc = await _db.Set<Incident>()
+                .FirstOrDefaultAsync(x => x.Id == incidentId, ct);
+
+            if (inc == null)
+                throw new KeyNotFoundException("Incident not found.");
+
+            // 2) Chuẩn hoá status mục tiêu
+            var target = (newStatus ?? string.Empty).Trim().ToUpperInvariant();
+
+            // 3) Kiểm tra flow HỢP LỆ:
+            //    - RESOLVED -> CLOSED
+            //    - CLOSED   -> IN_PROGRESS
+            if (target == "CLOSED")
+            {
+                if (!string.Equals(inc.Status, "RESOLVED", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Only RESOLVED incidents can be set to CLOSED by admin.");
+
+                inc.Status = "CLOSED";
+
+                // Đảm bảo có mốc thời gian hoàn tất nếu staff chưa set
+                inc.ResolvedAt ??= DateTime.UtcNow;
+
+                // (Optional) nếu entity có các field audit thì set ở đây:
+                // inc.ClosedAt = DateTime.UtcNow;
+                // inc.ClosedByUserId = adminUserId;
+                // inc.CloseNote = note;
+            }
+            else if (target == "IN_PROGRESS")
+            {
+                if (!string.Equals(inc.Status, "CLOSED", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Only CLOSED incidents can be set back to IN_PROGRESS (reopen).");
+
+                inc.Status = "IN_PROGRESS";
+
+                // (Optional) audit reopen:
+                // inc.ReopenedAt = DateTime.UtcNow;
+                // inc.ReopenedByUserId = adminUserId;
+                // inc.ReopenNote = note;
+            }
+            else
+            {
+                throw new ArgumentException("Target status must be 'CLOSED' or 'IN_PROGRESS'.");
+            }
+
+            // 4) Ghi DB
+            _db.Update(inc);
+            await _db.SaveChangesAsync(ct);
+
+            // 5) Trả lại DTO mới nhất (dùng projection có StationName/ReporterUserId)
+            var updated = await GetProjectedByIdAsync(incidentId, ct);
+            // Về lý thuyết không null vì vừa cập nhật xong
+            return updated ?? new AdminIncidentListItemDto
+            {
+                Id = inc.Id,
+                StationId = inc.StationId,
+                StationName = "", // fallback nếu không load được
+                ChargerId = inc.ChargerId,
+                ReporterUserId = inc.ReportedBy?.UserId ?? 0,
+                Title = inc.Title,
+                Severity = inc.Priority,
+                Status = inc.Status,
+                ReportedAt = inc.ReportedAt,
+                ResolvedAt = inc.ResolvedAt
+            };
+        }
     }
 }

@@ -8,6 +8,8 @@ using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
+using GoElectrify.BLL.Dtos.ChargingSession;
+using GoElectrify.BLL.Contracts.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +24,7 @@ namespace GoElectrify.Api.Controllers
     {
         private readonly IChargingSessionService _svc;
         private readonly IAblyService _ably;
+        private readonly IChargingPaymentService _paymentSvc;
         private readonly AppDbContext _db;
         private readonly ILogger<ChargingSessionsController> _logger;
         private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
@@ -29,6 +32,7 @@ namespace GoElectrify.Api.Controllers
         {
             _svc = svc;
             _ably = ably;
+            _paymentSvc = paymentSvc;
             _db = db;
             _logger = logger;
         }

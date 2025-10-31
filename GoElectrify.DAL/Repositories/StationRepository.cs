@@ -105,5 +105,13 @@ namespace GoElectrify.DAL.Repositories
         }
         public Task<bool> ExistsAsync(int id, CancellationToken ct)
         => _context.Stations.AsNoTracking().AnyAsync(s => s.Id == id, ct);
+
+        public async Task<string?> GetNameByIdAsync(int stationId, CancellationToken ct)
+        {
+            return await _context.Stations.AsNoTracking()
+                .Where(s => s.Id == stationId)
+                .Select(s => s.Name)
+                .FirstOrDefaultAsync(ct);
+        }
     }
 }

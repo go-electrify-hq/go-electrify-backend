@@ -9,7 +9,6 @@ namespace GoElectrify.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/admin/booking-fee")]
-    [Authorize(Roles = "Admin")]
     public class BookingFeeController : ControllerBase
     {
         private readonly ISystemSettingRepository _repo;
@@ -28,6 +27,7 @@ namespace GoElectrify.Api.Controllers
             return Ok(new { ok = true, data = new { type, value } });
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut]
         public async Task<IActionResult> Put([FromBody] BookingFeeSettingDto dto, CancellationToken ct)
         {

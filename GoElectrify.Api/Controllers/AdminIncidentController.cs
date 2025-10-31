@@ -1,8 +1,10 @@
 ﻿using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Incidents;
+using GoElectrify.BLL.Dtos.Incidents;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
+using System.Security.Claims;
 
 namespace GoElectrify.Api.Controllers
 {
@@ -50,6 +52,34 @@ namespace GoElectrify.Api.Controllers
             catch (KeyNotFoundException)
             {
                 return NotFound(new { error = "Incident not found." });
+            }
+        }
+
+        [HttpPatch("{id:int}/status")]
+        public async Task<IActionResult> ModerateStatus(int id, [FromBody] AdminIncidentStatusUpdateDto body, CancellationToken ct)
+        {
+            try
+            {
+                // Lấy admin user id từ token (phục vụ audit nếu bạn có field)
+                var adminUserIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0";
+                int.TryParse(adminUserIdStr, out var adminUserId);
+
+                // Gọi service (repo sẽ validate flow & lưu DB)
+                var dto = await _svc.UpdateStatusAsync(id, body.Status, adminUserId, body.Note, ct);
+
+                return Ok(dto); // trả luôn DTO mới nhất cho FE
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { error = "Incident not found." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message }); // sai flow trạng thái
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message }); // status mục tiêu không hợp lệ
             }
         }
     }
