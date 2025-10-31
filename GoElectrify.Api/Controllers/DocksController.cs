@@ -341,6 +341,7 @@ namespace GoElectrify.Api.Controllers
             var issuer = _cfg["DockAuth:Issuer"];
             var audience = _cfg["DockAuth:Audience"];
             var key = _cfg["DockAuth:SigningKey"]!;
+            Console.WriteLine($"[DockJwt-Issue] issuer={issuer}, audience={audience}, keyLen={key.Length}");
 
             var secKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)) { KeyId = "dock-v1" };
             var creds = new SigningCredentials(secKey, SecurityAlgorithms.HmacSha256);

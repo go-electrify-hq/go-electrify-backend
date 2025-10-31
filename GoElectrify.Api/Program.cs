@@ -113,19 +113,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.FromSeconds(30)
         };
         // Log lý do 401 để debug nhanh
+        o.IncludeErrorDetails = true; // thêm dòng này
         o.Events = new JwtBearerEvents
         {
+            OnMessageReceived = ctx =>
+            {
+                var auth = ctx.Request.Headers["Authorization"].ToString();
+                Console.WriteLine($"[DockJwt] Authorization present={(!string.IsNullOrEmpty(auth))}");
+                if (auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var tok = auth.Substring("Bearer ".Length).Trim();
+                    ctx.Token = tok; // đảm bảo handler dùng đúng token từ header
+                    try
+                    {
+                        var jwtTok = new JwtSecurityTokenHandler().ReadJwtToken(tok);
+                        Console.WriteLine($"[DockJwt] hdr ok, iss={jwtTok.Issuer}, aud={string.Join(",", jwtTok.Audiences)}");
+                    }
+                    catch { }
+                }
+                return Task.CompletedTask;
+            },
             OnAuthenticationFailed = ctx =>
             {
-                Console.WriteLine($"JWT failed: {ctx.Exception.Message}");
+                Console.WriteLine($"[DockJwt] auth failed: {ctx.Exception.GetType().Name} - {ctx.Exception.Message}");
                 return Task.CompletedTask;
             },
             OnChallenge = ctx =>
             {
-                Console.WriteLine($"JWT challenge: {ctx.Error} - {ctx.ErrorDescription}");
+                // sẽ in rõ: invalid_token / signature invalid / audience invalid / expired ...
+                Console.WriteLine($"[DockJwt] challenge: {ctx.Error} - {ctx.ErrorDescription}");
                 return Task.CompletedTask;
             }
         };
