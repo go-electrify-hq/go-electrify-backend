@@ -1,6 +1,8 @@
-﻿using GoElectrify.BLL.Contracts.Services;
+﻿using GoElectrify.Api.Auth;
+using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Notification;
 using GoElectrify.BLL.Dtos.Notification;
+using GoElectrify.BLL.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -9,56 +11,50 @@ namespace GoElectrify.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/notifications")]
-    [Authorize(Roles = "Admin,Staff,Driver")]
+    [Authorize]
     public class NotificationController : ControllerBase
     {
-        private readonly INotificationService _service;
-        public NotificationController(INotificationService service) => _service = service;
+        private readonly INotificationService _svc;
+        public NotificationController(INotificationService svc) => _svc = svc;
 
-        [HttpGet]
-        public async Task<IActionResult> Get([FromQuery] NotificationQueryDto query, CancellationToken ct)
+        private string GetRole() =>
+            User.IsInRole("Admin") ? "Admin" :
+            User.IsInRole("Staff") ? "Staff" : "Driver";
+
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> Dashboard(CancellationToken ct)
         {
-            var role = User.FindFirst(ClaimTypes.Role)?.Value
-                       ?? User.FindFirst("role")?.Value
-                       ?? "Driver";
+            var userId = User.GetUserId();
+            var role = GetRole();
+            var list = await _svc.GetDashboardAsync(userId, role, ct);
+            return Ok(new { items = list, newCount = list.Count(x => x.IsNew), unreadCount = list.Count(x => x.IsUnread) });
+        }
 
-            var userIdStr = User.FindFirst("userId")?.Value
-                         ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (!int.TryParse(userIdStr, out var userId))
-                return Unauthorized(new { error = "Thiếu hoặc sai userId trong token." });
-
-            var items = await _service.GetDashboardAsync(query, userId, role, ct);
-            return Ok(items);
+        [HttpPost("seen")]
+        public async Task<IActionResult> Seen(CancellationToken ct)
+        {
+            await _svc.MarkSeenAsync(User.GetUserId(), ct);
+            return Ok(new { ok = true });
         }
 
         [HttpPost("read-all")]
-        public async Task<IActionResult> MarkAllRead(CancellationToken ct)
+        public async Task<IActionResult> ReadAll(CancellationToken ct)
         {
-            var userIdStr = User.FindFirst("userId")?.Value
-                         ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (!int.TryParse(userIdStr, out var userId))
-                return Unauthorized(new { error = "Thiếu hoặc sai userId trong token." });
-
-            await _service.MarkAllReadNowAsync(userId, ct);
-            return NoContent();
+            await _svc.MarkAllReadAsync(User.GetUserId(), ct);
+            return Ok(new { ok = true });
         }
 
         [HttpPost("{id}/read")]
-        public async Task<IActionResult> MarkOneRead([FromRoute] string id, CancellationToken ct)
+        public async Task<IActionResult> ReadOne(string id, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(id))
-                return BadRequest(new { error = "Thiếu id thông báo." });
+                return BadRequest(new { ok = false, message = "Thiếu ID" });
 
-            var userIdStr = User.FindFirst("userId")?.Value
-                         ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = GetRole();
+            var ok = await _svc.MarkOneReadAsync(User.GetUserId(), id, role, ct);
+            if (!ok) return NotFound(new { ok = false, message = "Notification ID không hợp lệ hoặc ngoài phạm vi của bạn" });
 
-            if (!int.TryParse(userIdStr, out var userId))
-                return Unauthorized(new { error = "Thiếu hoặc sai userId trong token." });
-
-            await _service.MarkOneReadAsync(userId, id.Trim(), ct);
-            return NoContent();
+            return Ok(new { ok = true });
         }
     }
 }

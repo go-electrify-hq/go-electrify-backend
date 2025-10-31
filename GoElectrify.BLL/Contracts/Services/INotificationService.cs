@@ -5,12 +5,18 @@ namespace GoElectrify.BLL.Contracts.Services
 {
     public interface INotificationService
     {
-        // Lấy danh sách thông báo (có tính IsNew)
+        //Lấy danh sách thông báo cho user (theo vai trò).
         Task<IReadOnlyList<NotificationDto>> GetDashboardAsync(
-            NotificationQueryDto query, int userId, string role, CancellationToken cancellationToken);
+            int userId, string role, CancellationToken ct);
 
-        // Đánh dấu tất cả thông báo là đã đọc
-        Task MarkAllReadNowAsync(int userId, CancellationToken ct);
-        Task MarkOneReadAsync(int userId, string notificationId, CancellationToken ct);
+        //Khi user mở popup thông báo → cập nhật thời điểm xem cuối.
+        Task MarkSeenAsync(int userId, CancellationToken ct);
+
+        //Đánh dấu tất cả thông báo là "đã đọc".
+        Task MarkAllReadAsync(int userId, CancellationToken ct);
+
+        //Đánh dấu một thông báo cụ thể là "đã đọc".
+        //Task MarkOneReadAsync(int userId, string id, CancellationToken ct);
+        Task<bool> MarkOneReadAsync(int userId, string id, string role, CancellationToken ct);
     }
 }

@@ -8,16 +8,9 @@ namespace GoElectrify.BLL.Dtos.Notification
 {
     public class NotificationQueryDto
     {
-        public DateTime? Since { get; set; }
-        public DateTime? Before { get; set; }  // lấy cũ hơn mốc này (dùng cho "Xem tất cả" cuộn xuống)
-
-        // Giới hạn số lượng thông báo trả về (1..100, mặc định 20)
-        public int Limit { get; set; } = 20;
-
-        // Lọc theo loại thông báo (nếu null hoặc rỗng → lấy tất cả)
-        public string[]? Types { get; set; }
-
-        // Lọc theo mức độ nghiêm trọng tối thiểu
-        public string? MinSeverity { get; set; } = "LOW";
+        public DateTime? Since { get; set; } = null;          // Mặc định 7 ngày gần nhất
+        public int Limit { get; set; } = 20;                  // 1..100
+        public IEnumerable<string>? Types { get; set; }       // Lọc theo type (nếu cần)
+        public string? MinSeverity { get; set; }              // "LOW|MEDIUM|HIGH|CRITICAL" (nếu bạn có severity)
     }
 }

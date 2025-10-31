@@ -10,551 +10,314 @@ namespace GoElectrify.DAL.Repositories
     public class NotificationRepository : INotificationRepository
     {
         private readonly AppDbContext _db;
-        public NotificationRepository(AppDbContext db) => _db = db;
+    public NotificationRepository(AppDbContext db) => _db = db;
 
-        public async Task<IReadOnlyList<NotificationDto>> GetDashboardBaseAsync(
-            NotificationQueryDto query, int userId, string role, CancellationToken cancellationToken)
+    public async Task<List<NotificationDto>> GetByRoleAsync(int userId, string role, CancellationToken ct)
+    {
+        DateTime since = DateTime.UtcNow.AddDays(-7);
+        var bag = new List<NotificationDto>();
+
+        bool isDriver = role.Equals("Driver", StringComparison.OrdinalIgnoreCase);
+        bool isStaff  = role.Equals("Staff",  StringComparison.OrdinalIgnoreCase);
+        bool isAdmin  = role.Equals("Admin",  StringComparison.OrdinalIgnoreCase);
+
+        // === DRIVER: Booking, Wallet, Subscription, Charging, Transaction ===
+        if (isDriver)
         {
-            // ===== 1) Chuẩn hoá input =====
-            DateTime sinceUtc = (query.Since.HasValue ? query.Since.Value.ToUniversalTime() : DateTime.UtcNow.AddDays(-7));
-
-            int limit = query.Limit;
-            if (limit < 1) limit = 20;
-            if (limit > 100) limit = 100;
-
-            // typeSet: nếu rỗng => lấy tất cả
-            HashSet<string> typeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (query.Types != null)
-            {
-                foreach (var t in query.Types)
-                {
-                    if (!string.IsNullOrWhiteSpace(t)) typeSet.Add(t.Trim());
-                }
-            }
-
-            // Severity min (inline normalize + rank)
-            string minSeverity = (query.MinSeverity ?? "LOW").Trim().ToUpperInvariant();
-            if (minSeverity != "CRITICAL" && minSeverity != "HIGH" && minSeverity != "MEDIUM" && minSeverity != "LOW")
-                minSeverity = "LOW";
-            int minRank = minSeverity == "CRITICAL" ? 4 : minSeverity == "HIGH" ? 3 : minSeverity == "MEDIUM" ? 2 : 1;
-
-            bool isAdmin = string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
-            bool isStaff = string.Equals(role, "Staff", StringComparison.OrdinalIgnoreCase);
-            bool isDriver = string.Equals(role, "Driver", StringComparison.OrdinalIgnoreCase);
-
-            // ===== 2) Bối cảnh theo role =====
-            // Staff → các station được gán
-            List<int> staffStations = new List<int>();
-            if (isStaff && !isAdmin)
-            {
-                staffStations = await _db.StationStaff.AsNoTracking()
-                    .Where(x => x.UserId == userId && x.RevokedAt == null)
-                    .Select(x => x.StationId)
-                    .ToListAsync(cancellationToken);
-            }
-
-            // Driver → các station liên quan (đặt chỗ 48h tới / phiên đang chạy)
-            HashSet<int> driverRelatedStations = new HashSet<int>();
-            if (isDriver)
-            {
-                DateTime within48h = DateTime.UtcNow.AddHours(48);
-
-                var futureStations = await _db.Bookings.AsNoTracking()
-                    .Where(b => b.UserId == userId
-                             && b.ScheduledStart >= DateTime.UtcNow
-                             && b.ScheduledStart <= within48h)
-                    .Select(b => b.StationId)
-                    .ToListAsync(cancellationToken);
-
-                var runningStations = await _db.ChargingSessions.AsNoTracking()
-                    .Include(s => s.Charger)
-                    .Include(s => s.Booking)
-                    .Where(s => s.Status == "RUNNING"
-                             && s.Booking != null
-                             && s.Booking.UserId == userId)
-                    .Select(s => s.Charger.StationId)
-                    .ToListAsync(cancellationToken);
-
-                foreach (var sid in futureStations) driverRelatedStations.Add(sid);
-                foreach (var sid in runningStations) driverRelatedStations.Add(sid);
-            }
-
-            // ===== 3) Thu thập thông báo =====
-            List<NotificationDto> bucket = new List<NotificationDto>(limit * 6);
-
-            // ---------- BOOKING ----------
-            bucket.AddRange(await BuildBookingAsync(
-                sinceUtc, limit, typeSet, isAdmin, isStaff, isDriver, staffStations, userId, cancellationToken));
-
-            // ---------- CHARGING ----------
-            bucket.AddRange(await BuildChargingAsync(
-                sinceUtc, limit, typeSet, isAdmin, isStaff, isDriver, staffStations, userId, cancellationToken));
-
-            // ---------- INCIDENT ----------
-            bucket.AddRange(await BuildIncidentAsync(
-                sinceUtc, limit, typeSet, isAdmin, isStaff, isDriver, staffStations, driverRelatedStations, cancellationToken));
-
-            // ---------- PAYMENT (Topup + Subscription Purchase) ----------
-            bucket.AddRange(await BuildPaymentAsync(
-                sinceUtc, limit, typeSet, isAdmin, isStaff, isDriver, userId, cancellationToken));
-
-            // ===== 4) Áp MinSeverity + Sort + Limit (inline rank) =====
-            List<NotificationDto> filtered = new List<NotificationDto>(bucket.Count);
-            foreach (var n in bucket)
-            {
-                string sev = (n.Severity ?? "LOW").Trim().ToUpperInvariant();
-                if (sev != "CRITICAL" && sev != "HIGH" && sev != "MEDIUM" && sev != "LOW")
-                    sev = "LOW";
-                int rank = sev == "CRITICAL" ? 4 : sev == "HIGH" ? 3 : sev == "MEDIUM" ? 2 : 1;
-                if (rank >= minRank) filtered.Add(n);
-            }
-
-            List<NotificationDto> finalList = filtered
-                .OrderByDescending(n => n.CreatedAt)
-                .ThenBy(n => n.Id)
-                .Take(limit)
-                .ToList();
-
-            return finalList;
-        }
-
-        // =================== BOOKING ===================
-        // Admin: tất cả; Staff: theo station assign; Driver: booking của chính mình
-        private async Task<List<NotificationDto>> BuildBookingAsync(
-            DateTime sinceUtc, int limit, HashSet<string> typeSet,
-            bool isAdmin, bool isStaff, bool isDriver,
-            List<int> staffStations, int userId, CancellationToken ct)
-        {
-            var result = new List<NotificationDto>(limit * 4);
-
-            IQueryable<Booking> Scope(IQueryable<Booking> q)
-            {
-                if (isAdmin) return q;
-                if (isStaff) return q.Where(b => staffStations.Contains(b.StationId));
-                if (isDriver) return q.Where(b => b.UserId == userId);
-                return q.Where(_ => false);
-            }
-
-            // booking_created (PENDING / CreatedAt)
-            if (typeSet.Count == 0 || typeSet.Contains("booking_created"))
-            {
-                var q = Scope(_db.Bookings.AsNoTracking()
-                        .Where(b => b.CreatedAt >= sinceUtc && b.Status == "PENDING"));
-
-                var items = await q.OrderByDescending(b => b.CreatedAt)
-                    .Take(limit)
-                    .Select(b => new NotificationDto
-                    {
-                        Id = "booking:" + b.Id,
-                        Title = "Đặt chỗ mới",
-                        Message = $"Mã {b.Code} • Trạm #{b.StationId}",
-                        Type = "booking_created",
-                        Severity = "LOW",
-                        CreatedAt = b.CreatedAt
-                    })
-                    .ToListAsync(ct);
-
-                result.AddRange(items);
-            }
-
-            // booking_confirmed (CONFIRMED / UpdatedAt)
-            if (typeSet.Count == 0 || typeSet.Contains("booking_confirmed"))
-            {
-                var q = Scope(_db.Bookings.AsNoTracking()
-                        .Where(b => b.UpdatedAt >= sinceUtc && b.Status == "CONFIRMED"));
-
-                var items = await q.OrderByDescending(b => b.UpdatedAt)
-                    .Take(limit)
-                    .Select(b => new NotificationDto
-                    {
-                        Id = "booking_cf:" + b.Id,
-                        Title = "Đặt chỗ đã xác nhận",
-                        Message = $"Mã {b.Code} • Trạm #{b.StationId}",
-                        Type = "booking_confirmed",
-                        Severity = "LOW",
-                        CreatedAt = b.UpdatedAt
-                    })
-                    .ToListAsync(ct);
-
-                result.AddRange(items);
-            }
-
-            // booking_canceled
-            if (typeSet.Count == 0 || typeSet.Contains("booking_canceled"))
-            {
-                var q = Scope(_db.Bookings.AsNoTracking()
-                        .Where(b => b.UpdatedAt >= sinceUtc && b.Status == "CANCELED"));
-
-                var items = await q.OrderByDescending(b => b.UpdatedAt)
-                    .Take(limit)
-                    .Select(b => new NotificationDto
-                    {
-                        Id = "booking_cancel:" + b.Id,
-                        Title = "Đặt chỗ đã hủy",
-                        Message = $"Mã {b.Code} • Trạm #{b.StationId}",
-                        Type = "booking_canceled",
-                        Severity = "LOW",
-                        CreatedAt = b.UpdatedAt
-                    })
-                    .ToListAsync(ct);
-
-                result.AddRange(items);
-            }
-
-            // booking_expired
-            if (typeSet.Count == 0 || typeSet.Contains("booking_expired"))
-            {
-                var q = Scope(_db.Bookings.AsNoTracking()
-                        .Where(b => b.UpdatedAt >= sinceUtc && b.Status == "EXPIRED"));
-
-                var items = await q.OrderByDescending(b => b.UpdatedAt)
-                    .Take(limit)
-                    .Select(b => new NotificationDto
-                    {
-                        Id = "booking_exp:" + b.Id,
-                        Title = "Đặt chỗ hết hạn",
-                        Message = $"Mã {b.Code} • Trạm #{b.StationId}",
-                        Type = "booking_expired",
-                        Severity = "LOW",
-                        CreatedAt = b.UpdatedAt
-                    })
-                    .ToListAsync(ct);
-
-                result.AddRange(items);
-            }
-
-            // ---- BOOKING DEPOSIT (BOOKING_FEE thuộc Booking) ----
-            // Hiển thị đặt cọc tại nhóm Booking (không đưa sang Payment).
-            // Nếu chưa join Transaction -> Booking/Station, tạm ẩn với Staff để tránh lộ phạm vi.
-            if (typeSet.Count == 0
-                || typeSet.Contains("booking_deposit_succeeded")
-                || typeSet.Contains("booking_deposit_failed"))
-            {
-                var dq = _db.Transactions.AsNoTracking()
-                    .Include(x => x.Wallet)
-                    .Where(x =>
-                        x.Type == "BOOKING_FEE" &&
-                        (((x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt) >= sinceUtc));
-
-                if (isDriver && !isAdmin)
-                    dq = dq.Where(x => x.Wallet.UserId == userId);
-
-                if (isStaff && !isAdmin)
-                    dq = dq.Where(_ => false); // Ẩn với Staff nếu chưa link tới Station/Booking
-
-                var dlist = await dq
-                    .OrderByDescending(x => (x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt)
-                    .Take(limit)
-                    .Select(x => new
-                    {
-                        x.Id,
-                        x.Status,
-                        x.Amount,
-                        At = (x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt
-                    })
-                    .ToListAsync(ct);
-
-                foreach (var tr in dlist)
-                {
-                    bool ok = tr.Status == "SUCCEEDED";
-                    string nType = ok ? "booking_deposit_succeeded" : "booking_deposit_failed";
-                    if (typeSet.Count > 0 && !typeSet.Contains(nType)) continue;
-
-                    result.Add(new NotificationDto
-                    {
-                        Id = "deposit:" + tr.Id,
-                        Title = ok ? "Đặt cọc thành công" : "Đặt cọc thất bại",
-                        Message = $"Số tiền: {tr.Amount:N0}đ",
-                        Type = nType,
-                        Severity = ok ? "LOW" : "HIGH",
-                        CreatedAt = tr.At
-                    });
-                }
-            }
-
-            return result;
-        }
-
-        // =================== CHARGING ===================
-        // Admin: tất cả; Staff: station assign; Driver: phiên thuộc booking của mình
-        private async Task<List<NotificationDto>> BuildChargingAsync(
-            DateTime sinceUtc, int limit, HashSet<string> typeSet,
-            bool isAdmin, bool isStaff, bool isDriver,
-            List<int> staffStations, int userId, CancellationToken ct)
-        {
-            var result = new List<NotificationDto>(limit);
-
-            bool needStarted = typeSet.Count == 0 || typeSet.Contains("charging_started");
-            bool needStopped = typeSet.Count == 0 || typeSet.Contains("charging_stopped");
-            bool needCompleted = typeSet.Count == 0 || typeSet.Contains("charging_completed");
-            bool needFailed = typeSet.Count == 0 || typeSet.Contains("charging_failed");
-
-            if (!(needStarted || needStopped || needCompleted || needFailed))
-                return result;
-
-            var q = _db.ChargingSessions.AsNoTracking()
-                .Include(s => s.Charger)
-                .Include(s => s.Booking)
-                .Where(s =>
-                    ((s.UpdatedAt != default(DateTime)) ? s.UpdatedAt : s.StartedAt) >= sinceUtc);
-
-            if (isStaff && !isAdmin)
-                q = q.Where(s => staffStations.Contains(s.Charger.StationId));
-            else if (isDriver)
-                q = q.Where(s => s.Booking != null && s.Booking.UserId == userId);
-
-            var raw = await q
-                .OrderByDescending(s => (s.UpdatedAt != default(DateTime)) ? s.UpdatedAt : s.StartedAt)
-                .Take(limit)
-                .Select(s => new
-                {
-                    s.Id,
-                    s.Status,
-                    At = (s.UpdatedAt != default(DateTime)) ? s.UpdatedAt : s.StartedAt,
-                    StationId = s.Charger.StationId
-                })
+            // Booking (mọi trạng thái)
+            var bookings = await _db.Bookings.Include(b => b.Station)
+                .Where(b => b.UserId == userId && (b.CreatedAt >= since || b.UpdatedAt >= since))
                 .ToListAsync(ct);
 
-            foreach (var s in raw)
+            foreach (var b in bookings)
             {
-                string type;
-                string title;
-                string severity = "LOW";
+                string type = $"booking.{b.Status.ToLower()}";
+                string title = b.Status switch
+                {
+                    "CONFIRMED" => "Đặt chỗ xác nhận thành công",
+                    "FAILED"    => "Đặt chỗ thất bại",
+                    "CANCELED"  => "Đặt chỗ đã huỷ",
+                    "EXPIRED"   => "Đặt chỗ hết hạn",
+                    _           => "Đặt chỗ mới"
+                };
+                bag.Add(new NotificationDto
+                {
+                    Id = $"booking:{b.Id}",
+                    Type = type,
+                    Title = title,
+                    Message = $"Trạm {b.Station.Name}",
+                    Severity = b.Status == "FAILED" ? "HIGH" : "LOW",
+                    CreatedAt = b.UpdatedAt
+                });
+            }
 
-                if (s.Status == "RUNNING")
+            // Transaction (wallet/payment/subscription)
+            var txs = await _db.Transactions.Include(t => t.Wallet)
+                .Where(t => t.Wallet.UserId == userId && t.CreatedAt >= since)
+                .ToListAsync(ct);
+
+            foreach (var t in txs)
+            {
+                string type = $"{t.Type.ToLower()}.{t.Status.ToLower()}";
+                string title = t.Status switch
                 {
-                    type = "charging_started";
-                    title = "Bắt đầu sạc";
-                    if (!needStarted) continue;
-                }
-                else if (s.Status == "STOPPED")
+                    "SUCCESS"  => $"{t.Type} thành công",
+                    "FAILED"   => $"{t.Type} thất bại",
+                    "REFUNDED" => $"{t.Type} hoàn tiền",
+                    _          => $"{t.Type} cập nhật"
+                };
+
+                string severity = t.Status switch
                 {
-                    type = "charging_stopped";
-                    title = "Dừng sạc";
-                    if (!needStopped) continue;
-                }
-                else if (s.Status == "COMPLETED")
+                    "FAILED"   => "HIGH",
+                    "REFUNDED" => "MEDIUM",
+                    _          => "LOW"
+                };
+
+                bag.Add(new NotificationDto
                 {
-                    type = "charging_completed";
-                    title = "Hoàn tất sạc";
-                    if (!needCompleted) continue;
-                }
-                else if (s.Status == "FAILED")
+                    Id = $"tx:{t.Id}",
+                    Type = $"transaction.{type}",
+                    Title = title,
+                    Message = $"{t.Type} • {t.Amount:n0}đ",
+                    Severity = severity,
+                    CreatedAt = t.CreatedAt
+                });
+            }
+
+            // ChargingSession
+            /*
+            var cs = await _db.ChargingSessions.Include(c => c.)
+                .Where(c => c.Id == userId && (c.CreatedAt >= since || (c.EndedAt != null && c.EndedAt >= since)))
+                .ToListAsync(ct);
+
+            foreach (var s in cs)
+            {
+                if (s.Status == "ERROR")
                 {
-                    type = "charging_failed";
-                    title = "Phiên sạc lỗi";
-                    severity = "MEDIUM";
-                    if (!needFailed) continue;
+                    bag.Add(new NotificationDto
+                    {
+                        Id = $"charge:{s.Id}:error",
+                        Type = "charging.error",
+                        Title = "Phiên sạc gặp lỗi",
+                        Message = $"Trạm {s.Station.Name} • {s.StopReason}",
+                        Severity = "HIGH",
+                        CreatedAt = s.EndedAt ?? s.CreatedAt
+                    });
                 }
                 else
                 {
-                    type = "charging_started";
-                    title = "Phiên sạc";
-                    if (!needStarted) continue;
+                    bag.Add(new NotificationDto
+                    {
+                        Id = $"charge:{s.Id}:{s.Status.ToLower()}",
+                        Type = $"charging.{s.Status.ToLower()}",
+                        Title = s.Status == "STARTED" ? "Bắt đầu sạc" : "Kết thúc sạc",
+                        Message = $"Trạm {s.Station.Name}",
+                        Severity = "LOW",
+                        CreatedAt = s.EndedAt ?? s.CreatedAt
+                    });
                 }
-
-                result.Add(new NotificationDto
-                {
-                    Id = "session:" + s.Id,
-                    Title = title,
-                    Message = $"Trạm #{s.StationId}",
-                    Type = type,
-                    Severity = severity,
-                    CreatedAt = s.At
-                });
-            }
-
-            return result;
+            }*/
         }
 
-        // =================== INCIDENT ===================
-        // Admin: mọi trạm; Staff: station assign; Driver: trạm liên quan (đặt chỗ 48h tới / đang sạc)
-        private async Task<List<NotificationDto>> BuildIncidentAsync(
-            DateTime sinceUtc, int limit, HashSet<string> typeSet,
-            bool isAdmin, bool isStaff, bool isDriver,
-            List<int> staffStations, HashSet<int> driverRelatedStations, CancellationToken ct)
+        // === STAFF: Incident trạm mình, Remote start/stop, Deposit to customer ===
+        if (isStaff)
         {
-            var result = new List<NotificationDto>(limit);
-            if (typeSet.Count > 0 && !typeSet.Contains("incident_reported")) return result;
-
-            var q = _db.Incidents.AsNoTracking()
-                .Where(i => i.ReportedAt >= sinceUtc);
-
-            if (isStaff && !isAdmin)
-            {
-                q = q.Where(i => staffStations.Contains(i.StationId));
-            }
-            else if (isDriver)
-            {
-                if (driverRelatedStations.Count == 0) return result;
-                q = q.Where(i => driverRelatedStations.Contains(i.StationId));
-            }
-
-            var raw = await q
-                .OrderByDescending(i => i.ReportedAt)
-                .Take(limit)
-                .Select(i => new { i.Id, i.Title, i.Priority, i.StationId, i.ReportedAt })
+            var stations = await _db.StationStaff
+                .Where(s => s.UserId == userId)
+                .Select(s => s.StationId)
                 .ToListAsync(ct);
 
-            foreach (var i in raw)
-            {
-                // inline map priority -> severity
-                string sev = (i.Priority ?? "LOW").Trim().ToUpperInvariant();
-                if (sev != "CRITICAL" && sev != "HIGH" && sev != "MEDIUM" && sev != "LOW")
-                    sev = "LOW";
+            // Incident trạm mình
+            var incidents = await _db.Incidents.Include(i => i.Station)
+                .Where(i => stations.Contains(i.StationId) && i.CreatedAt >= since)
+                .ToListAsync(ct);
 
-                result.Add(new NotificationDto
+            foreach (var i in incidents)
+            {
+                bag.Add(new NotificationDto
                 {
-                    Id = "incident:" + i.Id,
-                    Title = "Sự cố tại trạm",
-                    Message = $"{i.Title} • Trạm #{i.StationId}",
-                    Type = "incident_reported",
-                    Severity = sev,
-                    CreatedAt = i.ReportedAt
+                    Id = $"incident:{i.Id}",
+                    Type = "incident.reported",
+                    Title = "Sự cố trạm được báo cáo",
+                    Message = $"Trạm {i.Station.Name}",
+                    Severity = i.Priority ?? "MEDIUM",
+                    CreatedAt = i.CreatedAt
                 });
             }
 
-            return result;
+            // Remote actions (do staff thực hiện)
+            /*
+            var remote = await _db.ChargingSessions.Include(s => s.Station)
+                .Where(s =>
+                    (s.RemoteStartedByStaffId == userId && s.CreatedAt >= since) ||
+                    (s.RemoteStoppedByStaffId == userId && s.EndedAt >= since))
+                .ToListAsync(ct);
+
+            foreach (var s in remote)
+            {
+                string type = s.RemoteStoppedByStaffId == userId
+                    ? "charging.remote.stop"
+                    : "charging.remote.start";
+                string title = type.EndsWith("stop")
+                    ? "Bạn đã Remote Stop một phiên sạc"
+                    : "Bạn đã Remote Start một phiên sạc";
+                bag.Add(new NotificationDto
+                {
+                    Id = $"staff:{userId}:{s.Id}:{type}",
+                    Type = type,
+                    Title = title,
+                    Message = $"Trạm {s.Station.Name}",
+                    Severity = "LOW",
+                    CreatedAt = s.EndedAt ?? s.CreatedAt
+                });
+            }*/
+
+            // Deposit to customer
+            var deposit = await _db.Transactions
+                .Where(t => t.Note != null && t.Note.Contains($"STAFF_DEPOSIT:{userId}")
+                            && t.CreatedAt >= since)
+                .ToListAsync(ct);
+
+            foreach (var t in deposit)
+            {
+                string type = $"wallet.staffdeposit.{t.Status.ToLower()}";
+                string title = t.Status == "SUCCESS" ? "Nạp hộ khách thành công" : "Nạp hộ khách thất bại";
+                string sev = t.Status == "FAILED" ? "HIGH" : "LOW";
+                bag.Add(new NotificationDto
+                {
+                    Id = $"deposit:{t.Id}",
+                    Type = type,
+                    Title = title,
+                    Message = $"{t.Amount:n0}đ",
+                    Severity = sev,
+                    CreatedAt = t.CreatedAt
+                });
+            }
         }
 
-        // =================== PAYMENT ===================
-        // Admin: mọi ví; Driver: ví của mình; Staff: HIỂN THỊ TOPUP (nạp ví) cho khách
-        // Chỉ hiển thị: TopupIntents (nạp ví) + Mua gói (SUBSCRIPTION_PURCHASE)
-        // KHÔNG hiển thị BOOKING_FEE (đặt cọc) bên Payment — đã chuyển qua Booking.
-        private async Task<List<NotificationDto>> BuildPaymentAsync(
-            DateTime sinceUtc, int limit, HashSet<string> typeSet,
-            bool isAdmin, bool isStaff, bool isDriver, int userId, CancellationToken ct)
+        // === ADMIN: Toàn hệ thống ===
+        if (isAdmin)
         {
-            var result = new List<NotificationDto>(limit * 2);
+            var incidents = await _db.Incidents.Include(i => i.Station)
+                .Where(i => i.CreatedAt >= since)
+                .Select(i => new NotificationDto
+                {
+                    Id = $"incident:{i.Id}",
+                    Type = "incident.reported",
+                    Title = "Sự cố mới toàn hệ thống",
+                    Message = $"Trạm {i.Station.Name}",
+                    Severity = i.Priority ?? "MEDIUM",
+                    CreatedAt = i.CreatedAt
+                }).ToListAsync(ct);
+            bag.AddRange(incidents);
 
-            bool needTopupPending = typeSet.Count == 0 || typeSet.Contains("topup_pending");
-            bool needTopupSuccess = typeSet.Count == 0 || typeSet.Contains("topup_success");
-            bool needTopupFailed = typeSet.Count == 0 || typeSet.Contains("topup_failed");
-            bool needTopupExpired = typeSet.Count == 0 || typeSet.Contains("topup_expired");
+            var assigns = await _db.StationStaff.Include(s => s.Station)
+                .Where(s => s.AssignedAt >= since)
+                .Select(s => new NotificationDto
+                {
+                    Id = $"assign:{s.Id}",
+                    Type = "station.staff.assigned",
+                    Title = "Gán nhân viên vào trạm",
+                    Message = $"Trạm {s.Station.Name}",
+                    Severity = "LOW",
+                    CreatedAt = s.AssignedAt
+                }).ToListAsync(ct);
+            bag.AddRange(assigns);
+        }
 
-            bool needPaymentSucceeded = typeSet.Count == 0 || typeSet.Contains("payment_succeeded");
-            bool needPaymentFailed = typeSet.Count == 0 || typeSet.Contains("payment_failed");
+        return bag.OrderByDescending(x => x.CreatedAt).ToList();
+    }
 
-            // ---- TopupIntents (Nạp ví) — Admin, Driver, Staff đều thấy ----
-            if ((needTopupPending || needTopupSuccess || needTopupFailed || needTopupExpired)
-                && (isAdmin || isDriver || isStaff))
+    // Dùng khi mark-all-read
+    public async Task<List<string>> GetAllIdsAsync(int userId, CancellationToken ct)
+    {
+        var ids = await _db.Bookings
+            .Where(b => b.UserId == userId)
+            .Select(b => $"booking:{b.Id}")
+            .ToListAsync(ct);
+
+        var tx = await _db.Transactions.Include(t => t.Wallet)
+            .Where(t => t.Wallet.UserId == userId)
+            .Select(t => $"tx:{t.Id}")
+            .ToListAsync(ct);
+
+        ids.AddRange(tx);
+        return ids;
+    }
+
+
+        public async Task<bool> IsVisibleIdAsync(int userId, string role, string notifId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(notifId)) return false;
+
+            // prefix:id[:...]
+            var firstColon = notifId.IndexOf(':');
+            if (firstColon <= 0) return false;
+            var prefix = notifId[..firstColon];
+            var rest = notifId[(firstColon + 1)..];
+
+            // lấy số id đầu (trước dấu ':' tiếp theo, nếu có)
+            var secondColon = rest.IndexOf(':');
+            var idPart = secondColon >= 0 ? rest[..secondColon] : rest;
+            if (!int.TryParse(idPart, out var entityId)) return false;
+
+            bool isAdmin = role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            bool isStaff = role.Equals("Staff", StringComparison.OrdinalIgnoreCase);
+            bool isDriver = role.Equals("Driver", StringComparison.OrdinalIgnoreCase);
+
+            switch (prefix)
             {
-                var tq = _db.TopupIntents.AsNoTracking()
-                    .Include(t => t.Wallet)
-                    .Where(t => (((t.UpdatedAt != default(DateTime)) ? t.UpdatedAt : t.CreatedAt) >= sinceUtc));
-
-                if (isDriver && !isAdmin)
-                {
-                    // Driver: chỉ thấy ví của chính mình
-                    tq = tq.Where(t => t.Wallet.UserId == userId);
-                }
-                // Staff: hiển thị tất cả topup để phục vụ nạp hộ cho khách.
-                // Nếu có trường CreatedByUserId/HandledByUserId thì filter tại đây.
-
-                var list = await tq
-                    .OrderByDescending(t => (t.UpdatedAt != default(DateTime)) ? t.UpdatedAt : t.CreatedAt)
-                    .Take(limit)
-                    .Select(t => new
+                case "booking":
                     {
-                        t.Id,
-                        t.Status,
-                        t.Amount,
-                        At = (t.UpdatedAt != default(DateTime)) ? t.UpdatedAt : t.CreatedAt
-                    })
-                    .ToListAsync(ct);
-
-                foreach (var t in list)
-                {
-                    string type;
-                    string title;
-                    string severity = "LOW";
-
-                    if (t.Status == "PENDING")
-                    {
-                        type = "topup_pending"; title = "Nạp tiền đang xử lý";
-                        if (!needTopupPending) continue;
-                    }
-                    else if (t.Status == "SUCCESS")
-                    {
-                        type = "topup_success"; title = "Nạp tiền thành công";
-                        if (!needTopupSuccess) continue;
-                    }
-                    else if (t.Status == "FAILED")
-                    {
-                        type = "topup_failed"; title = "Nạp tiền thất bại";
-                        severity = "MEDIUM";
-                        if (!needTopupFailed) continue;
-                    }
-                    else if (t.Status == "EXPIRED")
-                    {
-                        type = "topup_expired"; title = "Nạp tiền hết hạn";
-                        if (!needTopupExpired) continue;
-                    }
-                    else
-                    {
-                        type = "topup_pending"; title = "Nạp tiền";
-                        if (!needTopupPending) continue;
+                        if (isAdmin) return await _db.Bookings.AnyAsync(b => b.Id == entityId, ct);
+                        if (isDriver) return await _db.Bookings.AnyAsync(b => b.Id == entityId && b.UserId == userId, ct);
+                        if (isStaff)
+                        {
+                            var stationIds = await _db.StationStaff
+                                .Where(s => s.UserId == userId && s.RevokedAt == null)
+                                .Select(s => s.StationId).ToListAsync(ct);
+                            return await _db.Bookings.AnyAsync(b => b.Id == entityId && stationIds.Contains(b.StationId), ct);
+                        }
+                        return false;
                     }
 
-                    result.Add(new NotificationDto
+                case "tx": // transaction
+                case "deposit": // staff deposit id dạng deposit:{id}
                     {
-                        Id = "topup:" + t.Id,
-                        Title = title,
-                        Message = $"Số tiền: {t.Amount:N0}đ",
-                        Type = type,
-                        Severity = severity,
-                        CreatedAt = t.At
-                    });
-                }
+                        if (isAdmin) return await _db.Transactions.AnyAsync(t => t.Id == entityId, ct);
+                        if (isDriver)
+                            return await _db.Transactions.Include(t => t.Wallet)
+                                .AnyAsync(t => t.Id == entityId && t.Wallet.UserId == userId, ct);
+                        if (isStaff)
+                            return await _db.Transactions
+                                .AnyAsync(t => t.Id == entityId && t.Note != null &&
+                                               EF.Functions.Like(t.Note, $"%STAFF_DEPOSIT:{userId}%"), ct);
+                    }
+                    break;
+
+                case "incident":
+                    {
+                        if (isAdmin) return await _db.Incidents.AnyAsync(i => i.Id == entityId, ct);
+                        if (isStaff)
+                        {
+                            var stationIds = await _db.StationStaff
+                                .Where(s => s.UserId == userId && s.RevokedAt == null)
+                                .Select(s => s.StationId).ToListAsync(ct);
+                            return await _db.Incidents.AnyAsync(i => i.Id == entityId && stationIds.Contains(i.StationId), ct);
+                        }
+                        return false;
+                    }
+
+                case "assign":
+                case "station": // station:{stationId}:staff:{userId}:assigned
+                    {
+                        if (!isAdmin) return false;
+                        return await _db.StationStaff.AnyAsync(ss => ss.Id == entityId, ct);
+                    }
             }
 
-            // ---- Transactions: CHỈ mua gói (SUBSCRIPTION_PURCHASE) ----
-            // Admin & Driver xem; Staff tạm ẩn (thêm || isStaff nếu muốn staff nhìn thấy).
-            if ((needPaymentSucceeded || needPaymentFailed) && (isAdmin || isDriver))
-            {
-                string[] subscriptionTypes = new[] { "SUBSCRIPTION_PURCHASE" }; // đổi literal nếu khác
-
-                var subQ = _db.Transactions.AsNoTracking()
-                    .Include(x => x.Wallet)
-                    .Where(x =>
-                        subscriptionTypes.Contains(x.Type) &&
-                        (((x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt) >= sinceUtc));
-
-                if (isDriver && !isAdmin)
-                    subQ = subQ.Where(x => x.Wallet.UserId == userId);
-
-                var subList = await subQ
-                    .OrderByDescending(x => (x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt)
-                    .Take(limit)
-                    .Select(x => new
-                    {
-                        x.Id,
-                        x.Status,
-                        x.Amount,
-                        At = (x.UpdatedAt != default(DateTime)) ? x.UpdatedAt : x.CreatedAt
-                    })
-                    .ToListAsync(ct);
-
-                foreach (var tr in subList)
-                {
-                    bool ok = tr.Status == "SUCCEEDED";
-                    string nType = ok ? "subscription_purchased" : "subscription_purchase_failed";
-                    if (ok && !needPaymentSucceeded) continue;
-                    if (!ok && !needPaymentFailed) continue;
-
-                    result.Add(new NotificationDto
-                    {
-                        Id = "sub:" + tr.Id,
-                        Title = ok ? "Mua gói thành công" : "Mua gói thất bại",
-                        Message = $"Số tiền: {tr.Amount:N0}đ",
-                        Type = nType,
-                        Severity = ok ? "LOW" : "HIGH",
-                        CreatedAt = tr.At
-                    });
-                }
-            }
-
-            return result;
+            return false;
         }
     }
 }
