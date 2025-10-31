@@ -28,7 +28,7 @@ namespace GoElectrify.Api.Controllers
         private readonly AppDbContext _db;
         private readonly ILogger<ChargingSessionsController> _logger;
         private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
-        public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, AppDbContext db, ILogger<ChargingSessionsController> logger)
+        public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, IChargingPaymentService paymentSvc, AppDbContext db, ILogger<ChargingSessionsController> logger)
         {
             _svc = svc;
             _ably = ably;
