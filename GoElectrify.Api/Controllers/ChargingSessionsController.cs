@@ -569,5 +569,136 @@ namespace GoElectrify.Api.Controllers
                 data = new { sessionId = s.Id, status = s.Status, paid = amount, walletBalance = wallet.Balance }
             });
         }
+
+        [Authorize]
+        [HttpGet("api/v1/charging-sessions/me/current")]
+        public async Task<IResult> GetMyCurrent([FromQuery] bool includeUnpaid = false, CancellationToken ct = default)
+        {
+            var userId = User.GetUserId();
+
+            // 1) phiên đang mở (EndedAt == null)
+            var active = await _db.ChargingSessions
+                .Where(s => s.EndedAt == null && s.BookingId != null)
+                .Join(_db.Bookings, s => s.BookingId, b => b.Id, (s, b) => new { s, b })
+                .Where(x => x.b.UserId == userId)
+                .OrderByDescending(x => x.s.StartedAt == default ? DateTime.MinValue : x.s.StartedAt)
+                .Select(x => new
+                {
+                    id = x.s.Id,
+                    status = x.s.Status,
+                    startedAt = x.s.StartedAt,
+                    endedAt = x.s.EndedAt,
+                    targetSoc = x.s.TargetSoc,
+                    socStart = x.s.SocStart,
+                    finalSoc = x.s.FinalSoc,
+                    energyKwh = x.s.EnergyKwh,
+                    cost = x.s.Cost,
+                    bookingId = x.s.BookingId,
+                    chargerId = x.s.ChargerId,
+                    ablyChannel = x.s.AblyChannel
+                })
+                .FirstOrDefaultAsync(ct);
+
+            if (active is not null)
+                return Results.Json(new { ok = true, data = new { type = "active", session = active } }, options: Camel);
+
+            // 2) nếu không có phiên mở, có thể trả phiên UNPAID gần nhất (khi includeUnpaid=true)
+            if (includeUnpaid)
+            {
+                var unpaid = await _db.ChargingSessions
+                    .Where(s => s.Status == "UNPAID" && s.BookingId != null)
+                    .Join(_db.Bookings, s => s.BookingId, b => b.Id, (s, b) => new { s, b })
+                    .Where(x => x.b.UserId == userId)
+                    .OrderByDescending(x => x.s.EndedAt ?? DateTime.MinValue)
+                    .Select(x => new
+                    {
+                        id = x.s.Id,
+                        status = x.s.Status,
+                        startedAt = x.s.StartedAt,
+                        endedAt = x.s.EndedAt,
+                        targetSoc = x.s.TargetSoc,
+                        socStart = x.s.SocStart,
+                        finalSoc = x.s.FinalSoc,
+                        energyKwh = x.s.EnergyKwh,
+                        cost = x.s.Cost,
+                        bookingId = x.s.BookingId,
+                        chargerId = x.s.ChargerId,
+                        ablyChannel = x.s.AblyChannel
+                    })
+                    .FirstOrDefaultAsync(ct);
+
+                if (unpaid is not null)
+                    return Results.Json(new { ok = true, data = new { type = "unpaid", session = unpaid } }, options: Camel);
+            }
+
+            return Results.Json(new { ok = false, error = "no_current_session" }, options: Camel, statusCode: 404);
+        }
+
+        [Authorize] // KHÔNG áp NoUnpaidSessions
+        [HttpGet("api/v1/charging-sessions/me/history")]
+        public async Task<IResult> GetMyHistory(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] DateTime? from = null,
+            [FromQuery] DateTime? to = null,
+            [FromQuery] string? status = null,
+            CancellationToken ct = default)
+        {
+            var userId = User.GetUserId();
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var statuses = (status ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => s.ToUpperInvariant())
+                .ToHashSet();
+
+            // chỉ lấy các phiên đã kết thúc (EndedAt != null)
+            var q = _db.ChargingSessions
+                .Where(s => s.EndedAt != null && s.BookingId != null)
+                .Join(_db.Bookings, s => s.BookingId, b => b.Id, (s, b) => new { s, b })
+                .Where(x => x.b.UserId == userId);
+
+            if (from.HasValue) q = q.Where(x => x.s.EndedAt >= from.Value);
+            if (to.HasValue) q = q.Where(x => x.s.EndedAt < to.Value);
+            if (statuses.Count > 0) q = q.Where(x => statuses.Contains(x.s.Status!.ToUpper()));
+
+            var total = await q.CountAsync(ct);
+
+            var items = await q
+                .OrderByDescending(x => x.s.EndedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => new
+                {
+                    id = x.s.Id,
+                    status = x.s.Status,
+                    startedAt = x.s.StartedAt,
+                    endedAt = x.s.EndedAt,
+                    durationMinutes = x.s.DurationMinutes,
+                    targetSoc = x.s.TargetSoc,
+                    socStart = x.s.SocStart,
+                    finalSoc = x.s.FinalSoc,
+                    energyKwh = x.s.EnergyKwh,
+                    cost = x.s.Cost,
+                    bookingId = x.s.BookingId,
+                    chargerId = x.s.ChargerId,
+                    ablyChannel = x.s.AblyChannel
+                })
+                .ToListAsync(ct);
+
+            return Results.Json(new
+            {
+                ok = true,
+                data = new
+                {
+                    page,
+                    pageSize,
+                    total,
+                    items
+                }
+            }, options: Camel);
+        }
+
     }
 }
