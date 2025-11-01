@@ -7,6 +7,7 @@ using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Services.Realtime;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -25,14 +26,16 @@ namespace GoElectrify.Api.Controllers
         private readonly IChargingPaymentService _paymentSvc;
         private readonly AppDbContext _db;
         private readonly ILogger<ChargingSessionsController> _logger;
+        private readonly IAblyTokenCache _ablyTokenCache;
         private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
-        public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, IChargingPaymentService paymentSvc, AppDbContext db, ILogger<ChargingSessionsController> logger)
+        public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, IChargingPaymentService paymentSvc, AppDbContext db, ILogger<ChargingSessionsController> logger, IAblyTokenCache ablyTokenCache)
         {
             _svc = svc;
             _ably = ably;
             _paymentSvc = paymentSvc;
             _db = db;
             _logger = logger;
+            _ablyTokenCache = ablyTokenCache;
         }
         [Authorize(Policy = "NoUnpaidSessions")]
         [HttpPost("start")]
@@ -717,6 +720,116 @@ namespace GoElectrify.Api.Controllers
             {
                 return BadRequest(new { ok = false, error = ex.Message });
             }
+        }
+        [Authorize] // KHÔNG áp NoUnpaidSessions để user còn xem & trả nợ
+        [HttpGet("api/v1/charging-sessions/me/current-with-token")]
+        public async Task<IResult> GetMyCurrentWithToken(
+    [FromQuery] bool includeUnpaid = true,
+    CancellationToken ct = default)
+        {
+            var userId = User.GetUserId();
+
+            // 1) tìm phiên hiện tại (EndedAt == null). Nếu không có, lấy UNPAID gần nhất (khi includeUnpaid)
+            var s = await _db.ChargingSessions
+                .Where(x => x.BookingId != null)
+                .Join(_db.Bookings, x => x.BookingId, b => b.Id, (x, b) => new { s = x, b })
+                .Where(x => x.b.UserId == userId)
+                .OrderByDescending(x => x.s.EndedAt == null) // ưu tiên phiên đang mở
+                .ThenByDescending(x => x.s.EndedAt ?? DateTime.MinValue)
+                .Select(x => x.s)
+                .FirstOrDefaultAsync(ct);
+
+            if (s is null || (s.EndedAt != null && !includeUnpaid))
+                return Results.Json(new { ok = false, error = "no_current_session" }, options: Camel, statusCode: 404);
+
+            if (string.IsNullOrWhiteSpace(s.AblyChannel))
+                return Results.Json(new { ok = false, error = "no_ably_channel" }, options: Camel, statusCode: 409);
+
+            // 2) lấy token từ cache; nếu thiếu/near-expiry → cấp mới (SUBSCRIBE-only cho user)
+            var key = $"realtime:session:{s.Id}:user:{userId}";
+            var cached = await _ablyTokenCache.GetAsync(key, ct);
+            var now = DateTime.UtcNow;
+
+            bool needRefresh = cached is null || cached.ExpiresAtUtc <= now.AddSeconds(90) || cached.ChannelId != s.AblyChannel;
+            if (needRefresh)
+            {
+                var capability = $@"{{""{s.AblyChannel}"":[""subscribe""]}}";
+                var ttl = TimeSpan.FromHours(1);
+
+                var token = await _ably.CreateTokenAsync(
+                    s.AblyChannel,
+                    $"user-{userId}",
+                    capability,
+                    ttl,
+                    ct);
+
+                cached = new CachedAblyToken
+                {
+                    ChannelId = s.AblyChannel!,
+                    TokenJson = JsonSerializer.Serialize(token, Camel),
+                    ExpiresAtUtc = now.Add(ttl)
+                };
+
+                await _ablyTokenCache.SaveAsync(key, cached, ttl, ct);
+            }
+
+            // 3) trả về session summary + token
+            return Results.Json(new
+            {
+                ok = true,
+                data = new
+                {
+                    session = new
+                    {
+                        id = s.Id,
+                        status = s.Status,
+                        startedAt = s.StartedAt,
+                        endedAt = s.EndedAt,
+                        targetSoc = s.TargetSoc,
+                        socStart = s.SocStart,
+                        finalSoc = s.FinalSoc,
+                        energyKwh = s.EnergyKwh,
+                        cost = s.Cost,
+                        bookingId = s.BookingId,
+                        chargerId = s.ChargerId,
+                        channelId = s.AblyChannel
+                    },
+                    ablyToken = JsonSerializer.Deserialize<object>(cached!.TokenJson, Camel),
+                    expiresAt = cached!.ExpiresAtUtc
+                }
+            }, options: Camel);
+        }
+        [Authorize]
+        [HttpPost("api/v1/realtime/session-token")]
+        public async Task<IResult> GetSessionToken([FromBody] dynamic body, CancellationToken ct)
+        {
+            int sessionId = (int)body.sessionId;
+            var userId = User.GetUserId();
+
+            var s = await _db.ChargingSessions
+                .Where(x => x.Id == sessionId && x.BookingId != null)
+                .Join(_db.Bookings, x => x.BookingId, b => b.Id, (x, b) => new { s = x, b })
+                .Where(x => x.b.UserId == userId)
+                .Select(x => x.s)
+                .FirstOrDefaultAsync(ct);
+
+            if (s is null || string.IsNullOrWhiteSpace(s.AblyChannel))
+                return Results.Json(new { ok = false, error = "not_found" }, options: Camel, statusCode: 404);
+
+            var key = $"realtime:session:{s.Id}:user:{userId}";
+            var cached = await _ablyTokenCache.GetAsync(key, ct);
+            var now = DateTime.UtcNow;
+
+            if (cached is null || cached.ExpiresAtUtc <= now.AddSeconds(90))
+            {
+                var capability = $@"{{""{s.AblyChannel}"":[""subscribe""]}}";
+                var ttl = TimeSpan.FromHours(1);
+                var token = await _ably.CreateTokenAsync(s.AblyChannel!, $"user-{userId}", capability, ttl, ct);
+                cached = new CachedAblyToken { ChannelId = s.AblyChannel!, TokenJson = JsonSerializer.Serialize(token, Camel), ExpiresAtUtc = now.Add(ttl) };
+                await _ablyTokenCache.SaveAsync(key, cached, ttl, ct);
+            }
+
+            return Results.Json(new { ok = true, data = new { channelId = s.AblyChannel, ablyToken = JsonSerializer.Deserialize<object>(cached.TokenJson, Camel), expiresAt = cached.ExpiresAtUtc } }, options: Camel);
         }
 
     }
