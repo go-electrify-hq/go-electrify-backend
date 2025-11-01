@@ -832,16 +832,18 @@ namespace GoElectrify.Api.Controllers
 
         [Authorize]
         [HttpPost("api/v1/realtime/session-token")]
-        public async Task<IResult> GetSessionToken([FromBody] dynamic body, CancellationToken ct)
+        public async Task<IResult> GetSessionToken([FromBody] JsonElement body, CancellationToken ct)
         {
-            int sessionId = (int)body.sessionId;
+            if (!body.TryGetProperty("sessionId", out var sidEl) || !sidEl.TryGetInt32(out var sessionId))
+                return Results.Json(new { ok = false, error = "invalid_session_id" }, options: Camel, statusCode: 400);
+
             var userId = User.GetUserId();
 
             var s = await _db.ChargingSessions
                 .Where(x => x.Id == sessionId && x.BookingId != null)
-                .Join(_db.Bookings, x => x.BookingId, b => b.Id, (x, b) => new { s = x, b })
+                .Join(_db.Bookings, s2 => s2.BookingId, b => b.Id, (s2, b) => new { s2, b })
                 .Where(x => x.b.UserId == userId)
-                .Select(x => x.s)
+                .Select(x => x.s2)
                 .FirstOrDefaultAsync(ct);
 
             if (s is null || string.IsNullOrWhiteSpace(s.AblyChannel))
@@ -851,17 +853,25 @@ namespace GoElectrify.Api.Controllers
             var cached = await _ablyTokenCache.GetAsync(key, ct);
             var now = DateTime.UtcNow;
 
-            if (cached is null || cached.ExpiresAtUtc <= now.AddSeconds(90))
+            if (cached is null || cached.ChannelId != s.AblyChannel || cached.ExpiresAtUtc <= now.AddSeconds(90))
             {
-                var capability = $@"{{""{s.AblyChannel}"":[""subscribe""]}}";
                 var ttl = TimeSpan.FromHours(1);
+                var capability = $@"{{""{s.AblyChannel}"":[""subscribe""]}}";
                 var token = await _ably.CreateTokenAsync(s.AblyChannel!, $"user-{userId}", capability, ttl, ct);
-                cached = new CachedAblyToken { ChannelId = s.AblyChannel!, TokenJson = JsonSerializer.Serialize(token, Camel), ExpiresAtUtc = now.Add(ttl) };
+
+                cached = new CachedAblyToken
+                {
+                    ChannelId = s.AblyChannel!,
+                    TokenJson = JsonSerializer.Serialize(token, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                    ExpiresAtUtc = now.Add(ttl)
+                };
                 await _ablyTokenCache.SaveAsync(key, cached, ttl, ct);
             }
 
-            return Results.Json(new { ok = true, data = new { channelId = s.AblyChannel, ablyToken = JsonSerializer.Deserialize<object>(cached.TokenJson, Camel), expiresAt = cached.ExpiresAtUtc } }, options: Camel);
+            var tokenObj = JsonSerializer.Deserialize<JsonElement>(cached.TokenJson);
+            return Results.Json(new { ok = true, data = new { channelId = s.AblyChannel, ablyToken = tokenObj, expiresAt = cached.ExpiresAtUtc } }, options: Camel);
         }
+
 
     }
 }
