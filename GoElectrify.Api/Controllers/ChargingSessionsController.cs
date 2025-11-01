@@ -741,40 +741,51 @@ namespace GoElectrify.Api.Controllers
         [Authorize]
         [HttpGet("api/v1/charging-sessions/me/current-with-token")]
         public async Task<IResult> GetMyCurrentWithToken(
-            [FromQuery] bool includeUnpaid = true,
-            CancellationToken ct = default)
+        [FromQuery] bool includeUnpaid = true,
+        CancellationToken ct = default)
         {
             var userId = User.GetUserId();
 
-            // 1) tìm phiên hiện tại (EndedAt == null). Nếu không có, lấy UNPAID gần nhất (khi includeUnpaid)
-            var s = await _db.ChargingSessions
-                .Where(x => x.BookingId != null)
-                .Join(_db.Bookings, x => x.BookingId, b => b.Id, (x, b) => new { s = x, b })
+            // 1) Tìm phiên active; nếu không có và includeUnpaid=true → lấy UNPAID gần nhất
+            var active = await _db.ChargingSessions
+                .Where(s => s.EndedAt == null && s.BookingId != null)
+                .Join(_db.Bookings, s => s.BookingId, b => b.Id, (s, b) => new { s, b })
                 .Where(x => x.b.UserId == userId)
-                .OrderByDescending(x => x.s.EndedAt == null) // ưu tiên phiên đang mở
-                .ThenByDescending(x => x.s.EndedAt ?? DateTime.MinValue)
+                .OrderByDescending(x => x.s.StartedAt == default ? DateTime.MinValue : x.s.StartedAt)
                 .Select(x => x.s)
                 .FirstOrDefaultAsync(ct);
 
-            if (s is null || (s.EndedAt != null && !includeUnpaid))
+            var s = active;
+            if (s is null && includeUnpaid)
+            {
+                s = await _db.ChargingSessions
+                    .Where(x => x.Status == "UNPAID" && x.BookingId != null)
+                    .Join(_db.Bookings, s => s.BookingId, b => b.Id, (s, b) => new { s, b })
+                    .Where(x => x.b.UserId == userId)
+                    .OrderByDescending(x => x.s.EndedAt ?? DateTime.MinValue)
+                    .Select(x => x.s)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            if (s is null)
                 return Results.Json(new { ok = false, error = "no_current_session" }, options: Camel, statusCode: 404);
 
             if (string.IsNullOrWhiteSpace(s.AblyChannel))
                 return Results.Json(new { ok = false, error = "no_ably_channel" }, options: Camel, statusCode: 409);
 
-            // 2) lấy token từ cache; nếu thiếu/near-expiry → cấp mới (SUBSCRIBE-only cho user)
+            // 2) Lấy token từ cache; nếu thiếu/gần hết hạn → BE tự cấp mới (SUBSCRIBE only)
             var key = $"realtime:session:{s.Id}:user:{userId}";
             var cached = await _ablyTokenCache.GetAsync(key, ct);
             var now = DateTime.UtcNow;
 
-            bool needRefresh = cached is null || cached.ExpiresAtUtc <= now.AddSeconds(90) || cached.ChannelId != s.AblyChannel;
+            bool needRefresh = cached is null || cached.ChannelId != s.AblyChannel || cached.ExpiresAtUtc <= now.AddSeconds(90);
             if (needRefresh)
             {
-                var capability = $@"{{""{s.AblyChannel}"":[""subscribe""]}}";
                 var ttl = TimeSpan.FromHours(1);
+                var capability = $@"{{""{s.AblyChannel}"":[""subscribe""]}}";
 
                 var token = await _ably.CreateTokenAsync(
-                    s.AblyChannel,
+                    s.AblyChannel!,
                     $"user-{userId}",
                     capability,
                     ttl,
@@ -783,14 +794,16 @@ namespace GoElectrify.Api.Controllers
                 cached = new CachedAblyToken
                 {
                     ChannelId = s.AblyChannel!,
-                    TokenJson = JsonSerializer.Serialize(token, Camel),
+                    TokenJson = JsonSerializer.Serialize(token, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
                     ExpiresAtUtc = now.Add(ttl)
                 };
 
                 await _ablyTokenCache.SaveAsync(key, cached, ttl, ct);
             }
 
-            // 3) trả về session summary + token
+            // 3) Chuẩn bị response
+            var tokenObj = JsonSerializer.Deserialize<JsonElement>(cached!.TokenJson); // trả object, không phải chuỗi
+
             return Results.Json(new
             {
                 ok = true,
@@ -811,11 +824,12 @@ namespace GoElectrify.Api.Controllers
                         chargerId = s.ChargerId,
                         channelId = s.AblyChannel
                     },
-                    ablyToken = JsonSerializer.Deserialize<object>(cached!.TokenJson, Camel),
+                    ablyToken = tokenObj,
                     expiresAt = cached!.ExpiresAtUtc
                 }
             }, options: Camel);
         }
+
         [Authorize]
         [HttpPost("api/v1/realtime/session-token")]
         public async Task<IResult> GetSessionToken([FromBody] dynamic body, CancellationToken ct)
