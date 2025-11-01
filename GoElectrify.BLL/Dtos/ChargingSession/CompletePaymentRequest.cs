@@ -2,7 +2,7 @@
 {
     public sealed class CompletePaymentRequest
     {
-        public int? FinalSoc { get; set; }          // % pin khi kết thúc
-        public bool? PreferWallet { get; set; }     // true: ví trước; false/null: gói trước
+        public int? FinalSoc { get; set; }
+        public string? Method { get; set; }      // "WALLET" | "SUBSCRIPTION" | null
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.Security.Claims;
-using System.Text.Json;
-using GoElectrify.Api.Auth;
+﻿using GoElectrify.Api.Auth;
 using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
@@ -8,11 +6,14 @@ using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Entities;
 using GoElectrify.BLL.Services.Realtime;
+using GoElectrify.BLL.Exceptions;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace GoElectrify.Api.Controllers
 {
@@ -701,13 +702,14 @@ namespace GoElectrify.Api.Controllers
                     items
                 }
             }, options: Camel);
+        }
         [HttpPost("{id:int}/complete-payment")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CompletePayment(
-        [FromRoute] int id,
-        [FromBody] CompletePaymentRequest dto,
-        CancellationToken ct = default)
+           [FromRoute] int id,
+           [FromBody] CompletePaymentRequest dto,
+           CancellationToken ct = default)
         {
             var userId = User.GetUserId();
 
@@ -715,6 +717,21 @@ namespace GoElectrify.Api.Controllers
             {
                 var receipt = await _paymentSvc.CompletePaymentAsync(userId, id, dto, ct);
                 return Ok(new { ok = true, data = receipt });
+            }
+            catch (BusinessRuleException brx)
+            {
+                return BadRequest(new
+                {
+                    ok = false,
+                    code = brx.Code,
+                    message = brx.Message,
+                    suggestion = brx.Code switch
+                    {
+                        "WALLET_INSUFFICIENT" => "Vui lòng thanh toán bằng gói hoặc nạp thêm tiền.",
+                        "SUBSCRIPTION_INSUFFICIENT" => "Vui lòng thanh toán bằng số dư ví ảo hoặc mua thêm gói.",
+                        _ => "Vui lòng thử lại."
+                    }
+                });
             }
             catch (InvalidOperationException ex)
             {
