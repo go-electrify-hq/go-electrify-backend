@@ -16,6 +16,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.Extensions.Options;
 using GoElectrify.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
+using GoElectrify.BLL.Services.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(opt =>
@@ -89,7 +90,7 @@ builder.Services.AddScoped<IWalletSubscriptionService, WalletSubscriptionService
 builder.Services.AddScoped<IChargingPaymentService, ChargingPaymentService>();
 builder.Services.AddScoped<IInsightsService, InsightsService>();
 builder.Services.AddDistributedMemoryCache();
-
+builder.Services.AddSingleton<IAblyTokenCache, AblyTokenCache>();
 
 builder.Services.AddScoped<IBookingFeeService, BookingFeeService>();
 builder.Services.AddScoped<ITokenService, TokenService>();

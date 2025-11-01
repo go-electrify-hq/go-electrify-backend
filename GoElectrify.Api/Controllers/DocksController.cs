@@ -15,6 +15,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
+using GoElectrify.BLL.Services.Realtime;
+using System.Text.Json;
 
 
 namespace GoElectrify.Api.Controllers
@@ -28,9 +30,11 @@ namespace GoElectrify.Api.Controllers
         private readonly IConfiguration _cfg;
         private readonly ILogger<DocksController> _logger;
         private readonly IChargingSessionService _svc;
-        public DocksController(IChargingSessionService svc, AppDbContext db, IAblyService ably, IConfiguration cfg, ILogger<DocksController> logger)
+        private readonly IAblyTokenCache _ablyTokenCache;
+        private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
+        public DocksController(IChargingSessionService svc, AppDbContext db, IAblyService ably, IConfiguration cfg, ILogger<DocksController> logger, IAblyTokenCache ablyTokenCache)
         {
-            _db = db; _ably = ably; _cfg = cfg; _logger = logger; _svc = svc;
+            _db = db; _ably = ably; _cfg = cfg; _logger = logger; _svc = svc; _ablyTokenCache = ablyTokenCache;
         }
 
         [HttpPost("log")]
@@ -221,6 +225,19 @@ namespace GoElectrify.Api.Controllers
             var ttl = TimeSpan.FromHours(1);
             var ablyToken = await _ably.CreateTokenAsync(channel, $"dock-{dockId}", capability, ttl, ct);
             var dockJwt = IssueDockSessionJwt(dockId, session.Id, ttl);
+
+            // store dock ably token in BE cache
+            var expiresAt = DateTime.UtcNow.Add(ttl);
+            await _ablyTokenCache.SaveAsync(
+                key: $"realtime:session:{session.Id}:dock",
+                token: new CachedAblyToken
+                {
+                    ChannelId = channel,
+                    TokenJson = JsonSerializer.Serialize(ablyToken, Camel),
+                    ExpiresAtUtc = expiresAt
+                },
+                ttl: ttl,
+                ct);
 
             // cập nhật dock
             charger.AblyChannel = charger.AblyChannel ?? $"ge:dock:{dockId}";
