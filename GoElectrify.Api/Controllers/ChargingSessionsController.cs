@@ -738,11 +738,11 @@ namespace GoElectrify.Api.Controllers
                 return BadRequest(new { ok = false, error = ex.Message });
             }
         }
-        [Authorize] // KHÔNG áp NoUnpaidSessions để user còn xem & trả nợ
+        [Authorize]
         [HttpGet("api/v1/charging-sessions/me/current-with-token")]
         public async Task<IResult> GetMyCurrentWithToken(
-    [FromQuery] bool includeUnpaid = true,
-    CancellationToken ct = default)
+            [FromQuery] bool includeUnpaid = true,
+            CancellationToken ct = default)
         {
             var userId = User.GetUserId();
 
