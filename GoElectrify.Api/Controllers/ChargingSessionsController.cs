@@ -698,6 +698,25 @@ namespace GoElectrify.Api.Controllers
                     items
                 }
             }, options: Camel);
+        [HttpPost("{id:int}/complete-payment")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CompletePayment(
+        [FromRoute] int id,
+        [FromBody] CompletePaymentRequest dto,
+        CancellationToken ct = default)
+        {
+            var userId = User.GetUserId();
+
+            try
+            {
+                var receipt = await _paymentSvc.CompletePaymentAsync(userId, id, dto, ct);
+                return Ok(new { ok = true, data = receipt });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { ok = false, error = ex.Message });
+            }
         }
 
     }

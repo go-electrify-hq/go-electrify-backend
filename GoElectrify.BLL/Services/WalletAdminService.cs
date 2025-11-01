@@ -16,23 +16,24 @@ namespace GoElectrify.BLL.Services
             _txRepo = txRepo;
         }
 
-        public async Task DepositManualAsync(int walletId, ManualDepositRequestDto dto)
+        public async Task DepositManualAsync(int userId, ManualDepositRequestDto dto)
         {
-            var wallet = await _walletRepo.GetByIdAsync(walletId);
+            // Lấy ví từ userId
+            var wallet = await _walletRepo.GetByUserIdAsync(userId);
             if (wallet is null)
-                throw new Exception("Wallet not found");
-            if (dto.Amount < 10000)
-                throw new Exception("Amount must be greater than or equal to 10.000");
+                throw new InvalidOperationException($"Wallet not found for userId = {userId}");
 
-            await _walletRepo.UpdateBalanceAsync(walletId, dto.Amount);
+            // Cộng tiền vào ví
+            await _walletRepo.UpdateBalanceAsync(wallet.Id, dto.Amount);
 
+            // Ghi transaction
             var tx = new Transaction
             {
-                WalletId = walletId,
+                WalletId = wallet.Id,
                 Amount = dto.Amount,
                 Type = "DEPOSIT_MANUAL",
                 Status = "SUCCEEDED",
-                Note = dto.Note ?? "Manual deposit",
+                Note = dto.Note ?? "Manual deposit (admin)"
             };
 
             await _txRepo.AddAsync(tx);

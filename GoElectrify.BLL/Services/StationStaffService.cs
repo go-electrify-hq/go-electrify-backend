@@ -5,78 +5,91 @@ using GoElectrify.BLL.Entities;
 
 namespace GoElectrify.BLL.Services
 {
-    public class StationStaffService(
-        IStationRepository stationRepo,
-        IUserRepository userRepo,
-        IStationStaffRepository repo) : IStationStaffService
+    public class StationStaffService : IStationStaffService
     {
+        private readonly IStationRepository _stationRepo;
+        private readonly IUserRepository _userRepo;
+        private readonly IStationStaffRepository _repo;
+
+        public StationStaffService(
+            IStationRepository stationRepo,
+            IUserRepository userRepo,
+            IStationStaffRepository repo)
+        {
+            _stationRepo = stationRepo;
+            _userRepo = userRepo;
+            _repo = repo;
+        }
+
         public async Task<List<StationStaffDto>> ListAsync(int stationId, CancellationToken ct)
         {
-            // station phải tồn tại
-            var station = await stationRepo.GetByIdAsync(stationId);
+            var station = await _stationRepo.GetByIdAsync(stationId);
             if (station == null) throw new KeyNotFoundException("Station not found.");
 
-            var items = await repo.ListByStationAsync(stationId, ct);
-
-            // Chỉ trả staff ACTIVE
-            var active = items.Where(x => x.RevokedAt == null);
-            return active.Select(ToDto).ToList();
+            var items = await _repo.ListByStationAsync(stationId, includeRevoked: false, ct);
+            return items.Select(ToDto).ToList();
         }
 
         public async Task<StationStaffDto> AssignAsync(int stationId, AssignStaffRequestDto req, CancellationToken ct)
         {
-            // station & user phải tồn tại
-            var station = await stationRepo.GetByIdAsync(stationId);
+            var station = await _stationRepo.GetByIdAsync(stationId);
             if (station == null) throw new KeyNotFoundException("Station not found.");
 
-            var user = await userRepo.GetByIdAsync(req.UserId, ct);
+            // Lấy user kèm role để kiểm tra staff
+            var user = await _userRepo.GetByIdWithRoleAsync(req.UserId, ct);
             if (user == null) throw new KeyNotFoundException("User not found.");
 
-            if (user.RoleId != 2)
-                throw new InvalidOperationException("User is not a Staff.");
+            // CHẶN: chỉ gán người có vai trò "staff"
+            var roleName = user.Role?.Name;
+            if (string.IsNullOrWhiteSpace(roleName) ||
+                !string.Equals(roleName.Trim(), "staff", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("UserNotStaff");
+            }
 
-            // không cho trùng (StationId, UserId)
-            var existed = await repo.GetAsync(stationId, req.UserId, ct);
+            // RÀNG BUỘC: 1 staff chỉ thuộc 1 trạm (active) trên toàn hệ thống
+            var currentActive = await _repo.GetActiveByUserAsync(req.UserId, ct);
+            if (currentActive != null && currentActive.StationId != stationId)
+                throw new InvalidOperationException($"StaffAssignedToOtherStation:{currentActive.StationId}");
 
+            // Idempotent: nếu đã tồn tại và đang active -> báo lỗi; nếu đã revoke -> khôi phục
+            var existed = await _repo.GetAsync(stationId, req.UserId, ct);
+            if (existed is { RevokedAt: null })
+                throw new InvalidOperationException("StaffAlreadyAssigned");
 
-            if (existed is not null && existed.RevokedAt is not null)
+            if (existed is { RevokedAt: not null })
             {
                 existed.RevokedAt = null;
                 existed.RevokedReason = null;
                 existed.AssignedAt = DateTime.UtcNow;
-                repo.Update(existed);
-                await repo.SaveAsync(ct);
+                _repo.Update(existed);
+                await _repo.SaveAsync(ct);
                 return ToDto(existed);
             }
 
-            if (existed is not null && existed.RevokedAt is null)
-                throw new InvalidOperationException("User already assigned to this station.");
-
+            // Tạo mới
             var entity = new StationStaff
             {
                 StationId = stationId,
                 UserId = req.UserId,
-                AssignedAt = DateTime.UtcNow,
-                RevokedAt = null
+                AssignedAt = DateTime.UtcNow
             };
 
-            await repo.AddAsync(entity, ct);
-            await repo.SaveAsync(ct);
+            await _repo.AddAsync(entity, ct);
+            await _repo.SaveAsync(ct);
 
-            var saved = await repo.GetAsync(stationId, req.UserId, ct) ?? entity;
+            var saved = await _repo.GetAsync(stationId, req.UserId, ct) ?? entity;
             return ToDto(saved);
         }
 
         public async Task<RevokeStaffResultDto> DeleteAsync(int stationId, int userId, string reason, CancellationToken ct)
         {
             reason = (reason ?? string.Empty).Trim();
-            if (reason.Length < 3)
-                throw new ArgumentException("Revoke reason must be at least 3 characters.", nameof(reason));
+            if (reason.Length < 3) throw new ArgumentException("Revoke reason must be at least 3 characters.", nameof(reason));
 
-            var existed = await repo.GetAsync(stationId, userId, ct);
+            var existed = await _repo.GetAsync(stationId, userId, ct);
             if (existed == null) throw new KeyNotFoundException("Assignment not found.");
 
-            // Đã revoked từ trước -> idempotent, trả về kết quả hiện trạng
             if (existed.RevokedAt != null)
             {
                 return new RevokeStaffResultDto
@@ -89,11 +102,10 @@ namespace GoElectrify.BLL.Services
                 };
             }
 
-            // Thực hiện revoke
             existed.RevokedAt = DateTime.UtcNow;
             existed.RevokedReason = reason;
-            repo.Update(existed);
-            await repo.SaveAsync(ct);
+            _repo.Update(existed);
+            await _repo.SaveAsync(ct);
 
             return new RevokeStaffResultDto
             {
@@ -104,7 +116,6 @@ namespace GoElectrify.BLL.Services
                 RevokedReason = existed.RevokedReason
             };
         }
-
 
         private static StationStaffDto ToDto(StationStaff s) => new()
         {
