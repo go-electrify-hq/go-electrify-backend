@@ -342,7 +342,7 @@ namespace GoElectrify.Api.Controllers
         public sealed record BindBookingRequest(int? BookingId, string? BookingCode, int? InitialSoc, int? TargetSoc);
 
         [Authorize] // user JWT
-        [HttpPost("/api/v1/sessions/{id:int}/bind-booking")]
+        [HttpPost("{id:int}/bind-booking")]
         public async Task<IActionResult> BindBooking([FromRoute] int id,
                                              [FromBody] BindBookingRequest body,
                                              CancellationToken ct)
@@ -497,7 +497,7 @@ namespace GoElectrify.Api.Controllers
             });
         }
         [Authorize] // User JWT
-        [HttpPost("api/v1/charging-sessions/{id:int}/pay")]
+        [HttpPost("{id:int}/pay")]
         public async Task<IActionResult> PayUnpaid([FromRoute] int id, CancellationToken ct)
         {
             var userId = User.GetUserId();
@@ -575,7 +575,7 @@ namespace GoElectrify.Api.Controllers
         }
 
         [Authorize]
-        [HttpGet("api/v1/charging-sessions/me/current")]
+        [HttpGet("me/current")]
         public async Task<IResult> GetMyCurrent([FromQuery] bool includeUnpaid = false, CancellationToken ct = default)
         {
             var userId = User.GetUserId();
@@ -639,7 +639,7 @@ namespace GoElectrify.Api.Controllers
         }
 
         [Authorize] // KHÔNG áp NoUnpaidSessions
-        [HttpGet("api/v1/charging-sessions/me/history")]
+        [HttpGet("me/history")]
         public async Task<IResult> GetMyHistory(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
@@ -739,7 +739,7 @@ namespace GoElectrify.Api.Controllers
             }
         }
         [Authorize]
-        [HttpGet("api/v1/charging-sessions/me/current-with-token")]
+        [HttpGet("me/current-with-token")]
         public async Task<IResult> GetMyCurrentWithToken(
         [FromQuery] bool includeUnpaid = true,
         CancellationToken ct = default)
@@ -831,7 +831,7 @@ namespace GoElectrify.Api.Controllers
         }
 
         [Authorize]
-        [HttpPost("api/v1/realtime/session-token")]
+        [HttpPost("realtime/session-token")]
         public async Task<IResult> GetSessionToken([FromBody] JsonElement body, CancellationToken ct)
         {
             if (!body.TryGetProperty("sessionId", out var sidEl) || !sidEl.TryGetInt32(out var sessionId))
