@@ -113,7 +113,7 @@ namespace GoElectrify.BLL.Services
 
         public async Task<Station?> GetMyStationAsync(int userId, CancellationToken ct)
         {
-            var assignment = await _staffRepo.GetActiveByUserIdAsync(userId, ct);
+            var assignment = await _staffRepo.GetActiveByUserAsync(userId, ct);
             if (assignment == null) return null;
             return assignment.Station;
 
