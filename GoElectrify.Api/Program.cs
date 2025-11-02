@@ -91,7 +91,7 @@ builder.Services.AddScoped<IChargingPaymentService, ChargingPaymentService>();
 builder.Services.AddScoped<IInsightsService, InsightsService>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSingleton<IAblyTokenCache, AblyTokenCache>();
-
+builder.Services.AddScoped<IRealtimeTokenIssuer, RealtimeTokenIssuer>();
 builder.Services.AddScoped<IBookingFeeService, BookingFeeService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<INotificationMailService, NotificationMailService>();
