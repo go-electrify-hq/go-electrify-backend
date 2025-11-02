@@ -63,7 +63,7 @@ namespace GoElectrify.BLL.Services
                 {
                     WalletId = wallet.Id,
                     ChargingSessionId = s.Id,
-                    Amount = -billedAmount,
+                    Amount = billedAmount,
                     Type = "CHARGING",
                     Status = "SUCCEEDED",
                     Note = $"Charged {billedKwh:F2} kWh @ {unitPrice} VND/kWh",
