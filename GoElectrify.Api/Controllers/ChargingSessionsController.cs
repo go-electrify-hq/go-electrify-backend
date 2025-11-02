@@ -779,6 +779,8 @@ namespace GoElectrify.Api.Controllers
                 clientId: $"user-{userId}",
                 subscribeOnly: true,
                 useCache: true,
+                allowPresence: true,
+                allowHistory: false,
                 ct: ct);
 
             // 3) Chuẩn bị response
