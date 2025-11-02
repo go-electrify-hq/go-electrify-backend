@@ -60,7 +60,7 @@ namespace GoElectrify.DAL.Repositories
                 StationId = x.StationId,
                 StationName = x.Station.Name,
                 ChargerId = x.ChargerId,
-                ReporterUserId = x.ReportedBy.UserId,
+                ReporterName = x.ReportedBy.User.FullName ?? x.ReportedBy.User.Email,
                 Title = x.Title,
                 Description = x.Description,
                 Severity = x.Priority,  // map Priority -> Severity cho UI
@@ -83,7 +83,7 @@ namespace GoElectrify.DAL.Repositories
                     StationId = x.StationId,
                     StationName = x.Station.Name,
                     ChargerId = x.ChargerId,
-                    ReporterUserId = x.ReportedBy.UserId,
+                    ReporterName = x.ReportedBy.User.FullName ?? x.ReportedBy.User.Email,
                     Title = x.Title,
                     Description = x.Description,
                     Severity = x.Priority,
@@ -156,7 +156,7 @@ namespace GoElectrify.DAL.Repositories
                 StationId = inc.StationId,
                 StationName = "", // fallback nếu không load được
                 ChargerId = inc.ChargerId,
-                ReporterUserId = inc.ReportedBy?.UserId ?? 0,
+                ReporterName = inc.ReportedBy?.User?.FullName ?? inc.ReportedBy?.User?.Email,
                 Title = inc.Title,
                 Description = inc.Description,
                 Severity = inc.Priority,
