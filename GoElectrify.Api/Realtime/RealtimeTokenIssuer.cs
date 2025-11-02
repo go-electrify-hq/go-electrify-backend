@@ -15,13 +15,21 @@ namespace GoElectrify.Api.Realtime
             _ably = ably; _cache = cache;
         }
 
-        private static string Capability(string ch, bool subscribeOnly) =>
-            subscribeOnly
-                ? $@"{{""{ch}"":[""subscribe""]}}"
-                : $@"{{""{ch}"":[""subscribe"",""publish""]}}";
+        private static string Capability(string ch, bool subscribeOnly, bool allowPresence, bool allowHistory)
+        {
+            var perms = new List<string> { "subscribe" };
+            if (allowPresence) perms.Add("presence");
+            if (!subscribeOnly) perms.Add("publish");      // chỉ bật khi thật sự cần
+            if (allowHistory) perms.Add("history");
+            var permsJson = string.Join(",", perms.Select(p => $"\"{p}\""));
+            return $@"{{""{ch}"":[{permsJson}]}}";
+        }
 
         public async Task<(JsonElement Token, DateTime ExpiresAtUtc)> IssueAsync(
-            int sessionId, string channelId, string clientId, bool subscribeOnly = true, bool useCache = true, CancellationToken ct = default)
+            int sessionId, string channelId, string clientId,
+            bool subscribeOnly = true, bool useCache = true,
+            bool allowPresence = false, bool allowHistory = false,
+            CancellationToken ct = default)
         {
             var now = DateTime.UtcNow;
             var key = useCache ? $"realtime:session:{sessionId}:client:{clientId}" : null;
@@ -31,7 +39,7 @@ namespace GoElectrify.Api.Realtime
 
             if (cached is null || cached.ChannelId != channelId || cached.ExpiresAtUtc <= now.AddSeconds(90))
             {
-                var token = await _ably.CreateTokenAsync(channelId, clientId, Capability(channelId, subscribeOnly), Ttl, ct);
+                var token = await _ably.CreateTokenAsync(channelId, clientId, Capability(channelId, subscribeOnly, allowPresence, allowHistory), Ttl, ct);
                 cached = new CachedAblyToken
                 {
                     ChannelId = channelId,

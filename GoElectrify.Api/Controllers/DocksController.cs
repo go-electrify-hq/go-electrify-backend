@@ -355,9 +355,11 @@ namespace GoElectrify.Api.Controllers
             var (ablyToken, exp) = await _tokenIssuer.IssueAsync(
                 sessionId: s.Id,
                 channelId: s.AblyChannel!,
-                clientId: clientId,
-                subscribeOnly: true,   // giống user token
-                useCache: false,       // join ẩn danh -> không cần cache
+                clientId: $"viewer-{Guid.NewGuid():N}",
+                subscribeOnly: true,
+                useCache: false,
+                allowPresence: true,     // <-- thêm dòng này
+                allowHistory: false,
                 ct: ct);
 
             return Ok(new
