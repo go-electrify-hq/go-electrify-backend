@@ -100,6 +100,5 @@ namespace GoElectrify.DAL.Repositories
 
             return (items, total);
         }
-
     }
 }
