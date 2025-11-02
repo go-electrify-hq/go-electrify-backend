@@ -42,7 +42,12 @@ namespace GoElectrify.DAL.Persistence.Configurations
                 "status = UPPER(status)"));
 
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_status_allowed",
-                "status in ('PENDING','RUNNING','COMPLETED','ABORTED','TIMEOUT')"));
+                "status in ('PENDING','RUNNING','COMPLETED','TIMEOUT','FAILED','ABORTED','UNPAID','PAID')"));
+
+            // MỚI: ràng buộc flow hợp lý giữa EndedAt và Status
+            b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_status_flow",
+                "CASE WHEN ended_at IS NULL THEN status IN ('PENDING','RUNNING') " +
+                "ELSE status IN ('COMPLETED','TIMEOUT','FAILED','ABORTED','UNPAID','PAID') END"));
 
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_timespan",
                 "ended_at IS NULL OR ended_at >= started_at"));
