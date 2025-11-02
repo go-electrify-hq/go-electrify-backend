@@ -57,7 +57,9 @@ namespace GoElectrify.Api.Hosted
                                 continue; // còn trong ân hạn -> bỏ qua
 
                             _log.LogWarning("Auto-stop session {Id} (no first tick after {Sec}s).", s.Id, sinceStart);
-
+                            var stillActive = await db.ChargingSessions
+                                .AnyAsync(x => x.Id == s.Id && x.EndedAt == null && x.Status == "RUNNING", stoppingToken);
+                            if (!stillActive) continue;
                             // Dừng phiên vì NO_ACTIVITY
                             var dto = await svc.StopAsync(userId: 0, sessionId: s.Id, reason: "NO_ACTIVITY", ct: stoppingToken);
 
@@ -77,7 +79,9 @@ namespace GoElectrify.Api.Hosted
                         if (miss >= HARD_MISS_SECONDS)
                         {
                             _log.LogWarning("Auto-stop session {Id} due to idle timeout ({Sec}s).", s.Id, miss);
-
+                            var stillActive = await db.ChargingSessions
+                                .AnyAsync(x => x.Id == s.Id && x.EndedAt == null && x.Status == "RUNNING", stoppingToken);
+                            if (!stillActive) continue;
                             var dto = await svc.StopAsync(userId: 0, sessionId: s.Id, reason: "IDLE_TIMEOUT", ct: stoppingToken);
 
                             // Nếu StopAsync đã publish Ably thì có thể bỏ khối publish dưới:

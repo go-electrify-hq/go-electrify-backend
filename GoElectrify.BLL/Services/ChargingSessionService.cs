@@ -160,7 +160,8 @@ namespace GoElectrify.BLL.Services
                 var hours = s.DurationMinutes / 60m;
                 avgPowerKw = Math.Round(s.EnergyKwh / hours, 3, MidpointRounding.AwayFromZero);
             }
-
+            s.AvgPowerKw = avgPowerKw;
+            await repo.SaveChangesAsync(ct);
             // (Chưa có pricing) để Cost = null
             return new StopResult(
                 EndedAt: s.EndedAt!.Value,
