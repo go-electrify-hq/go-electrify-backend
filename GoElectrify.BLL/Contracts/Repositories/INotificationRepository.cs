@@ -5,11 +5,17 @@ namespace GoElectrify.BLL.Contracts.Repositories
 {
     public interface INotificationRepository
     {
-        //Lấy danh sách thông báo phù hợp với vai trò người dùng (Driver / Staff / Admin).
+        // ===== Sự kiện (render dashboard) =====
         Task<List<NotificationDto>> GetByRoleAsync(int userId, string role, CancellationToken ct);
-
-        //Lấy danh sách ID tất cả thông báo của user (dùng khi đánh dấu "đã đọc tất cả").
         Task<List<string>> GetAllIdsAsync(int userId, string role, CancellationToken ct);
-        Task<bool> IsVisibleIdAsync(int userId, string role, string notifId, CancellationToken ct); // NEW
+        Task<bool> IsVisibleIdAsync(int userId, string role, string notifId, CancellationToken ct);
+
+        // ===== Trạng thái (table Notifications) =====
+        Task<DateTime?> GetLastSeenUtcAsync(int userId, CancellationToken ct);
+        Task UpsertLastSeenUtcAsync(int userId, DateTime lastSeenUtc, CancellationToken ct);
+
+        Task<HashSet<string>> GetReadKeysAsync(int userId, CancellationToken ct);
+        Task MarkReadAsync(int userId, string notifKey, CancellationToken ct);
+        Task MarkAllReadAsync(int userId, IEnumerable<string> notifKeys, CancellationToken ct);
     }
 }

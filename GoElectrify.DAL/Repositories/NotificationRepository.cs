@@ -1,5 +1,6 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Dto.Notification;
+using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,207 +11,216 @@ namespace GoElectrify.DAL.Repositories
         private readonly AppDbContext _db;
         public NotificationRepository(AppDbContext db) => _db = db;
 
+        // ---- Helpers (labels & keys) ----
+        private static string BookingTitle(string status) => status switch
+        {
+            "CONFIRMED" => "Đặt chỗ xác nhận thành công",
+            "FAILED" => "Đặt chỗ thất bại",
+            "CANCELED" => "Đặt chỗ đã huỷ",
+            "EXPIRED" => "Đặt chỗ hết hạn",
+            _ => "Đặt chỗ mới"
+        };
+        private static string BookingSeverity(string status) => status == "FAILED" ? "HIGH" : "LOW";
+        private static (string title, string severity) TxLabel(string type, string status) => status switch
+        {
+            "SUCCESS" => ($"{type} thành công", "LOW"),
+            "FAILED" => ($"{type} thất bại", "HIGH"),
+            "REFUNDED" => ($"{type} hoàn tiền", "MEDIUM"),
+            _ => ($"{type} cập nhật", "LOW")
+        };
+
+        private static string KeyAssign(int id, DateTime? at) => $"assign:{id}:{(at ?? DateTime.UnixEpoch).Ticks}";
+        private static string KeyRevoke(int id, DateTime at) => $"revoke:{id}:{at.Ticks}";
+        private static string KeyBooking(int id) => $"booking:{id}";
+        private static string KeyTx(int id) => $"tx:{id}";
+        private static string KeyDeposit(int id) => $"deposit:{id}";
+        private static string KeyIncident(int id) => $"incident:{id}";
+
+        // ===================== DASHBOARD =====================
+
         public async Task<List<NotificationDto>> GetByRoleAsync(int userId, string role, CancellationToken ct)
         {
             var since = DateTime.UtcNow.AddDays(-7);
-            var bag = new List<NotificationDto>();
+            var isAdmin = role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            var isStaff = role.Equals("Staff", StringComparison.OrdinalIgnoreCase);
 
-            bool isDriver = role.Equals("Driver", StringComparison.OrdinalIgnoreCase);
-            bool isStaff = role.Equals("Staff", StringComparison.OrdinalIgnoreCase);
-            bool isAdmin = role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            var bag = new List<NotificationDto>(256);
 
-            // === BOOKING + TRANSACTION cho tất cả role (lọc theo user nếu không phải admin) ===
-            // Booking
-            var bookingQuery = _db.Bookings.Include(b => b.Station)
-                .AsQueryable();
+            // Bookings
+            var bkQuery = _db.Bookings.AsNoTracking()
+                .Where(b => b.CreatedAt >= since || b.UpdatedAt >= since);
+            if (!isAdmin) bkQuery = bkQuery.Where(b => b.UserId == userId);
 
-            bookingQuery = isAdmin
-                ? bookingQuery.Where(b => b.CreatedAt >= since || b.UpdatedAt >= since)
-                : bookingQuery.Where(b => b.UserId == userId && (b.CreatedAt >= since || b.UpdatedAt >= since));
+            var bkRows = await bkQuery
+                .Select(b => new { b.Id, b.Status, StationName = b.Station.Name, At = b.UpdatedAt })
+                .ToListAsync(ct);
 
-            var bookings = await bookingQuery.ToListAsync(ct);
-            foreach (var b in bookings)
+            foreach (var b in bkRows)
             {
-                var title = b.Status switch
-                {
-                    "CONFIRMED" => "Đặt chỗ xác nhận thành công",
-                    "FAILED" => "Đặt chỗ thất bại",
-                    "CANCELED" => "Đặt chỗ đã huỷ",
-                    "EXPIRED" => "Đặt chỗ hết hạn",
-                    _ => "Đặt chỗ mới"
-                };
-
+                var status = b.Status ?? "UPDATED";
                 bag.Add(new NotificationDto
                 {
-                    Id = $"booking:{b.Id}",
-                    Type = $"booking.{b.Status.ToLower()}",
-                    Title = title,
-                    Message = $"Trạm {b.Station.Name}",
-                    Severity = b.Status == "FAILED" ? "HIGH" : "LOW",
-                    CreatedAt = b.UpdatedAt
+                    Id = KeyBooking(b.Id),
+                    Type = $"booking.{status.ToLowerInvariant()}",
+                    Title = BookingTitle(status),
+                    Message = $"Trạm {b.StationName}",
+                    Severity = BookingSeverity(status),
+                    CreatedAt = b.At
                 });
             }
 
-            // Transactions (payment/wallet/subscription)
-            var txQuery = _db.Transactions.Include(t => t.Wallet).AsQueryable();
+            // Transactions
+            var txQuery = _db.Transactions.AsNoTracking()
+                .Where(t => t.CreatedAt >= since);
+            if (!isAdmin) txQuery = txQuery.Where(t => t.Wallet.UserId == userId);
 
-            txQuery = isAdmin
-                ? txQuery.Where(t => t.CreatedAt >= since)
-                : txQuery.Where(t => t.Wallet.UserId == userId && t.CreatedAt >= since);
+            var txRows = await txQuery
+                .Select(t => new { t.Id, t.Type, t.Status, t.Amount, t.CreatedAt })
+                .ToListAsync(ct);
 
-            var txs = await txQuery.ToListAsync(ct);
-            foreach (var t in txs)
+            foreach (var t in txRows)
             {
-                var title = t.Status switch
-                {
-                    "SUCCESS" => $"{t.Type} thành công",
-                    "FAILED" => $"{t.Type} thất bại",
-                    "REFUNDED" => $"{t.Type} hoàn tiền",
-                    _ => $"{t.Type} cập nhật"
-                };
-                var sev = t.Status switch
-                {
-                    "FAILED" => "HIGH",
-                    "REFUNDED" => "MEDIUM",
-                    _ => "LOW"
-                };
+                var type = string.IsNullOrWhiteSpace(t.Type) ? "Giao dịch" : t.Type!;
+                var status = string.IsNullOrWhiteSpace(t.Status) ? "UPDATED" : t.Status!;
+                var (title, severity) = TxLabel(type, status);
 
                 bag.Add(new NotificationDto
                 {
-                    Id = $"tx:{t.Id}",
-                    Type = $"transaction.{t.Type.ToLower()}.{t.Status.ToLower()}",
+                    Id = KeyTx(t.Id),
+                    Type = $"transaction.{type.ToLowerInvariant()}.{status.ToLowerInvariant()}",
                     Title = title,
-                    Message = $"{t.Type} • {t.Amount:n0}đ",
-                    Severity = sev,
+                    Message = $"{t.Amount:n0}đ",
+                    Severity = severity,
                     CreatedAt = t.CreatedAt
                 });
             }
 
-            // === STAFF đặc thù: Incident trạm mình + Deposit nạp hộ + Revoked quyền ===
+            // Staff-specific
             if (isStaff)
             {
-                // Incident trạm mình (đang active)
-                var stationIds = await _db.StationStaff
+                var myStationIds = await _db.StationStaff.AsNoTracking()
                     .Where(s => s.UserId == userId && s.RevokedAt == null)
                     .Select(s => s.StationId)
                     .ToListAsync(ct);
 
-                var incidents = await _db.Incidents
-                    .Include(i => i.Station)
-                    .Where(i => stationIds.Contains(i.StationId) && i.CreatedAt >= since)
+                // Incidents tại trạm của mình
+                var incs = await _db.Incidents.AsNoTracking()
+                    .Where(i => myStationIds.Contains(i.StationId) && i.CreatedAt >= since)
+                    .Select(i => new { i.Id, StationName = i.Station.Name, i.Priority, i.CreatedAt })
                     .ToListAsync(ct);
 
-                foreach (var i in incidents)
+                foreach (var i in incs)
                 {
                     bag.Add(new NotificationDto
                     {
-                        Id = $"incident:{i.Id}",
+                        Id = KeyIncident(i.Id),
                         Type = "incident.reported",
                         Title = "Sự cố trạm được báo cáo",
-                        Message = $"Trạm {i.Station.Name}",
-                        Severity = i.Priority ?? "MEDIUM",
+                        Message = $"Trạm {i.StationName}",
+                        Severity = string.IsNullOrWhiteSpace(i.Priority) ? "MEDIUM" : i.Priority!,
                         CreatedAt = i.CreatedAt
                     });
                 }
 
-                // Deposit: staff nạp hộ khách (STAFF_DEPOSIT:{staffUserId})
-                var deposits = await _db.Transactions
-                    .Where(t => t.Note != null
-                                && EF.Functions.Like(t.Note, $"%STAFF_DEPOSIT:{userId}%")
-                                && t.CreatedAt >= since)
+                // Deposit (nạp hộ): PostgreSQL → ILike
+                var deps = await _db.Transactions.AsNoTracking()
+                    .Where(t => t.CreatedAt >= since &&
+                                t.Note != null &&
+                                EF.Functions.ILike(t.Note!, $"%STAFF_DEPOSIT:{userId}%"))
+                    .Select(t => new { t.Id, t.Status, t.Amount, t.CreatedAt })
                     .ToListAsync(ct);
 
-                foreach (var t in deposits)
+                foreach (var d in deps)
                 {
+                    var ok = string.Equals(d.Status, "SUCCESS", StringComparison.OrdinalIgnoreCase);
                     bag.Add(new NotificationDto
                     {
-                        Id = $"deposit:{t.Id}",
-                        Type = $"wallet.staffdeposit.{t.Status.ToLower()}",
-                        Title = t.Status == "SUCCESS" ? "Nạp hộ khách thành công" : "Nạp hộ khách thất bại",
-                        Message = $"{t.Amount:n0}đ",
-                        Severity = t.Status == "FAILED" ? "HIGH" : "LOW",
-                        CreatedAt = t.CreatedAt
+                        Id = KeyDeposit(d.Id),
+                        Type = $"wallet.staffdeposit.{(d.Status ?? "UPDATED").ToLowerInvariant()}",
+                        Title = ok ? "Nạp hộ khách thành công" : "Nạp hộ khách thất bại",
+                        Message = $"{d.Amount:n0}đ",
+                        Severity = ok ? "LOW" : "HIGH",
+                        CreatedAt = d.CreatedAt
                     });
                 }
 
-                // Staff bị thu quyền (event-based)
-                var revokedMine = await _db.StationStaff
-                    .Include(s => s.Station)
+                // Revoke (quyền của chính mình)
+                var revs = await _db.StationStaff.AsNoTracking()
                     .Where(s => s.UserId == userId && s.RevokedAt != null && s.RevokedAt >= since)
+                    .Select(s => new { s.Id, s.Station.Name, s.RevokedAt, s.RevokedReason })
                     .ToListAsync(ct);
 
-                foreach (var s in revokedMine)
+                foreach (var s in revs)
                 {
+                    var at = s.RevokedAt!.Value;
                     var reason = string.IsNullOrWhiteSpace(s.RevokedReason)
                         ? "Quyền của bạn tại trạm đã bị thu hồi."
                         : s.RevokedReason!;
-                    var at = s.RevokedAt!.Value;
-
                     bag.Add(new NotificationDto
                     {
-                        Id = $"revoke:{s.Id}:{at.Ticks}",
+                        Id = KeyRevoke(s.Id, at),
                         Type = "station.staff.revoked",
                         Title = "Bạn bị thu hồi quyền tại trạm",
-                        Message = $"Trạm {s.Station.Name} • {reason}",
+                        Message = $"Trạm {s.Name} • {reason}",
                         Severity = "MEDIUM",
                         CreatedAt = at
                     });
                 }
             }
 
-            // === ADMIN: incident hệ thống + assign/revoke (event-based) ===
+            // Admin-specific
             if (isAdmin)
             {
-                var incidents = await _db.Incidents.Include(i => i.Station)
+                var incs = await _db.Incidents.AsNoTracking()
                     .Where(i => i.CreatedAt >= since)
+                    .Select(i => new { i.Id, StationName = i.Station.Name, i.Priority, i.CreatedAt })
                     .ToListAsync(ct);
 
-                foreach (var i in incidents)
+                foreach (var i in incs)
                 {
                     bag.Add(new NotificationDto
                     {
-                        Id = $"incident:{i.Id}",
+                        Id = KeyIncident(i.Id),
                         Type = "incident.reported",
                         Title = "Sự cố mới toàn hệ thống",
-                        Message = $"Trạm {i.Station.Name}",
-                        Severity = i.Priority ?? "MEDIUM",
+                        Message = $"Trạm {i.StationName}",
+                        Severity = string.IsNullOrWhiteSpace(i.Priority) ? "MEDIUM" : i.Priority!,
                         CreatedAt = i.CreatedAt
                     });
                 }
 
-                var assigns = await _db.StationStaff
-                    .Include(s => s.Station)
-                    .Where(s => s.AssignedAt >= since)
+                var asgs = await _db.StationStaff.AsNoTracking()
+                    .Where(s => s.AssignedAt != null && s.AssignedAt >= since)
+                    .Select(s => new { s.Id, s.Station.Name, s.AssignedAt })
                     .ToListAsync(ct);
 
-                foreach (var s in assigns)
+                foreach (var s in asgs)
                 {
-                    var at = s.AssignedAt;
                     bag.Add(new NotificationDto
                     {
-                        Id = $"assign:{s.Id}:{at.Ticks}",
+                        Id = KeyAssign(s.Id, s.AssignedAt),
                         Type = "station.staff.assigned",
                         Title = "Gán nhân viên vào trạm",
-                        Message = $"Trạm {s.Station.Name}",
+                        Message = $"Trạm {s.Name}",
                         Severity = "LOW",
-                        CreatedAt = at
+                        CreatedAt = s.AssignedAt!
                     });
                 }
 
-                var revokedAll = await _db.StationStaff
-                    .Include(s => s.Station)
+                var revs = await _db.StationStaff.AsNoTracking()
                     .Where(s => s.RevokedAt != null && s.RevokedAt >= since)
+                    .Select(s => new { s.Id, s.Station.Name, s.RevokedAt })
                     .ToListAsync(ct);
 
-                foreach (var s in revokedAll)
+                foreach (var s in revs)
                 {
                     var at = s.RevokedAt!.Value;
                     bag.Add(new NotificationDto
                     {
-                        Id = $"revoke:{s.Id}:{at.Ticks}",
+                        Id = KeyRevoke(s.Id, at),
                         Type = "station.staff.revoked",
                         Title = "Thu hồi quyền nhân viên tại trạm",
-                        Message = $"Trạm {s.Station.Name}",
+                        Message = $"Trạm {s.Name}",
                         Severity = "MEDIUM",
                         CreatedAt = at
                     });
@@ -220,79 +230,69 @@ namespace GoElectrify.DAL.Repositories
             return bag.OrderByDescending(x => x.CreatedAt).ToList();
         }
 
+        // ================== ID VISIBILITY & ALL IDS ==================
+
         public async Task<List<string>> GetAllIdsAsync(int userId, string role, CancellationToken ct)
         {
-            var ids = new List<string>();
-            bool isDriver = role.Equals("Driver", StringComparison.OrdinalIgnoreCase);
-            bool isStaff = role.Equals("Staff", StringComparison.OrdinalIgnoreCase);
-            bool isAdmin = role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            var isStaff = role.Equals("Staff", StringComparison.OrdinalIgnoreCase);
 
-            // Booking + Transaction: admin = tất cả; staff/driver = của mình
+            var ids = new List<string>(256);
+
+            // bookings
+            var bQuery = _db.Bookings.AsNoTracking();
+            if (!isAdmin) bQuery = bQuery.Where(b => b.UserId == userId);
+            foreach (var id in await bQuery.Select(b => b.Id).ToListAsync(ct))
+                ids.Add(KeyBooking(id));
+
+            // transactions
+            var tQuery = _db.Transactions.AsNoTracking();
+            if (!isAdmin) tQuery = tQuery.Where(t => t.Wallet.UserId == userId);
+            foreach (var id in await tQuery.Select(t => t.Id).ToListAsync(ct))
+                ids.Add(KeyTx(id));
+
+            if (isAdmin)
             {
-                var bookingIds = isAdmin
-                    ? await _db.Bookings.Select(b => $"booking:{b.Id}").ToListAsync(ct)
-                    : await _db.Bookings.Where(b => b.UserId == userId)
-                        .Select(b => $"booking:{b.Id}").ToListAsync(ct);
-                ids.AddRange(bookingIds);
+                foreach (var id in await _db.Incidents.AsNoTracking().Select(i => i.Id).ToListAsync(ct))
+                    ids.Add(KeyIncident(id));
 
-                var txIds = isAdmin
-                    ? await _db.Transactions.Select(t => $"tx:{t.Id}").ToListAsync(ct)
-                    : await _db.Transactions.Include(t => t.Wallet)
-                        .Where(t => t.Wallet.UserId == userId)
-                        .Select(t => $"tx:{t.Id}").ToListAsync(ct);
-                ids.AddRange(txIds);
+                var assigns = await _db.StationStaff.AsNoTracking()
+                    .Where(s => s.AssignedAt != null)
+                    .Select(s => new { s.Id, s.AssignedAt })
+                    .ToListAsync(ct);
+                ids.AddRange(assigns.Select(a => KeyAssign(a.Id, a.AssignedAt)));
+
+                var revokes = await _db.StationStaff.AsNoTracking()
+                    .Where(s => s.RevokedAt != null)
+                    .Select(s => new { s.Id, s.RevokedAt })
+                    .ToListAsync(ct);
+                ids.AddRange(revokes.Select(r => KeyRevoke(r.Id, r.RevokedAt!.Value)));
+
+                return ids.Distinct().ToList();
             }
 
-            // Staff: deposit của mình
             if (isStaff)
             {
-                var depositIds = await _db.Transactions
-                    .Where(t => t.Note != null && EF.Functions.Like(t.Note, $"%STAFF_DEPOSIT:{userId}%"))
-                    .Select(t => $"deposit:{t.Id}")
-                    .ToListAsync(ct);
-                ids.AddRange(depositIds);
-            }
-
-            // Incident: admin = tất cả; staff = trạm active của mình
-            if (isAdmin)
-            {
-                var incidentIds = await _db.Incidents.Select(i => $"incident:{i.Id}").ToListAsync(ct);
-                ids.AddRange(incidentIds);
-            }
-            else if (isStaff)
-            {
-                var stationIds = await _db.StationStaff
+                var myStationIds = await _db.StationStaff.AsNoTracking()
                     .Where(s => s.UserId == userId && s.RevokedAt == null)
-                    .Select(s => s.StationId).ToListAsync(ct);
-
-                var incidentIds = await _db.Incidents
-                    .Where(i => stationIds.Contains(i.StationId))
-                    .Select(i => $"incident:{i.Id}")
+                    .Select(s => s.StationId)
                     .ToListAsync(ct);
-                ids.AddRange(incidentIds);
-            }
 
-            // Event-based: revoke/assign (admin tất cả; staff chỉ revoke của mình)
-            if (isAdmin)
-            {
-                var assignIds = await _db.StationStaff
-                    .Select(s => $"assign:{s.Id}:{s.AssignedAt.Ticks}")
-                    .ToListAsync(ct);
-                ids.AddRange(assignIds);
+                foreach (var id in await _db.Incidents.AsNoTracking()
+                    .Where(i => myStationIds.Contains(i.StationId))
+                    .Select(i => i.Id).ToListAsync(ct))
+                    ids.Add(KeyIncident(id));
 
-                var revokeIds = await _db.StationStaff
-                    .Where(s => s.RevokedAt != null)
-                    .Select(s => $"revoke:{s.Id}:{s.RevokedAt!.Value.Ticks}")
-                    .ToListAsync(ct);
-                ids.AddRange(revokeIds);
-            }
-            else if (isStaff)
-            {
-                var revokeMine = await _db.StationStaff
+                foreach (var id in await _db.Transactions.AsNoTracking()
+                    .Where(t => t.Note != null && EF.Functions.ILike(t.Note!, $"%STAFF_DEPOSIT:{userId}%"))
+                    .Select(t => t.Id).ToListAsync(ct))
+                    ids.Add(KeyDeposit(id));
+
+                var revs = await _db.StationStaff.AsNoTracking()
                     .Where(s => s.UserId == userId && s.RevokedAt != null)
-                    .Select(s => $"revoke:{s.Id}:{s.RevokedAt!.Value.Ticks}")
+                    .Select(s => new { s.Id, s.RevokedAt })
                     .ToListAsync(ct);
-                ids.AddRange(revokeMine);
+                ids.AddRange(revs.Select(r => KeyRevoke(r.Id, r.RevokedAt!.Value)));
             }
 
             return ids.Distinct().ToList();
@@ -302,61 +302,166 @@ namespace GoElectrify.DAL.Repositories
         {
             if (string.IsNullOrWhiteSpace(notifId)) return false;
 
-            var firstColon = notifId.IndexOf(':');
-            if (firstColon <= 0) return false;
-            var prefix = notifId[..firstColon];
-            var rest = notifId[(firstColon + 1)..];
+            var p = notifId.IndexOf(':');
+            if (p <= 0) return false;
+            var prefix = notifId[..p];
+            var rest = notifId[(p + 1)..];
 
-            var secondColon = rest.IndexOf(':');
-            var idPart = secondColon >= 0 ? rest[..secondColon] : rest;
-            if (!int.TryParse(idPart, out var entityId)) return false;
+            var q = rest.IndexOf(':');
+            var idStr = q >= 0 ? rest[..q] : rest;
+            if (!int.TryParse(idStr, out var entityId)) return false;
 
-            bool isAdmin = role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
-            bool isStaff = role.Equals("Staff", StringComparison.OrdinalIgnoreCase);
-            bool isDriver = role.Equals("Driver", StringComparison.OrdinalIgnoreCase);
+            var isAdmin = role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            var isStaff = role.Equals("Staff", StringComparison.OrdinalIgnoreCase);
 
             switch (prefix)
             {
                 case "booking":
-                    if (isAdmin) return await _db.Bookings.AnyAsync(b => b.Id == entityId, ct);
-                    // staff/driver: booking của chính mình
-                    return await _db.Bookings.AnyAsync(b => b.Id == entityId && b.UserId == userId, ct);
+                    return isAdmin
+                        ? await _db.Bookings.AsNoTracking().AnyAsync(b => b.Id == entityId, ct)
+                        : await _db.Bookings.AsNoTracking().AnyAsync(b => b.Id == entityId && b.UserId == userId, ct);
 
                 case "tx":
-                    if (isAdmin) return await _db.Transactions.AnyAsync(t => t.Id == entityId, ct);
-                    // staff/driver: transaction thuộc ví của mình
-                    return await _db.Transactions.Include(t => t.Wallet)
-                        .AnyAsync(t => t.Id == entityId && t.Wallet.UserId == userId, ct);
-
-                case "deposit":
-                    if (isAdmin) return await _db.Transactions.AnyAsync(t => t.Id == entityId, ct);
-                    if (isStaff)
-                        return await _db.Transactions.AnyAsync(
-                            t => t.Id == entityId && t.Note != null &&
-                                 EF.Functions.Like(t.Note, $"%STAFF_DEPOSIT:{userId}%"), ct);
-                    return false;
+                    return isAdmin
+                        ? await _db.Transactions.AsNoTracking().AnyAsync(t => t.Id == entityId, ct)
+                        : await _db.Transactions.AsNoTracking().AnyAsync(t => t.Id == entityId && t.Wallet.UserId == userId, ct);
 
                 case "incident":
-                    if (isAdmin) return await _db.Incidents.AnyAsync(i => i.Id == entityId, ct);
-                    if (isStaff)
-                    {
-                        var stationIds = await _db.StationStaff
-                            .Where(s => s.UserId == userId && s.RevokedAt == null)
-                            .Select(s => s.StationId).ToListAsync(ct);
-                        return await _db.Incidents.AnyAsync(i => i.Id == entityId && stationIds.Contains(i.StationId), ct);
-                    }
-                    return false;
+                    if (isAdmin) return await _db.Incidents.AsNoTracking().AnyAsync(i => i.Id == entityId, ct);
+                    if (!isStaff) return false;
+                    var myStationIds = await _db.StationStaff.AsNoTracking()
+                        .Where(s => s.UserId == userId && s.RevokedAt == null)
+                        .Select(s => s.StationId).ToListAsync(ct);
+                    return await _db.Incidents.AsNoTracking()
+                        .AnyAsync(i => i.Id == entityId && myStationIds.Contains(i.StationId), ct);
+
+                case "deposit":
+                    if (!isStaff) return false;
+                    return await _db.Transactions.AsNoTracking()
+                        .AnyAsync(t => t.Id == entityId &&
+                                       t.Note != null &&
+                                       EF.Functions.ILike(t.Note!, $"%STAFF_DEPOSIT:{userId}%"), ct);
 
                 case "assign":
-                    return isAdmin && await _db.StationStaff.AnyAsync(ss => ss.Id == entityId, ct);
+                    return isAdmin && await _db.StationStaff.AsNoTracking().AnyAsync(s => s.Id == entityId, ct);
 
                 case "revoke":
-                    if (isAdmin) return await _db.StationStaff.AnyAsync(ss => ss.Id == entityId, ct);
-                    if (isStaff) return await _db.StationStaff.AnyAsync(ss => ss.Id == entityId && ss.UserId == userId, ct);
+                    if (isAdmin) return await _db.StationStaff.AsNoTracking().AnyAsync(s => s.Id == entityId, ct);
+                    if (isStaff) return await _db.StationStaff.AsNoTracking().AnyAsync(s => s.Id == entityId && s.UserId == userId, ct);
+                    return false;
+
+                default:
                     return false;
             }
+        }
 
-            return false;
+        // ===================== STATE TABLE =====================
+
+        public Task<DateTime?> GetLastSeenUtcAsync(int userId, CancellationToken ct)
+            => _db.Notifications.AsNoTracking()
+                .Where(n => n.UserId == userId
+                            && n.IsMarker
+                            && n.MarkerKind == "LAST_SEEN"
+                            && n.MarkerValueUtc != null)
+                .Select(n => n.MarkerValueUtc)
+                .MaxAsync(ct);
+
+
+        public async Task UpsertLastSeenUtcAsync(int userId, DateTime lastSeenUtc, CancellationToken ct)
+        {
+            // Lấy tất cả marker LAST_SEEN của user (nếu lỡ có nhiều do lịch sử)
+            var markers = await _db.Notifications
+                .Where(n => n.UserId == userId && n.IsMarker && n.MarkerKind == "LAST_SEEN")
+                .OrderByDescending(n => n.Id) // ưu tiên row mới nhất
+                .ToListAsync(ct);
+
+            if (markers.Count == 0)
+            {
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = userId,
+                    IsMarker = true,
+                    MarkerKind = "LAST_SEEN",
+                    MarkerValueUtc = lastSeenUtc,
+                    NotifKey = "" // giữ nguyên contract cũ
+                });
+                await _db.SaveChangesAsync(ct);
+                return;
+            }
+
+            // Cập nhật row mới nhất
+            var keep = markers[0];
+            keep.MarkerValueUtc = lastSeenUtc;
+
+            // Dọn duplicates cũ (không cần đổi schema)
+            if (markers.Count > 1)
+            {
+                var extras = markers.Skip(1).ToList();
+                _db.Notifications.RemoveRange(extras);
+            }
+
+            await _db.SaveChangesAsync(ct);
+        }
+
+
+        public async Task<HashSet<string>> GetReadKeysAsync(int userId, CancellationToken ct)
+            => (await _db.Notifications.AsNoTracking()
+                .Where(n => n.UserId == userId && !n.IsMarker && n.ReadAtUtc != null)
+                .Select(n => n.NotifKey)
+                .ToListAsync(ct)).ToHashSet();
+
+        public async Task MarkReadAsync(int userId, string notifKey, CancellationToken ct)
+        {
+            var row = await _db.Notifications
+                .FirstOrDefaultAsync(n => n.UserId == userId && !n.IsMarker && n.NotifKey == notifKey, ct);
+
+            if (row is null)
+            {
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = userId,
+                    IsMarker = false,
+                    NotifKey = notifKey,
+                    ReadAtUtc = DateTime.UtcNow
+                });
+            }
+            else if (row.ReadAtUtc is null)
+            {
+                row.ReadAtUtc = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync(ct);
+        }
+
+        public async Task MarkAllReadAsync(int userId, IEnumerable<string> notifKeys, CancellationToken ct)
+        {
+            var keys = notifKeys?.Distinct().ToList() ?? [];
+            if (keys.Count == 0) return;
+
+            var existing = await _db.Notifications.AsNoTracking()
+                .Where(n => n.UserId == userId && !n.IsMarker && keys.Contains(n.NotifKey))
+                .Select(n => n.NotifKey)
+                .ToListAsync(ct);
+            var exist = existing.ToHashSet();
+
+            var toInsert = keys.Where(k => !exist.Contains(k))
+                .Select(k => new Notification
+                {
+                    UserId = userId,
+                    IsMarker = false,
+                    NotifKey = k,
+                    ReadAtUtc = DateTime.UtcNow
+                }).ToList();
+
+            if (toInsert.Count > 0)
+                _db.Notifications.AddRange(toInsert);
+
+            await _db.Notifications
+                .Where(n => n.UserId == userId && !n.IsMarker && keys.Contains(n.NotifKey) && n.ReadAtUtc == null)
+                .ExecuteUpdateAsync(u => u.SetProperty(n => n.ReadAtUtc, _ => DateTime.UtcNow), ct);
+
+            if (toInsert.Count > 0)
+                await _db.SaveChangesAsync(ct);
         }
     }
 }

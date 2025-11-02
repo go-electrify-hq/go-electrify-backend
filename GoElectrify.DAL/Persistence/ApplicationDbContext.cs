@@ -26,6 +26,7 @@ namespace GoElectrify.DAL.Persistence
         public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
         public DbSet<TopupIntent> TopupIntents => Set<TopupIntent>();
         public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+        public DbSet<Notification> Notifications => Set<Notification>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
