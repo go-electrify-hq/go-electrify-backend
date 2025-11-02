@@ -5,7 +5,6 @@ using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Entities;
-using GoElectrify.BLL.Services.Realtime;
 using GoElectrify.BLL.Exceptions;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -27,16 +26,16 @@ namespace GoElectrify.Api.Controllers
         private readonly IChargingPaymentService _paymentSvc;
         private readonly AppDbContext _db;
         private readonly ILogger<ChargingSessionsController> _logger;
-        private readonly IAblyTokenCache _ablyTokenCache;
+        private readonly IRealtimeTokenIssuer _tokenIssuer;
         private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
-        public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, IChargingPaymentService paymentSvc, AppDbContext db, ILogger<ChargingSessionsController> logger, IAblyTokenCache ablyTokenCache)
+        public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, IChargingPaymentService paymentSvc, AppDbContext db, ILogger<ChargingSessionsController> logger, IRealtimeTokenIssuer tokenIssuer)
         {
             _svc = svc;
             _ably = ably;
             _paymentSvc = paymentSvc;
             _db = db;
             _logger = logger;
-            _ablyTokenCache = ablyTokenCache;
+            _tokenIssuer = tokenIssuer;
         }
         [Authorize(Policy = "NoUnpaidSessions")]
         [HttpPost("start")]
@@ -151,7 +150,7 @@ namespace GoElectrify.Api.Controllers
                 return NotFound(new { ok = false, error = "Session not found." });
 
             // 2) Xác định khoảng thời gian của phiên
-            var fromUtc = s.StartedAt;               // giả định UTC
+            var fromUtc = (s.StartedAt == default) ? DateTime.UtcNow.AddHours(-4) : s.StartedAt;
             var toUtc = s.EndedAt ?? DateTime.UtcNow;
 
             // 3) Lấy log của cùng Charger trong khoảng thời gian phiên
@@ -665,7 +664,7 @@ namespace GoElectrify.Api.Controllers
 
             if (from.HasValue) q = q.Where(x => x.s.EndedAt >= from.Value);
             if (to.HasValue) q = q.Where(x => x.s.EndedAt < to.Value);
-            if (statuses.Count > 0) q = q.Where(x => statuses.Contains(x.s.Status!.ToUpper()));
+            if (statuses.Count > 0) q = q.Where(x => x.s.Status != null && statuses.Contains(x.s.Status.ToUpper()));
 
             var total = await q.CountAsync(ct);
 
@@ -773,37 +772,16 @@ namespace GoElectrify.Api.Controllers
             if (string.IsNullOrWhiteSpace(s.AblyChannel))
                 return Results.Json(new { ok = false, error = "no_ably_channel" }, options: Camel, statusCode: 409);
 
-            // 2) Lấy token từ cache; nếu thiếu/gần hết hạn → BE tự cấp mới (SUBSCRIBE only)
-            var key = $"realtime:session:{s.Id}:user:{userId}";
-            var cached = await _ablyTokenCache.GetAsync(key, ct);
-            var now = DateTime.UtcNow;
-
-            bool needRefresh = cached is null || cached.ChannelId != s.AblyChannel || cached.ExpiresAtUtc <= now.AddSeconds(90);
-            if (needRefresh)
-            {
-                var ttl = TimeSpan.FromHours(1);
-                var capability = $@"{{""{s.AblyChannel}"":[""subscribe""]}}";
-
-                var token = await _ably.CreateTokenAsync(
-                    s.AblyChannel!,
-                    $"user-{userId}",
-                    capability,
-                    ttl,
-                    ct);
-
-                cached = new CachedAblyToken
-                {
-                    ChannelId = s.AblyChannel!,
-                    TokenJson = JsonSerializer.Serialize(token, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
-                    ExpiresAtUtc = now.Add(ttl)
-                };
-
-                await _ablyTokenCache.SaveAsync(key, cached, ttl, ct);
-            }
+            // 2) Cấp token realtime (subscribe-only) cho user + dùng cache nội bộ service
+            var (tokenObj, exp) = await _tokenIssuer.IssueAsync(
+                sessionId: s.Id,
+                channelId: s.AblyChannel!,
+                clientId: $"user-{userId}",
+                subscribeOnly: true,
+                useCache: true,
+                ct: ct);
 
             // 3) Chuẩn bị response
-            var tokenObj = JsonSerializer.Deserialize<JsonElement>(cached!.TokenJson); // trả object, không phải chuỗi
-
             return Results.Json(new
             {
                 ok = true,
@@ -825,7 +803,7 @@ namespace GoElectrify.Api.Controllers
                         channelId = s.AblyChannel
                     },
                     ablyToken = tokenObj,
-                    expiresAt = cached!.ExpiresAtUtc
+                    expiresAt = exp
                 }
             }, options: Camel);
         }
@@ -849,28 +827,26 @@ namespace GoElectrify.Api.Controllers
             if (s is null || string.IsNullOrWhiteSpace(s.AblyChannel))
                 return Results.Json(new { ok = false, error = "not_found" }, options: Camel, statusCode: 404);
 
-            var key = $"realtime:session:{s.Id}:user:{userId}";
-            var cached = await _ablyTokenCache.GetAsync(key, ct);
-            var now = DateTime.UtcNow;
+            var (tokenObj, exp) = await _tokenIssuer.IssueAsync(
+                sessionId: s.Id,
+                channelId: s.AblyChannel!,
+                clientId: $"user-{userId}",
+                subscribeOnly: true,
+                useCache: true,
+                ct: ct);
 
-            if (cached is null || cached.ChannelId != s.AblyChannel || cached.ExpiresAtUtc <= now.AddSeconds(90))
+            return Results.Json(new
             {
-                var ttl = TimeSpan.FromHours(1);
-                var capability = $@"{{""{s.AblyChannel}"":[""subscribe""]}}";
-                var token = await _ably.CreateTokenAsync(s.AblyChannel!, $"user-{userId}", capability, ttl, ct);
-
-                cached = new CachedAblyToken
+                ok = true,
+                data = new
                 {
-                    ChannelId = s.AblyChannel!,
-                    TokenJson = JsonSerializer.Serialize(token, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
-                    ExpiresAtUtc = now.Add(ttl)
-                };
-                await _ablyTokenCache.SaveAsync(key, cached, ttl, ct);
-            }
-
-            var tokenObj = JsonSerializer.Deserialize<JsonElement>(cached.TokenJson);
-            return Results.Json(new { ok = true, data = new { channelId = s.AblyChannel, ablyToken = tokenObj, expiresAt = cached.ExpiresAtUtc } }, options: Camel);
+                    channelId = s.AblyChannel,
+                    ablyToken = tokenObj,
+                    expiresAt = exp
+                }
+            }, options: Camel);
         }
+
 
 
     }

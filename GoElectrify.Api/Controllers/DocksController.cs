@@ -32,9 +32,16 @@ namespace GoElectrify.Api.Controllers
         private readonly IChargingSessionService _svc;
         private readonly IAblyTokenCache _ablyTokenCache;
         private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
-        public DocksController(IChargingSessionService svc, AppDbContext db, IAblyService ably, IConfiguration cfg, ILogger<DocksController> logger, IAblyTokenCache ablyTokenCache)
+        private readonly IRealtimeTokenIssuer _tokenIssuer;
+        public DocksController(IChargingSessionService svc, AppDbContext db, IAblyService ably, IConfiguration cfg, ILogger<DocksController> logger, IAblyTokenCache ablyTokenCache, IRealtimeTokenIssuer tokenIssuer)
         {
-            _db = db; _ably = ably; _cfg = cfg; _logger = logger; _svc = svc; _ablyTokenCache = ablyTokenCache;
+            _db = db;
+            _ably = ably;
+            _cfg = cfg;
+            _logger = logger;
+            _svc = svc;
+            _ablyTokenCache = ablyTokenCache;
+            _tokenIssuer = tokenIssuer;
         }
 
         [HttpPost("log")]
@@ -326,33 +333,46 @@ namespace GoElectrify.Api.Controllers
         }
 
 
-        public sealed record JoinByCodeRequest(string Code, string Role = "dashboard");
+        public sealed record JoinByCodeRequest(string Code, string Role = "viewer");
 
         [AllowAnonymous]
         [HttpPost("join")]
-        public async Task<IActionResult> JoinByCode([FromBody] JoinByCodeRequest body,
-                                                    CancellationToken ct)
+        public async Task<IActionResult> JoinByCode([FromBody] JoinByCodeRequest body, CancellationToken ct)
         {
             var s = await _db.ChargingSessions
+                .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.JoinCode == body.Code && x.EndedAt == null, ct);
-            if (s is null) return NotFound(new { ok = false, error = "Invalid or expired code." });
 
-            var channel = s.AblyChannel!;
-            var canPublish = body.Role == "dashboard";
-            var cap = canPublish
-                ? $@"{{""{channel}"":[""subscribe"",""publish""]}}"
-                : $@"{{""{channel}"":[""subscribe""]}}";
-            var ttl = TimeSpan.FromHours(1);
+            if (s is null)
+                return NotFound(new { ok = false, error = "Invalid or expired code." });
 
-            var clientId = $"{body.Role}-{Guid.NewGuid():N}";
-            var token = await _ably.CreateTokenAsync(channel, clientId, cap, ttl, ct);
+            if (string.IsNullOrWhiteSpace(s.AblyChannel))
+                return Conflict(new { ok = false, error = "no_ably_channel" });
+
+            // “Giống” user: subscribe-only, cùng schema trả về
+            var clientId = $"viewer-{Guid.NewGuid():N}";
+
+            var (ablyToken, exp) = await _tokenIssuer.IssueAsync(
+                sessionId: s.Id,
+                channelId: s.AblyChannel!,
+                clientId: clientId,
+                subscribeOnly: true,   // giống user token
+                useCache: false,       // join ẩn danh -> không cần cache
+                ct: ct);
 
             return Ok(new
             {
                 ok = true,
-                data = new { sessionId = s.Id, channelId = channel, token, expiresAt = DateTime.UtcNow.Add(ttl) }
+                data = new
+                {
+                    sessionId = s.Id,
+                    channelId = s.AblyChannel,
+                    ablyToken = ablyToken,
+                    expiresAt = exp
+                }
             });
         }
+
         private string IssueDockSessionJwt(int dockId, int sessionId, TimeSpan ttl)
         {
             var issuer = _cfg["DockAuth:Issuer"];
