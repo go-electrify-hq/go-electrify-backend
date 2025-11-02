@@ -356,9 +356,9 @@ namespace GoElectrify.Api.Controllers
                 sessionId: s.Id,
                 channelId: s.AblyChannel!,
                 clientId: $"viewer-{Guid.NewGuid():N}",
-                subscribeOnly: true,
+                subscribeOnly: false,
                 useCache: false,
-                allowPresence: true,     // <-- thêm dòng này
+                allowPresence: true,
                 allowHistory: false,
                 ct: ct);
 
