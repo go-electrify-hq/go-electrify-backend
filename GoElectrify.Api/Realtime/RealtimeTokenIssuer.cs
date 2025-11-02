@@ -1,5 +1,6 @@
-﻿using GoElectrify.BLL.Services.Realtime;
-using System.Text.Json;
+﻿using System.Text.Json;
+using GoElectrify.Api.Common;
+using GoElectrify.BLL.Services.Realtime;
 
 namespace GoElectrify.Api.Realtime
 {
@@ -8,7 +9,6 @@ namespace GoElectrify.Api.Realtime
         private readonly IAblyService _ably;
         private readonly IAblyTokenCache _cache;
         private static readonly TimeSpan Ttl = TimeSpan.FromHours(1);
-        private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
 
         public RealtimeTokenIssuer(IAblyService ably, IAblyTokenCache cache)
         {
@@ -52,7 +52,7 @@ namespace GoElectrify.Api.Realtime
                 cached = new CachedAblyToken
                 {
                     ChannelId = channelId,
-                    TokenJson = JsonSerializer.Serialize(token, Camel),
+                    TokenJson = JsonSerializer.Serialize(token, SharedJsonOptions.CamelCase),
                     ExpiresAtUtc = now.Add(Ttl)
                 };
 

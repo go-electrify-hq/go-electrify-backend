@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using GoElectrify.BLL.Common;
 using Microsoft.Extensions.Caching.Distributed;
 
 namespace GoElectrify.BLL.Services.Realtime
@@ -24,21 +25,20 @@ namespace GoElectrify.BLL.Services.Realtime
     public sealed class AblyTokenCache : IAblyTokenCache
     {
         private readonly IDistributedCache _cache;
-        private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
         public AblyTokenCache(IDistributedCache cache) => _cache = cache;
 
         public Task SaveAsync(string key, CachedAblyToken token, TimeSpan ttl, CancellationToken ct)
             => _cache.SetStringAsync(
                 key,
-                JsonSerializer.Serialize(token, Json),
+                JsonSerializer.Serialize(token, SharedJsonOptions.CamelCase),
                 new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl },
                 ct);
 
         public async Task<CachedAblyToken?> GetAsync(string key, CancellationToken ct)
         {
             var raw = await _cache.GetStringAsync(key, ct);
-            return string.IsNullOrEmpty(raw) ? null : JsonSerializer.Deserialize<CachedAblyToken>(raw, Json);
+            return string.IsNullOrEmpty(raw) ? null : JsonSerializer.Deserialize<CachedAblyToken>(raw, SharedJsonOptions.CamelCase);
         }
     }
 }

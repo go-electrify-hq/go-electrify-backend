@@ -1,10 +1,10 @@
-﻿using GoElectrify.BLL.Contracts.Services;
+﻿using GoElectrify.Api.Auth;
+using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Incidents;
 using GoElectrify.BLL.Dtos.Incidents;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using System.Security.Claims;
 
 namespace GoElectrify.Api.Controllers
 {
@@ -61,8 +61,7 @@ namespace GoElectrify.Api.Controllers
             try
             {
                 // Lấy admin user id từ token (phục vụ audit nếu bạn có field)
-                var adminUserIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0";
-                int.TryParse(adminUserIdStr, out var adminUserId);
+                var adminUserId = User.TryGetUserId(out var uid) ? uid : 0;
 
                 // Gọi service (repo sẽ validate flow & lưu DB)
                 var dto = await _svc.UpdateStatusAsync(id, body.Status, adminUserId, body.Note, ct);

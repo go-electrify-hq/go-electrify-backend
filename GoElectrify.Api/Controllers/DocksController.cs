@@ -2,12 +2,15 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using GoElectrify.Api.Common;
 using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Charger;
 using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Services.Realtime;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -15,8 +18,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
-using GoElectrify.BLL.Services.Realtime;
-using System.Text.Json;
 
 
 namespace GoElectrify.Api.Controllers
@@ -31,7 +32,6 @@ namespace GoElectrify.Api.Controllers
         private readonly ILogger<DocksController> _logger;
         private readonly IChargingSessionService _svc;
         private readonly IAblyTokenCache _ablyTokenCache;
-        private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
         private readonly IRealtimeTokenIssuer _tokenIssuer;
         public DocksController(IChargingSessionService svc, AppDbContext db, IAblyService ably, IConfiguration cfg, ILogger<DocksController> logger, IAblyTokenCache ablyTokenCache, IRealtimeTokenIssuer tokenIssuer)
         {
@@ -240,7 +240,7 @@ namespace GoElectrify.Api.Controllers
                 token: new CachedAblyToken
                 {
                     ChannelId = channel,
-                    TokenJson = JsonSerializer.Serialize(ablyToken, Camel),
+                    TokenJson = JsonSerializer.Serialize(ablyToken, SharedJsonOptions.CamelCase),
                     ExpiresAtUtc = expiresAt
                 },
                 ttl: ttl,
