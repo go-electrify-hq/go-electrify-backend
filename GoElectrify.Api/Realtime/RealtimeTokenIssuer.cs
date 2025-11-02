@@ -18,12 +18,13 @@ namespace GoElectrify.Api.Realtime
         private static string Capability(string ch, bool subscribeOnly, bool allowPresence, bool allowHistory)
         {
             var perms = new List<string> { "subscribe" };
+            if (!subscribeOnly) perms.Add("publish");
             if (allowPresence) perms.Add("presence");
-            if (!subscribeOnly) perms.Add("publish");      // chỉ bật khi thật sự cần
             if (allowHistory) perms.Add("history");
             var permsJson = string.Join(",", perms.Select(p => $"\"{p}\""));
             return $@"{{""{ch}"":[{permsJson}]}}";
         }
+
 
         public async Task<(JsonElement Token, DateTime ExpiresAtUtc)> IssueAsync(
             int sessionId, string channelId, string clientId,
@@ -32,21 +33,30 @@ namespace GoElectrify.Api.Realtime
             CancellationToken ct = default)
         {
             var now = DateTime.UtcNow;
-            var key = useCache ? $"realtime:session:{sessionId}:client:{clientId}" : null;
+            var capKey = $"{(subscribeOnly ? "sub" : "subpub")}-{(allowPresence ? "prs" : "-")}-{(allowHistory ? "his" : "-")}";
+
+            var cacheKey = useCache ? $"realtime:session:{sessionId}:client:{clientId}:cap:{capKey}" : null;
 
             CachedAblyToken? cached = null;
-            if (key is not null) cached = await _cache.GetAsync(key, ct);
+            if (cacheKey is not null) cached = await _cache.GetAsync(cacheKey, ct);
 
             if (cached is null || cached.ChannelId != channelId || cached.ExpiresAtUtc <= now.AddSeconds(90))
             {
-                var token = await _ably.CreateTokenAsync(channelId, clientId, Capability(channelId, subscribeOnly, allowPresence, allowHistory), Ttl, ct);
+                var token = await _ably.CreateTokenAsync(
+                    channelId,
+                    clientId,
+                    Capability(channelId, subscribeOnly, allowPresence, allowHistory),
+                    Ttl,
+                    ct);
+
                 cached = new CachedAblyToken
                 {
                     ChannelId = channelId,
                     TokenJson = JsonSerializer.Serialize(token, Camel),
                     ExpiresAtUtc = now.Add(Ttl)
                 };
-                if (key is not null) await _cache.SaveAsync(key, cached, Ttl, ct);
+
+                if (cacheKey is not null) await _cache.SaveAsync(cacheKey, cached, Ttl, ct);
             }
 
             return (JsonSerializer.Deserialize<JsonElement>(cached.TokenJson), cached.ExpiresAtUtc);

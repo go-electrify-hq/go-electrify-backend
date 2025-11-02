@@ -777,7 +777,7 @@ namespace GoElectrify.Api.Controllers
                 sessionId: s.Id,
                 channelId: s.AblyChannel!,
                 clientId: $"user-{userId}",
-                subscribeOnly: true,
+                subscribeOnly: false,
                 useCache: true,
                 allowPresence: true,
                 allowHistory: false,
@@ -833,8 +833,10 @@ namespace GoElectrify.Api.Controllers
                 sessionId: s.Id,
                 channelId: s.AblyChannel!,
                 clientId: $"user-{userId}",
-                subscribeOnly: true,
+                subscribeOnly: false,
                 useCache: true,
+                allowPresence: true,
+                allowHistory: false,
                 ct: ct);
 
             return Results.Json(new
