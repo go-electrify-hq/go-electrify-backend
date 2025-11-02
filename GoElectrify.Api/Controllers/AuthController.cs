@@ -1,10 +1,10 @@
 ﻿using System.Net.Mail;
-using System.Security.Claims;
+using GoElectrify.Api.Auth;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Auth;
+using GoElectrify.BLL.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using GoElectrify.BLL.Exceptions;
 
 namespace go_electrify_backend.Controllers
 {
@@ -71,7 +71,7 @@ namespace go_electrify_backend.Controllers
         [Authorize]
         public async Task<IActionResult> Logout([FromBody] string refreshToken, CancellationToken ct)
         {
-            var uid = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var uid = User.GetUserId();
             await auth.LogoutAsync(uid, refreshToken, ct); return Ok();
         }
 

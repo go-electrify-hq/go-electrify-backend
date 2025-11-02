@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+﻿using GoElectrify.Api.Auth;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Incidents;
 using Microsoft.AspNetCore.Authorization;
@@ -33,10 +33,7 @@ namespace GoElectrify.Api.Controllers
         {
             try
             {
-                var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-                if (!int.TryParse(userIdStr, out var userId))
-                    return Unauthorized(new { error = "Invalid user id in token." });
-
+                var userId = User.GetUserId();
                 var result = await _svc.CreateAsync(stationId, userId, dto, ct);
                 return CreatedAtAction(nameof(GetById), new { stationId, incidentId = result.Id }, result);
             }
@@ -50,10 +47,7 @@ namespace GoElectrify.Api.Controllers
         {
             try
             {
-                var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-                if (!int.TryParse(userIdStr, out var userId))
-                    return Unauthorized(new { error = "Invalid user id in token." });
-
+                var userId = User.GetUserId();
                 var result = await _svc.UpdateStatusAsync(stationId, incidentId, userId, dto, ct);
                 return Ok(result);
             }

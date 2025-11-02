@@ -1,4 +1,5 @@
 ﻿using GoElectrify.Api.Auth;
+using GoElectrify.Api.Common;
 using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
@@ -27,7 +28,6 @@ namespace GoElectrify.Api.Controllers
         private readonly AppDbContext _db;
         private readonly ILogger<ChargingSessionsController> _logger;
         private readonly IRealtimeTokenIssuer _tokenIssuer;
-        private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
         public ChargingSessionsController(IChargingSessionService svc, IAblyService ably, IChargingPaymentService paymentSvc, AppDbContext db, ILogger<ChargingSessionsController> logger, IRealtimeTokenIssuer tokenIssuer)
         {
             _svc = svc;
@@ -190,24 +190,24 @@ namespace GoElectrify.Api.Controllers
         {
             // 1) xác thực dock-jwt thuộc đúng session
             if (!JwtMatchesSession(User, req.SessionId))
-                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
+                return Results.Json(new { ok = false, error = "forbidden" }, options: SharedJsonOptions.CamelCase, statusCode: 403);
 
             // 2) lấy session còn hiệu lực
             var s = await _db.ChargingSessions
                 .FirstOrDefaultAsync(x => x.Id == req.SessionId && x.EndedAt == null, ct);
             if (s is null)
-                return Results.Json(new { ok = false, error = "session_not_found_or_ended" }, options: Camel, statusCode: 404);
+                return Results.Json(new { ok = false, error = "session_not_found_or_ended" }, options: SharedJsonOptions.CamelCase, statusCode: 404);
 
             // (A) BẮT BUỘC CÓ BOOKING
             if (s.BookingId is null)
-                return Results.Json(new { ok = false, error = "booking_required" }, options: Camel, statusCode: 400);
+                return Results.Json(new { ok = false, error = "booking_required" }, options: SharedJsonOptions.CamelCase, statusCode: 400);
 
             var bk = await _db.Bookings.FirstOrDefaultAsync(x => x.Id == s.BookingId, ct);
             if (bk is null)
-                return Results.Json(new { ok = false, error = "booking_not_found" }, options: Camel, statusCode: 400);
+                return Results.Json(new { ok = false, error = "booking_not_found" }, options: SharedJsonOptions.CamelCase, statusCode: 400);
 
             if (!string.Equals(bk.Status, "CONFIRMED", StringComparison.OrdinalIgnoreCase))
-                return Results.Json(new { ok = false, error = "booking_invalid_status", status = bk.Status }, options: Camel, statusCode: 400);
+                return Results.Json(new { ok = false, error = "booking_invalid_status", status = bk.Status }, options: SharedJsonOptions.CamelCase, statusCode: 400);
 
             // (B) Kiểm tra trạm & đầu nối
             var ch = await _db.Chargers
@@ -215,19 +215,19 @@ namespace GoElectrify.Api.Controllers
                 .FirstOrDefaultAsync(c => c.Id == s.ChargerId, ct);
 
             if (ch is null)
-                return Results.Json(new { ok = false, error = "charger_not_found" }, options: Camel, statusCode: 400);
+                return Results.Json(new { ok = false, error = "charger_not_found" }, options: SharedJsonOptions.CamelCase, statusCode: 400);
 
             if (bk.StationId != ch.StationId)
-                return Results.Json(new { ok = false, error = "booking_wrong_station" }, options: Camel, statusCode: 409);
+                return Results.Json(new { ok = false, error = "booking_wrong_station" }, options: SharedJsonOptions.CamelCase, statusCode: 409);
 
             if (bk.ConnectorTypeId != ch.ConnectorTypeId)
-                return Results.Json(new { ok = false, error = "booking_wrong_connector" }, options: Camel, statusCode: 409);
+                return Results.Json(new { ok = false, error = "booking_wrong_connector" }, options: SharedJsonOptions.CamelCase, statusCode: 409);
 
             // (C) VehicleModel ⇄ ConnectorType
             var vmOk = await _db.VehicleModelConnectorTypes
                 .AnyAsync(x => x.VehicleModelId == bk.VehicleModelId && x.ConnectorTypeId == bk.ConnectorTypeId, ct);
             if (!vmOk)
-                return Results.Json(new { ok = false, error = "vehicle_connector_incompatible" }, options: Camel, statusCode: 422);
+                return Results.Json(new { ok = false, error = "vehicle_connector_incompatible" }, options: SharedJsonOptions.CamelCase, statusCode: 422);
 
             // (D) Chặn start nếu chủ booking đang có session UNPAID
             var hasUnpaid = await _db.ChargingSessions
@@ -238,13 +238,13 @@ namespace GoElectrify.Api.Controllers
             if (hasUnpaid)
                 return Results.Json(
                     new { ok = false, error = "user_has_unpaid_sessions", errorMsg = "Bạn đang có phiên sạc chưa thanh toán" },
-                    options: Camel,
+                    options: SharedJsonOptions.CamelCase,
                     statusCode: 409
                 );
 
             // 3) dockId trong token phải khớp trụ của session
             if (!int.TryParse(User.FindFirst("dockId")?.Value, out var dockIdFromToken) || dockIdFromToken != s.ChargerId)
-                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
+                return Results.Json(new { ok = false, error = "forbidden" }, options: SharedJsonOptions.CamelCase, statusCode: 403);
 
             // --- phần code có sẵn phía dưới vẫn giữ nguyên ---
             s.Status = "RUNNING";
@@ -278,7 +278,7 @@ namespace GoElectrify.Api.Controllers
                     bookingId = s.BookingId,
                     chargerId = s.ChargerId
                 }
-            }, options: Camel);
+            }, options: SharedJsonOptions.CamelCase);
         }
 
 
@@ -289,17 +289,17 @@ namespace GoElectrify.Api.Controllers
         {
             // 1) Auth theo session
             if (!JwtMatchesSession(User, id))
-                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
+                return Results.Json(new { ok = false, error = "forbidden" }, options: SharedJsonOptions.CamelCase, statusCode: 403);
 
             // 2) Lấy session còn hiệu lực
             var s = await _db.ChargingSessions.FirstOrDefaultAsync(x => x.Id == id && x.EndedAt == null, ct);
             if (s is null)
-                return Results.Json(new { ok = false, error = "session_not_found_or_already_ended" }, options: Camel, statusCode: 404);
+                return Results.Json(new { ok = false, error = "session_not_found_or_already_ended" }, options: SharedJsonOptions.CamelCase, statusCode: 404);
 
             // 3) dockId phải khớp charger
             var claimDockId = int.TryParse(User.FindFirst("dockId")?.Value, out var did) ? did : (int?)null;
             if (claimDockId is null || claimDockId.Value != s.ChargerId)
-                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
+                return Results.Json(new { ok = false, error = "forbidden" }, options: SharedJsonOptions.CamelCase, statusCode: 403);
 
             // 4) Chốt phiên
             s.EndedAt = DateTime.UtcNow;
@@ -334,7 +334,7 @@ namespace GoElectrify.Api.Controllers
                     cost = s.Cost,
                     endedAt = s.EndedAt
                 }
-            }, options: Camel);
+            }, options: SharedJsonOptions.CamelCase);
         }
 
 
@@ -603,7 +603,7 @@ namespace GoElectrify.Api.Controllers
                 .FirstOrDefaultAsync(ct);
 
             if (active is not null)
-                return Results.Json(new { ok = true, data = new { type = "active", session = active } }, options: Camel);
+                return Results.Json(new { ok = true, data = new { type = "active", session = active } }, options: SharedJsonOptions.CamelCase);
 
             // 2) nếu không có phiên mở, có thể trả phiên UNPAID gần nhất (khi includeUnpaid=true)
             if (includeUnpaid)
@@ -631,10 +631,10 @@ namespace GoElectrify.Api.Controllers
                     .FirstOrDefaultAsync(ct);
 
                 if (unpaid is not null)
-                    return Results.Json(new { ok = true, data = new { type = "unpaid", session = unpaid } }, options: Camel);
+                    return Results.Json(new { ok = true, data = new { type = "unpaid", session = unpaid } }, options: SharedJsonOptions.CamelCase);
             }
 
-            return Results.Json(new { ok = false, error = "no_current_session" }, options: Camel, statusCode: 404);
+            return Results.Json(new { ok = false, error = "no_current_session" }, options: SharedJsonOptions.CamelCase, statusCode: 404);
         }
 
         [Authorize] // KHÔNG áp NoUnpaidSessions
@@ -700,7 +700,7 @@ namespace GoElectrify.Api.Controllers
                     total,
                     items
                 }
-            }, options: Camel);
+            }, options: SharedJsonOptions.CamelCase);
         }
         [HttpPost("{id:int}/complete-payment")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
@@ -767,10 +767,10 @@ namespace GoElectrify.Api.Controllers
             }
 
             if (s is null)
-                return Results.Json(new { ok = false, error = "no_current_session" }, options: Camel, statusCode: 404);
+                return Results.Json(new { ok = false, error = "no_current_session" }, options: SharedJsonOptions.CamelCase, statusCode: 404);
 
             if (string.IsNullOrWhiteSpace(s.AblyChannel))
-                return Results.Json(new { ok = false, error = "no_ably_channel" }, options: Camel, statusCode: 409);
+                return Results.Json(new { ok = false, error = "no_ably_channel" }, options: SharedJsonOptions.CamelCase, statusCode: 409);
 
             // 2) Cấp token realtime (subscribe-only) cho user + dùng cache nội bộ service
             var (tokenObj, exp) = await _tokenIssuer.IssueAsync(
@@ -807,7 +807,7 @@ namespace GoElectrify.Api.Controllers
                     ablyToken = tokenObj,
                     expiresAt = exp
                 }
-            }, options: Camel);
+            }, options: SharedJsonOptions.CamelCase);
         }
 
         [Authorize]
@@ -815,7 +815,7 @@ namespace GoElectrify.Api.Controllers
         public async Task<IResult> GetSessionToken([FromBody] JsonElement body, CancellationToken ct)
         {
             if (!body.TryGetProperty("sessionId", out var sidEl) || !sidEl.TryGetInt32(out var sessionId))
-                return Results.Json(new { ok = false, error = "invalid_session_id" }, options: Camel, statusCode: 400);
+                return Results.Json(new { ok = false, error = "invalid_session_id" }, options: SharedJsonOptions.CamelCase, statusCode: 400);
 
             var userId = User.GetUserId();
 
@@ -827,7 +827,7 @@ namespace GoElectrify.Api.Controllers
                 .FirstOrDefaultAsync(ct);
 
             if (s is null || string.IsNullOrWhiteSpace(s.AblyChannel))
-                return Results.Json(new { ok = false, error = "not_found" }, options: Camel, statusCode: 404);
+                return Results.Json(new { ok = false, error = "not_found" }, options: SharedJsonOptions.CamelCase, statusCode: 404);
 
             var (tokenObj, exp) = await _tokenIssuer.IssueAsync(
                 sessionId: s.Id,
@@ -848,7 +848,7 @@ namespace GoElectrify.Api.Controllers
                     ablyToken = tokenObj,
                     expiresAt = exp
                 }
-            }, options: Camel);
+            }, options: SharedJsonOptions.CamelCase);
         }
 
 
