@@ -62,6 +62,7 @@ namespace GoElectrify.DAL.Repositories
                 ChargerId = x.ChargerId,
                 ReporterUserId = x.ReportedBy.UserId,
                 Title = x.Title,
+                Description = x.Description,
                 Severity = x.Priority,  // map Priority -> Severity cho UI
                 Status = x.Status,
                 ReportedAt = x.ReportedAt,
@@ -84,6 +85,7 @@ namespace GoElectrify.DAL.Repositories
                     ChargerId = x.ChargerId,
                     ReporterUserId = x.ReportedBy.UserId,
                     Title = x.Title,
+                    Description = x.Description,
                     Severity = x.Priority,
                     Status = x.Status,
                     ReportedAt = x.ReportedAt,
@@ -156,6 +158,7 @@ namespace GoElectrify.DAL.Repositories
                 ChargerId = inc.ChargerId,
                 ReporterUserId = inc.ReportedBy?.UserId ?? 0,
                 Title = inc.Title,
+                Description = inc.Description,
                 Severity = inc.Priority,
                 Status = inc.Status,
                 ReportedAt = inc.ReportedAt,
