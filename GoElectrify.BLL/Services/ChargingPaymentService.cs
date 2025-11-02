@@ -23,11 +23,13 @@ namespace GoElectrify.BLL.Services
         {
             var s = await sessionRepo.GetSessionAsync(sessionId, ct)
                 ?? throw new InvalidOperationException("Session not found.");
-            if (s.EndedAt != null)
-                throw new InvalidOperationException("Session already ended.");
+            if (s.Status == "COMPLETED")
+                throw new InvalidOperationException("Session already paid.");
+            if (s.Status != "UNPAID")
+                throw new InvalidOperationException("Session is not ready for payment.");
 
-            s.EndedAt = DateTime.UtcNow;
-            if (dto.FinalSoc.HasValue) s.FinalSoc = dto.FinalSoc.Value;
+            if (s.EndedAt == null)
+                throw new InvalidOperationException("Session must be ended before payment.");
 
             var energy = s.EnergyKwh;
             if (energy <= 0)
