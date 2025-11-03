@@ -246,12 +246,14 @@ namespace GoElectrify.Api.Controllers
             if (!int.TryParse(User.FindFirst("dockId")?.Value, out var dockIdFromToken) || dockIdFromToken != s.ChargerId)
                 return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
 
-            // --- phần code có sẵn phía dưới vẫn giữ nguyên ---
             s.Status = "RUNNING";
             s.StartedAt = DateTime.UtcNow;
             if (req.TargetSoc.HasValue)
                 s.TargetSoc = Math.Clamp(req.TargetSoc.Value, 10, 100);
-
+            if (!string.Equals(bk.Status, "CONSUMED", StringComparison.OrdinalIgnoreCase))
+            {
+                bk.Status = "CONSUMED";
+            }
             await _db.SaveChangesAsync(ct);
 
             // 5) realtime theo spec: session_started (tên event snake_case là ok)
