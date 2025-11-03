@@ -7,15 +7,26 @@ public sealed class InsightsService : IInsightsService
     private readonly IInsightsRepository _repo;
     public InsightsService(IInsightsRepository repo) => _repo = repo;
 
-    public async Task<RevenueSeriesDto> GetRevenueAsync(DateTime from, DateTime to, int? stationId, string granularity, CancellationToken ct)
+    public async Task<RevenueSeriesDto> GetRevenueAsync(
+    DateTime from, DateTime to, int? stationId, string granularity, CancellationToken ct = default)
     {
-        (from, to) = (NormalizeUtc(from), NormalizeUtc(to));
+        var fromUtc = NormalizeUtc(from);
+        var toUtc = NormalizeUtc(to);
+        if (toUtc > DateTime.UtcNow) toUtc = DateTime.UtcNow;
 
-        var rows = await _repo.GetRevenueAsync(from, to, stationId, granularity, ct);
-        var series = rows.Select(x => new RevenuePointDto { Bucket = x.Bucket, Amount = x.Amount })
-                         .OrderBy(x => x.Bucket).ToList();
-        return new RevenueSeriesDto { Series = series, Total = series.Sum(x => x.Amount) };
+        var raw = await _repo.GetRevenueAsync(fromUtc, toUtc, stationId, granularity, ct);
+
+        var series = raw
+            .Select(x => new RevenuePointDto { Bucket = x.Bucket, Amount = x.Amount })
+            .ToList();
+
+        return new RevenueSeriesDto
+        {
+            Series = series,
+            Total = series.Sum(x => x.Amount)
+        };
     }
+
 
     public async Task<UsageSeriesDto> GetUsageAsync(DateTime from, DateTime to, int? stationId, string granularity, CancellationToken ct)
     {
@@ -40,7 +51,8 @@ public sealed class InsightsService : IInsightsService
         {
             DateTimeKind.Utc => dt,
             DateTimeKind.Local => dt.ToUniversalTime(),
-            DateTimeKind.Unspecified => DateTime.SpecifyKind(dt, DateTimeKind.Utc) // giả định input là UTC nếu không chỉ định
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+            _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc) // fallback
         };
     }
 }
