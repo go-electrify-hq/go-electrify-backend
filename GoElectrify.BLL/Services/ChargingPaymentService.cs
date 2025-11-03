@@ -60,7 +60,9 @@ namespace GoElectrify.BLL.Services
                     throw BusinessRuleException.WalletInsufficient(billedAmount - wallet.Balance);
 
                 wallet.Balance -= billedAmount;
-
+                wallet.UpdatedAt = DateTime.UtcNow;
+                await walletRepo.UpdateAsync(wallet, ct);
+                await walletRepo.SaveChangesAsync(ct);
                 txs.Add(new Transaction
                 {
                     WalletId = wallet.Id,
@@ -128,7 +130,6 @@ namespace GoElectrify.BLL.Services
             s.UpdatedAt = DateTime.UtcNow;
             await txRepo.AddRangeAsync(txs);
             await sessionRepo.SaveChangesAsync(ct);
-
             return new PaymentReceiptDto
             {
                 SessionId = s.Id,
