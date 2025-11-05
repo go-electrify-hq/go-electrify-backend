@@ -13,7 +13,7 @@ namespace GoElectrify.BLL.Contracts.Services
         Task MarkSeenAsync(int userId, CancellationToken ct);
 
         //Đánh dấu tất cả thông báo là "đã đọc".
-        Task MarkAllReadAsync(int userId, CancellationToken ct);
+        Task MarkAllReadAsync(int userId, string role, CancellationToken ct);
 
         //Đánh dấu một thông báo cụ thể là "đã đọc".
         //Task MarkOneReadAsync(int userId, string id, CancellationToken ct);

@@ -3,6 +3,7 @@ using System;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251102134710_AddNotificationTable")]
+    partial class AddNotificationTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -444,9 +447,9 @@ namespace GoElectrify.DAL.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<int>("DurationSeconds")
+                    b.Property<int>("DurationMinutes")
                         .HasColumnType("integer")
-                        .HasColumnName("duration_seconds");
+                        .HasColumnName("duration_minutes");
 
                     b.Property<DateTime?>("EndedAt")
                         .HasColumnType("timestamp with time zone")
@@ -528,7 +531,7 @@ namespace GoElectrify.DAL.Migrations
 
                             t.HasCheckConstraint("ck_charging_sessions_cost_non_negative", "cost IS NULL OR cost >= 0");
 
-                            t.HasCheckConstraint("ck_charging_sessions_duration_non_negative", "duration_seconds >= 0");
+                            t.HasCheckConstraint("ck_charging_sessions_duration_non_negative", "duration_minutes >= 0");
 
                             t.HasCheckConstraint("ck_charging_sessions_energy_non_negative", "energy_kwh >= 0");
 

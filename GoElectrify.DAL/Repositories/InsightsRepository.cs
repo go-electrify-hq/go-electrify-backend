@@ -1,5 +1,7 @@
 ﻿using GoElectrify.BLL.Contracts.Repositories;
+using GoElectrify.BLL.Dto.Insights;
 using GoElectrify.DAL.Persistence;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
 namespace GoElectrify.DAL.Repositories
@@ -11,53 +13,54 @@ namespace GoElectrify.DAL.Repositories
 
         // ===================== DOANH THU =====================
         public async Task<IReadOnlyList<(DateTime Bucket, decimal Amount)>> GetRevenueAsync(
-    DateTime from, DateTime to, int? stationId, string granularity, CancellationToken ct)
+    DateTime fromUtc, DateTime toUtc, int? stationId, string granularity, CancellationToken ct)
         {
-            granularity = (granularity ?? "day").Trim().ToLowerInvariant();
-
-            var q = _db.ChargingSessions
-                .AsNoTracking()
-                .Where(s => s.Status == "COMPLETED" && s.StartedAt >= from && s.StartedAt < to);
-
-            if (stationId is int sid)
-                q = q.Where(s => s.Charger!.StationId == sid);
-
-            if (granularity == "month")
+            if (granularity == "hour")
             {
-                // 1) GROUP TRÊN DB CHỈ BẰNG SỐ
-                var groupedRaw = await q
-                    .GroupBy(s => new { s.StartedAt.Year, s.StartedAt.Month })
-                    .Select(g => new
-                    {
-                        g.Key.Year,
-                        g.Key.Month,
-                        Amount = g.Sum(s => s.Cost ?? (s.EnergyKwh * (s.Charger!.PricePerKwh ?? 0m)))
-                    })
-                    .OrderBy(x => x.Year).ThenBy(x => x.Month)
-                    .ToListAsync(ct);
+                var q = from s in _db.ChargingSessions.AsNoTracking()
+                        where s.Status == "COMPLETED"
+                           && s.StartedAt >= fromUtc
+                           && s.StartedAt < toUtc
+                           && (stationId == null || s.Charger!.StationId == stationId)
+                        group s by new
+                        {
+                            s.StartedAt.Year,
+                            s.StartedAt.Month,
+                            s.StartedAt.Day,
+                            s.StartedAt.Hour
+                        } into g
+                        orderby g.Key.Year, g.Key.Month, g.Key.Day, g.Key.Hour
+                        select new
+                        {
+                            Bucket = new DateTime(g.Key.Year, g.Key.Month, g.Key.Day, g.Key.Hour, 0, 0, DateTimeKind.Utc),
+                            Amount = g.Sum(x => x.Cost ?? x.EnergyKwh * (x.Charger!.PricePerKwh ?? 0m))
+                        };
 
-                // 2) DỰNG DateTime Ở CLIENT (UTC)
-                return groupedRaw
-                    .Select(x => (new DateTime(x.Year, x.Month, 1, 0, 0, 0, DateTimeKind.Utc), x.Amount))
-                    .ToList();
+                var list = await q.ToListAsync(ct);
+                return list.Select(x => (x.Bucket, x.Amount)).ToList();
             }
-            else // "day"
+            else // day (mặc định)
             {
-                var groupedRaw = await q
-                    .GroupBy(s => new { s.StartedAt.Year, s.StartedAt.Month, s.StartedAt.Day })
-                    .Select(g => new
-                    {
-                        g.Key.Year,
-                        g.Key.Month,
-                        g.Key.Day,
-                        Amount = g.Sum(s => s.Cost ?? (s.EnergyKwh * (s.Charger!.PricePerKwh ?? 0m)))
-                    })
-                    .OrderBy(x => x.Year).ThenBy(x => x.Month).ThenBy(x => x.Day)
-                    .ToListAsync(ct);
+                var q = from s in _db.ChargingSessions.AsNoTracking()
+                        where s.Status == "COMPLETED"
+                           && s.StartedAt >= fromUtc
+                           && s.StartedAt < toUtc
+                           && (stationId == null || s.Charger!.StationId == stationId)
+                        group s by new
+                        {
+                            s.StartedAt.Year,
+                            s.StartedAt.Month,
+                            s.StartedAt.Day
+                        } into g
+                        orderby g.Key.Year, g.Key.Month, g.Key.Day
+                        select new
+                        {
+                            Bucket = new DateTime(g.Key.Year, g.Key.Month, g.Key.Day, 0, 0, 0, DateTimeKind.Utc),
+                            Amount = g.Sum(x => x.Cost ?? x.EnergyKwh * (x.Charger!.PricePerKwh ?? 0m))
+                        };
 
-                return groupedRaw
-                    .Select(x => (new DateTime(x.Year, x.Month, x.Day, 0, 0, 0, DateTimeKind.Utc), x.Amount))
-                    .ToList();
+                var list = await q.ToListAsync(ct);
+                return list.Select(x => (x.Bucket, x.Amount)).ToList();
             }
         }
 
@@ -135,6 +138,5 @@ namespace GoElectrify.DAL.Repositories
             var total = await q.CountAsync(ct);
             return (byHour?.Hour ?? 0, byHour?.C ?? 0, total);
         }
-
-    }
+   }
 }

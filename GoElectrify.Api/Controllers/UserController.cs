@@ -7,7 +7,7 @@ namespace GoElectrify.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/users")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Staff")] // <-- cho phép Staff
     public class UserController : ControllerBase
     {
         private readonly IUserService _svc;
@@ -21,6 +21,12 @@ namespace GoElectrify.Api.Controllers
         [ProducesResponseType(typeof(UserListPageDto), 200)]
         public async Task<IActionResult> List([FromQuery] UserListQueryDto query, CancellationToken ct)
         {
+            // Nếu là Staff -> chỉ xem Driver
+            if (User.IsInRole("Staff"))
+            {
+                query.Role = "Driver";
+            }
+
             var data = await _svc.ListAsync(query, ct);
             return Ok(data);
         }
