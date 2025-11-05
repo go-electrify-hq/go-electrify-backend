@@ -28,7 +28,7 @@ namespace GoElectrify.BLL.Services
 
             s.EndedAt = DateTime.UtcNow;
             if (dto.FinalSoc.HasValue) s.FinalSoc = dto.FinalSoc.Value;
-
+            s.DurationSeconds = (int)Math.Max(0, (s.EndedAt.Value - s.StartedAt).TotalSeconds);
             var energy = s.EnergyKwh;
             if (energy <= 0)
                 throw new InvalidOperationException("EnergyKwh must be > 0 to process payment.");

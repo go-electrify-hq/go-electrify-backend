@@ -1,176 +1,23 @@
 ﻿using System;
+using System.Linq;
 using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Dtos.ChargingSession;
 using GoElectrify.BLL.Entities;
+using GoElectrify.DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace GoElectrify.BLL.Services
 {
-    public sealed class ChargingSessionService(IChargingSessionRepository repo, IBookingRepository bookingRepo) : IChargingSessionService
+    // Thêm các repo cần thiết vào primary-constructor
+    public sealed class ChargingSessionService(
+        IChargingSessionRepository repo,
+        IBookingRepository bookingRepo,
+        IChargerRepository chargerRepo,
+        IChargerLogRepository logRepo
+    ) : IChargingSessionService
     {
-        private const int SLOT_MINUTES = 30;
-
-
-        public async Task<ChargingSessionDto> StartForDriverAsync(int userId, StartSessionDto dto, CancellationToken ct)
-        {
-            // 0) Đọc booking (nếu có)
-            Booking? booking = null;
-            if (!string.IsNullOrWhiteSpace(dto.BookingCode))
-            {
-                booking = await repo.FindBookingByCodeForUserAsync(dto.BookingCode!, userId, ct);
-
-                if (booking is null) throw new InvalidOperationException("Booking not found for this user.");
-                if (booking.UserId != userId) throw new InvalidOperationException("Booking not owned by user.");
-                if (booking.Status is "CANCELED" or "EXPIRED" or "CONSUMED")
-                    throw new InvalidOperationException($"Booking is not usable: {booking.Status}.");
-
-                var expireAt = booking.ScheduledStart.AddMinutes(SLOT_MINUTES + 10);
-                if (DateTime.UtcNow >= expireAt) throw new InvalidOperationException("Booking has expired.");
-            }
-
-            // 1) Xác định CHARGER
-            Charger? charger = null;
-
-            if (dto.ChargerId.HasValue)
-            {
-                charger = await repo.GetChargerAsync(dto.ChargerId.Value, ct)
-                    ?? throw new InvalidOperationException("Charger not found.");
-                if (string.Equals(charger.Status, "OFFLINE", StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("Charger is offline.");
-
-                // Nếu có booking => phải khớp station/connector
-                if (booking is not null &&
-                    (booking.StationId != charger.StationId || booking.ConnectorTypeId != charger.ConnectorTypeId))
-                    throw new InvalidOperationException("Booking does not match this charger.");
-            }
-            else
-            {
-                // Không gửi ChargerId => bắt buộc có booking để auto-assign
-                if (booking is null) throw new InvalidOperationException("ChargerId is required when not using a booking.");
-
-                charger = await repo.FindAvailableChargerAsync(booking.StationId, booking.ConnectorTypeId, ct)
-                    ?? throw new InvalidOperationException("No available charger matching this booking.");
-            }
-
-            var stationId = charger.StationId;
-            var connectorTypeId = charger.ConnectorTypeId;
-
-            // 2) Kiểm tra compatibility Vehicle x Connector
-            var okCompat = await repo.VehicleSupportsConnectorAsync(dto.VehicleModelId, connectorTypeId, ct);
-            if (!okCompat) throw new InvalidOperationException("Vehicle not compatible with this connector.");
-
-            // 2b) LẤY THÊM số liệu phục vụ giả lập
-            //     - VehicleModel: BatteryCapacityKwh, MaxPowerKw
-            //     - ConnectorType: MaxPowerKw
-            var vehicleModel = await repo.GetVehicleModelAsync(dto.VehicleModelId, ct)
-                ?? throw new InvalidOperationException("Vehicle model not found.");
-
-            var connectorType = await repo.GetConnectorTypeAsync(connectorTypeId, ct)
-                ?? throw new InvalidOperationException("Connector type not found.");
-
-            // 3) Tạo session 
-            var session = new ChargingSession
-            {
-                ChargerId = charger.Id,
-                BookingId = booking?.Id,
-                StartedAt = DateTime.UtcNow,
-                Status = "RUNNING",
-                SocStart = dto.InitialSoc,
-            };
-
-            try
-            {
-                await repo.AddSessionAsync(session, ct);
-
-                if (booking is not null)
-                {
-                    booking.Status = "CONSUMED";
-                    booking.UpdatedAt = DateTime.UtcNow;
-                    await bookingRepo.UpdateAsync(booking, ct);
-                }
-
-                await repo.SaveChangesAsync(ct);
-            }
-            catch (DbUpdateException ex)
-            {
-                // va đập unique index: có phiên khác vừa chiếm dock
-                throw new InvalidOperationException("This charger is currently in use.", ex);
-            }
-            var targetSoc = dto.TargetSoc is null ? 100 : dto.TargetSoc;
-
-            // 4) Trả DTO (giữ đúng tên InitialSoc như code cũ)
-            return new ChargingSessionDto
-            {
-                Id = session.Id,
-                Status = session.Status,
-                StartedAt = session.StartedAt,
-                ChargerId = session.ChargerId,
-                StationId = stationId,
-                ConnectorTypeId = connectorTypeId,
-                BookingId = session.BookingId,
-
-                InitialSoc = session.SocStart,
-
-                // === BỔ SUNG ===
-                VehicleBatteryCapacityKwh = vehicleModel.BatteryCapacityKwh, // decimal(12,4)
-                VehicleMaxPowerKw = vehicleModel.MaxPowerKw,          // int
-                ChargerPowerKw = charger.PowerKw,                  // decimal
-                ConnectorMaxPowerKw = connectorType.MaxPowerKw,        // int
-                TargetSoc = targetSoc
-            };
-        }
-
-        public async Task<StopResult> StopAsync(int sessionId, string? reason, int? finalSoc, decimal? energyKwh, CancellationToken ct)
-        {
-            var s = await repo.GetSessionAsync(sessionId, ct)
-                    ?? throw new InvalidOperationException("Session not found.");
-
-            // Idempotent: nếu chưa kết thúc thì chốt lại
-            if (s.EndedAt is null)
-            {
-                s.EndedAt = DateTime.UtcNow;
-
-                // Map reason → status (COMPLETED/TIMEOUT/FAILED)
-                s.Status = MapReasonToStatus(reason);
-
-                // Tính phút làm tròn “away from zero” để sát thực tế hơn
-                var totalMinutes = (s.EndedAt.Value - s.StartedAt).TotalMinutes;
-                s.DurationMinutes = Math.Max(0, (int)Math.Round(totalMinutes, MidpointRounding.AwayFromZero));
-
-                // Final SOC: ưu tiên tham số truyền vào → s.SocEnd (được IngestLog cập nhật) → SocStart
-                var finalSocResolved = finalSoc ?? s.SocEnd ?? s.SocStart;
-                s.FinalSoc = Math.Clamp(finalSocResolved, 0, 100);
-
-                // Energy: nếu Dock gửi đồng hồ cộng dồn thì lấy MAX với DB (không cho chạy lùi)
-                if (energyKwh.HasValue)
-                {
-                    var k = Math.Round(energyKwh.Value, 4, MidpointRounding.AwayFromZero);
-                    if (k > s.EnergyKwh) s.EnergyKwh = k;
-                }
-
-                await repo.SaveChangesAsync(ct);
-            }
-
-            // Tính avg power (đơn giản): energy / giờ
-            decimal? avgPowerKw = null;
-            if (s.DurationMinutes > 0)
-            {
-                var hours = s.DurationMinutes / 60m;
-                avgPowerKw = Math.Round(s.EnergyKwh / hours, 3, MidpointRounding.AwayFromZero);
-            }
-            s.AvgPowerKw = avgPowerKw;
-            await repo.SaveChangesAsync(ct);
-            // (Chưa có pricing) để Cost = null
-            return new StopResult(
-                EndedAt: s.EndedAt!.Value,
-                DurationMinutes: s.DurationMinutes,
-                EnergyKwh: s.EnergyKwh,
-                AvgPowerKw: avgPowerKw,
-                Cost: null
-            );
-        }
         public async Task<ChargingSessionDto> StopAsync(int userId, int sessionId, string reason, CancellationToken ct)
         {
             var s = await repo.GetSessionAsync(sessionId, ct) ?? throw new InvalidOperationException("Session not found.");
@@ -178,11 +25,10 @@ namespace GoElectrify.BLL.Services
             {
                 s.EndedAt = DateTime.UtcNow;
                 s.Status = "TIMEOUT";
-                s.DurationMinutes = (int)Math.Max(0, (s.EndedAt.Value - s.StartedAt).TotalMinutes);
+                s.DurationSeconds = (int)Math.Max(0, (s.EndedAt.Value - s.StartedAt).TotalSeconds);
                 await repo.SaveChangesAsync(ct);
             }
 
-            // Lấy charger để trả StationId/ConnectorTypeId
             var charger = await repo.GetChargerAsync(s.ChargerId, ct) ?? throw new InvalidOperationException("Charger not found.");
             return new ChargingSessionDto
             {
@@ -195,12 +41,12 @@ namespace GoElectrify.BLL.Services
                 BookingId = s.BookingId
             };
         }
+
         public async Task<IReadOnlyList<ChargingSessionDto>> GetByStationAsync(
-        int stationId,
-        StationSessionQueryDto q,
-        CancellationToken ct)
+            int stationId,
+            StationSessionQueryDto q,
+            CancellationToken ct)
         {
-            // Chuẩn hoá UTC cho khoảng thời gian
             DateTime? ToUtc(DateTime? d) => d.HasValue ? d.Value.ToUniversalTime() : null;
 
             var list = await repo.GetByStationAsync(
@@ -212,7 +58,6 @@ namespace GoElectrify.BLL.Services
                 q.PageSize,
                 ct);
 
-            // Map entity -> DTO ĐÚNG THEO CLASS BẠN ĐÃ CHO
             var result = list.Select(s => new ChargingSessionDto
             {
                 Id = s.Id,
@@ -220,33 +65,222 @@ namespace GoElectrify.BLL.Services
                 StartedAt = s.StartedAt,
                 ChargerId = s.ChargerId,
 
-                // Lấy từ CHARGER như bạn ghi chú trong DTO
                 StationId = s.Charger?.StationId ?? 0,
                 ConnectorTypeId = s.Charger?.ConnectorTypeId ?? 0,
 
                 BookingId = s.BookingId,
                 InitialSoc = s.SocStart,
 
-                // Từ VehicleModel
-                VehicleBatteryCapacityKwh = s.Booking.VehicleModel?.BatteryCapacityKwh ?? 0m,
-                VehicleMaxPowerKw = s.Booking.VehicleModel?.MaxPowerKw ?? 0,
+                VehicleBatteryCapacityKwh = s.Booking?.VehicleModel?.BatteryCapacityKwh ?? 0m,
+                VehicleMaxPowerKw = s.Booking?.VehicleModel?.MaxPowerKw ?? 0,
 
-                // Từ Charger và ConnectorType
                 ChargerPowerKw = s.Charger?.PowerKw ?? 0m,
                 ConnectorMaxPowerKw = s.Charger?.ConnectorType?.MaxPowerKw ?? 0,
 
-                TargetSoc = s.SocEnd
+                TargetSoc = s.TargetSoc
             }).ToList();
 
             return result;
         }
-        private static string MapReasonToStatus(string? r) => r switch
+
+        public async Task<(bool Ok, string? Error, SessionLogWindow Window, IReadOnlyList<SessionLogItemDto> Items)>
+            GetLogsAsync(int sessionId, int last, CancellationToken ct)
         {
-            "target_soc" => "COMPLETED",
-            "user_request" => "COMPLETED",
-            "timeout" => "TIMEOUT",
-            "error" => "FAILED",
-            _ => "COMPLETED"
-        };
+            var s = await repo.GetSessionAsync(sessionId, ct);
+            if (s is null)
+                return (false, "Session not found.", default, Array.Empty<SessionLogItemDto>());
+
+            var fromUtc = (s.StartedAt == default) ? DateTime.UtcNow.AddHours(-4) : s.StartedAt;
+            var toUtc = s.EndedAt ?? DateTime.UtcNow;
+
+            var raw = await logRepo.GetLastByChargerBetweenAsync(s.ChargerId, fromUtc, toUtc, last, ct);
+
+            var items = raw.Select(l => new SessionLogItemDto
+            {
+                At = l.SampleAt,
+                Voltage = l.Voltage,
+                Current = l.Current,
+                PowerKw = l.PowerKw,
+                SessionEnergyKwh = l.SessionEnergyKwh,
+                SocPercent = l.SocPercent,
+                State = l.State,
+                ErrorCode = l.ErrorCode
+            }).ToList();
+
+            return (true, null, new SessionLogWindow(fromUtc, toUtc), items);
+        }
+
+        public async Task<(ChargingSessionLightDto? Active, ChargingSessionLightDto? Unpaid)>
+            GetMyCurrentAsync(int userId, bool includeUnpaid, CancellationToken ct)
+        {
+            var active = await repo.GetActiveByUserAsync(userId, ct);
+            ChargingSessionLightDto? activeDto = active is null ? null : MapLight(active);
+
+            ChargingSessionLightDto? unpaidDto = null;
+            if (activeDto is null && includeUnpaid)
+            {
+                var unpaid = await repo.GetClosestUnpaidByUserAsync(userId, ct);
+                unpaidDto = unpaid is null ? null : MapLight(unpaid);
+            }
+
+            return (activeDto, unpaidDto);
+        }
+
+        public async Task<PagedResult<ChargingSessionHistoryItemDto>>
+            GetMyHistoryAsync(int userId, HistoryQueryDto q, CancellationToken ct)
+        {
+            var (total, items) = await repo.GetHistoryForUserAsync(
+                userId, q.From, q.To, q.Statuses, q.Page, q.PageSize, ct);
+
+            var mapped = items.Select(MapHistory).ToList();
+            return new PagedResult<ChargingSessionHistoryItemDto>(q.Page, q.PageSize, total, mapped);
+        }
+
+        private static ChargingSessionLightDto MapLight(ChargingSession s) =>
+            new(
+                s.Id, s.Status, s.StartedAt, s.EndedAt,
+                s.TargetSoc, s.SocStart, s.FinalSoc,
+                s.EnergyKwh, s.Cost, s.BookingId, s.ChargerId, s.AblyChannel
+            );
+
+        private static ChargingSessionHistoryItemDto MapHistory(ChargingSession s) =>
+            new(
+                s.Id, s.Status, s.StartedAt, s.EndedAt, s.DurationSeconds,
+                s.TargetSoc, s.SocStart, s.FinalSoc,
+                s.EnergyKwh, s.Cost, s.BookingId, s.ChargerId, s.AblyChannel
+            );
+
+        public async Task<(bool Ok, string? Error, StartSessionResult? Data, object? EventPayload)>
+            StartAsync(int sessionId, int dockIdFromToken, GoElectrify.BLL.Dtos.Dock.StartSessionRequest req, CancellationToken ct)
+        {
+            var s = await repo.GetSessionAsync(sessionId, ct);
+            if (s is null || s.EndedAt != null)
+                return (false, "session_not_found_or_ended", null, null);
+
+            if (s.BookingId is null)
+                return (false, "booking_required", null, null);
+
+            var bk = await bookingRepo.GetByIdAsync(s.BookingId.Value, ct);
+            if (bk is null)
+                return (false, "booking_not_found", null, null);
+
+            if (!string.Equals(bk.Status, "CONFIRMED", StringComparison.OrdinalIgnoreCase))
+                return (false, "booking_invalid_status", null, null);
+
+            if (dockIdFromToken != s.ChargerId)
+                return (false, "forbidden", null, null);
+
+            var ch = await chargerRepo.GetByIdAsync(s.ChargerId, ct);
+            if (ch is null)
+                return (false, "charger_not_found", null, null);
+            if (bk.StationId != ch.StationId)
+                return (false, "booking_wrong_station", null, null);
+            if (bk.ConnectorTypeId != ch.ConnectorTypeId)
+                return (false, "booking_wrong_connector", null, null);
+
+            var compatible = await repo.VehicleSupportsConnectorAsync(bk.VehicleModelId, bk.ConnectorTypeId, ct);
+            if (!compatible)
+                return (false, "vehicle_connector_incompatible", null, null);
+
+            var hasUnpaid = await repo.UserHasOtherUnpaidAsync(bk.UserId, s.Id, ct);
+            if (hasUnpaid)
+                return (false, "user_has_unpaid_sessions", null, null);
+
+            // Start
+            s.Status = "RUNNING";
+            s.StartedAt = DateTime.UtcNow;
+            if (req.TargetSoc.HasValue)
+                s.TargetSoc = Math.Clamp(req.TargetSoc.Value, 10, 100);
+            if (!string.Equals(bk.Status, "CONSUMED", StringComparison.OrdinalIgnoreCase))
+                bk.Status = "CONSUMED";
+
+            await repo.SaveChangesAsync(ct);
+
+            var data = new StartSessionResult(
+                s.Id, s.Status, s.StartedAt, s.TargetSoc, s.SocStart, s.BookingId, s.ChargerId
+            );
+
+            // Payload cho Ably event "session_started"
+            var payload = new
+            {
+                sessionId = s.Id,
+                targetSoc = s.TargetSoc
+            };
+
+            return (true, null, data, payload);
+        }
+
+        public async Task<(bool Ok, string? Error, BindBookingResult? Data, object? EventPayload)>
+            BindBookingAsync(int userId, int sessionId, BindBookingRequest body, CancellationToken ct)
+        {
+            var s = await repo.GetSessionAsync(sessionId, ct);
+            if (s is null || s.EndedAt != null)
+                return (false, "Session not found or ended.", null, null);
+
+            if (body.BookingId is null && string.IsNullOrWhiteSpace(body.BookingCode))
+                return (false, "Missing bookingId/bookingCode.", null, null);
+
+            Booking? bk = body.BookingId is int bid
+                ? await bookingRepo.GetByIdAsync(bid, ct)
+                : await bookingRepo.GetByCodeAsync(body.BookingCode!, ct);
+
+            if (bk is null)
+                return (false, "Booking not found.", null, null);
+            if (bk.UserId != userId)
+                return (false, "forbidden", null, null);
+
+            var ch = await chargerRepo.GetByIdAsync(s.ChargerId, ct);
+            if (ch is null || bk.StationId != ch.StationId)
+                return (false, "Booking does not belong to this charger.", null, null);
+
+            if (bk.Status is not ("CONFIRMED" or "CHECKED_IN" or "RESERVED"))
+                return (false, "Booking is not active.", null, null);
+
+            // Gán vào session
+            s.BookingId = bk.Id;
+            if (body.InitialSoc.HasValue)
+                s.SocStart = Math.Clamp(body.InitialSoc.Value, 0, 100);
+            if (body.TargetSoc.HasValue)
+                s.TargetSoc = Math.Clamp(body.TargetSoc.Value, 10, 100);
+
+            await repo.SaveChangesAsync(ct);
+
+            var data = new BindBookingResult(s.Id, s.BookingId, bk.VehicleModelId, s.SocStart, s.TargetSoc);
+
+            // ===== Build payload cho Ably event "session_specs" =====
+            // Lấy thêm thông tin vehicle & charger
+            var vm = await repo.GetVehicleModelAsync(bk.VehicleModelId, ct); // có BatteryCapacityKwh, MaxPowerKw
+            var chargerLite = ch; // đã có ở trên (PowerKw, ConnectorTypeId)
+
+            object? payload = null;
+            if (vm is not null && chargerLite is not null)
+            {
+                payload = new
+                {
+                    sessionId = s.Id,
+                    initialSoc = s.SocStart,
+                    targetSoc = s.TargetSoc,
+                    booking = new
+                    {
+                        vehicleModelId = bk.VehicleModelId,
+                        connectorTypeId = bk.ConnectorTypeId,
+                        stationId = bk.StationId,
+                        scheduledStart = bk.ScheduledStart
+                    },
+                    vehicle = new
+                    {
+                        batteryCapacityKwh = vm.BatteryCapacityKwh,
+                        maxPowerKw = vm.MaxPowerKw
+                    },
+                    charger = new
+                    {
+                        powerKw = chargerLite.PowerKw,
+                        connectorTypeId = chargerLite.ConnectorTypeId
+                    }
+                };
+            }
+
+            return (true, null, data, payload);
+        }
     }
 }

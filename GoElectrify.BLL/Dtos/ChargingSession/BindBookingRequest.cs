@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 
 namespace GoElectrify.BLL.Dtos.ChargingSession
 {
-    public sealed record StopResult(
-        DateTime EndedAt,
-        int DurationMinutes,
-        decimal EnergyKwh,
-        decimal? AvgPowerKw,
-        decimal? Cost
+    public sealed record BindBookingRequest(
+        int? BookingId,
+        string? BookingCode,
+        int? InitialSoc,
+        int? TargetSoc
     );
 }

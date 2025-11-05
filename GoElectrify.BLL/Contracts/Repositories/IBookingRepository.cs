@@ -8,7 +8,7 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task AddAsync(Booking entity, CancellationToken ct);
         Task UpdateAsync(Booking entity, CancellationToken ct);
         Task<bool> DeleteAsync(int id, CancellationToken ct);
-
+        Task<Booking?> GetByCodeAsync(string code, CancellationToken ct);
         Task<IReadOnlyList<Booking>> GetMyAsync(
             int userId, string? status, DateTime? from, DateTime? to,
             int page, int pageSize, CancellationToken ct);

@@ -12,5 +12,6 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task<bool> DeleteAsync(int id, CancellationToken ct);
 
         Task<bool> CodeExistsAsync(int stationId, string code, int? exceptId, CancellationToken ct);
+        Task<(int StationId, int ConnectorTypeId)?> GetStationAndConnectorAsync(int chargerId, CancellationToken ct);
     }
 }
