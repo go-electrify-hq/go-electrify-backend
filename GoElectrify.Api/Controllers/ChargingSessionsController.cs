@@ -93,12 +93,12 @@ namespace GoElectrify.Api.Controllers
             if (!ok) return BadRequest(new { ok = false, error = err });
 
             // Publish session_specs nếu có channel
-            var channel = await GetChannelAsync(data!.SessionId, ct);
+            var channel = await GetChannelAsync(data!.Id, ct);
             if (!string.IsNullOrWhiteSpace(channel) && specsPayload is not null)
             {
                 await _ably.PublishAsync(channel!, "session_specs", specsPayload, ct);
                 _logger.LogInformation("[session_specs] published to {Channel} for session {SessionId}",
-                                       channel, data!.SessionId);
+                                       channel, data!.Id);
             }
 
             return Ok(new { ok = true, data });

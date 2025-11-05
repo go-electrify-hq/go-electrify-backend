@@ -14,7 +14,7 @@ namespace GoElectrify.BLL.Dtos.ChargingSession
     );
 
     public sealed record BindBookingResult(
-        int SessionId, int? BookingId, int? VehicleModelId,
+        int Id, int? BookingId, int? VehicleModelId,
         int SocStart, int? TargetSoc
     );
 
