@@ -96,7 +96,7 @@ builder.Services.AddScoped<IRealtimeTokenIssuer, RealtimeTokenIssuer>();
 builder.Services.AddScoped<IBookingFeeService, BookingFeeService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<INotificationMailService, NotificationMailService>();
-
+builder.Services.AddScoped<IChargerLogService, ChargerLogService>();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IAuthorizationHandler, NoUnpaidSessionsHandler>();
 
