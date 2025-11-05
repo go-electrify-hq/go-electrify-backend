@@ -4,6 +4,7 @@ using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Dtos.ChargingSession;
+using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -208,6 +209,50 @@ namespace GoElectrify.BLL.Services
             };
 
             return (true, null, data, payload);
+        }
+
+        public async Task<(bool Ok, string? Error, CompleteSessionResult? Data)>
+            CompleteByDockAsync(int sessionId, int dockIdFromToken, CompleteSessionRequest req, CancellationToken ct)
+        {
+            // Lấy session đang mở
+            var s = await repo.GetSessionAsync(sessionId, ct);
+            if (s is null || s.EndedAt != null)
+                return (false, "session_not_found_or_already_ended", null);
+
+            // Dock phải khớp charger
+            if (dockIdFromToken != s.ChargerId)
+                return (false, "forbidden", null);
+
+            // Chốt phiên
+            s.EndedAt = DateTime.UtcNow;
+            var started = s.StartedAt; // có thể là default(DateTime) nếu chưa start
+            var seconds = (started == default)
+                ? 0
+                : (int)Math.Max(0, Math.Round((s.EndedAt.Value - started).TotalSeconds, MidpointRounding.AwayFromZero));
+
+            s.DurationSeconds = seconds;
+            s.FinalSoc = req.EndSoc;
+
+            // Tính Cost nếu có giá
+            decimal? pricePerKwh = (await repo.GetChargerAsync(s.ChargerId, ct))?.PricePerKwh;
+            s.Cost = pricePerKwh.HasValue
+                ? Math.Round(s.EnergyKwh * pricePerKwh.Value, 2, MidpointRounding.AwayFromZero)
+                : null;
+
+            // Trạng thái -> UNPAID (không thêm field mới)
+            s.Status = "UNPAID";
+
+            await repo.SaveChangesAsync(ct);
+
+            var result = new CompleteSessionResult(
+                s.Id,
+                s.Status!,
+                s.EnergyKwh,
+                s.Cost,
+                s.EndedAt!.Value
+            );
+
+            return (true, null, result);
         }
 
         public async Task<(bool Ok, string? Error, BindBookingResult? Data, object? EventPayload)>
