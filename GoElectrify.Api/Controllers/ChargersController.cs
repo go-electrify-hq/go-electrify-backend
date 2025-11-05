@@ -1,8 +1,12 @@
 ﻿using System.Runtime.Intrinsics.Arm;
+using System.Text.Json;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Charger;
+using GoElectrify.BLL.Dtos.ChargerLogs;
+using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GoElectrify.Api.Controllers
 {
@@ -11,7 +15,15 @@ namespace GoElectrify.Api.Controllers
     public sealed class ChargersController : ControllerBase
     {
         private readonly IChargerService _svc;
-        public ChargersController(IChargerService svc) => _svc = svc;
+        private readonly AppDbContext _db;
+        private readonly IChargerLogService _chargerLogsvc;
+        private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
+        public ChargersController(IChargerService svc, AppDbContext db, IChargerLogService chargerLogService)
+        {
+            _svc = svc;
+            _db = db;
+            _chargerLogsvc = chargerLogService;
+        }
 
         // READ: ai cũng xem (đổi thành [Authorize] nếu cần)
         [HttpGet]
@@ -27,13 +39,46 @@ namespace GoElectrify.Api.Controllers
             return x is null ? NotFound() : Ok(x);
         }
 
-        //[HttpGet("~/api/v1/stations/{stationId:int}/chargers")]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> ListByStation([FromRoute] int stationId, CancellationToken ct)
-        //{
-        //    var items = await _svc.GetByStationAsync(stationId, ct);
-        //    return Ok(new { ok = true, data = items });
-        //}
+        /// <summary>Lấy lịch sử ChargerLog theo trụ (filter & phân trang).</summary>
+        [HttpGet("{id:int}/logs")]
+        public async Task<IResult> GetChargerLogs(
+            [FromRoute] int id,
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] string? state,
+            [FromQuery] string? errorCode,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string? order = "desc",
+            CancellationToken ct = default)
+        {
+            var exists = await _db.Chargers.AsNoTracking().AnyAsync(c => c.Id == id, ct);
+            if (!exists)
+                return Results.Json(new { ok = false, error = "charger_not_found" }, options: Camel, statusCode: 404);
+
+            bool asc = string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase);
+
+            var q = new ChargerLogQueryDto(
+                Page: Math.Max(1, page),
+                PageSize: Math.Clamp(pageSize, 1, 200),
+                From: from,
+                To: to,
+                States: SplitCsvUpper(state),
+                ErrorCodes: SplitCsvUpper(errorCode),
+                Ascending: asc
+            );
+
+            var data = await _chargerLogsvc.GetLogsAsync(id, q, ct);
+            return Results.Json(new { ok = true, data }, options: Camel);
+        }
+
+        private static string[] SplitCsvUpper(string? s) =>
+            string.IsNullOrWhiteSpace(s)
+                ? Array.Empty<string>()
+                : s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                   .Select(x => x.ToUpperInvariant())
+                   .ToArray();
+
 
         // CREATE: Admin|Staff
         [HttpPost]

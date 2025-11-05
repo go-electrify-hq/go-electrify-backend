@@ -81,7 +81,7 @@ namespace GoElectrify.Api.Controllers
         }
 
         [Authorize(AuthenticationSchemes = "DockJwt", Policy = "DockSessionWrite")]
-        [HttpPost("sessions/{id:int}/complete")]
+        [HttpPost("/api/v1/sessions/{id:int}/complete")]
         public async Task<IResult> CompleteSession([FromRoute] int id,
             [FromBody] CompleteSessionRequest req, CancellationToken ct)
         {
