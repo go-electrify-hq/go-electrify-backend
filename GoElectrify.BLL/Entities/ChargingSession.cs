@@ -10,7 +10,7 @@
         public DateTime StartedAt { get; set; }
         public DateTime? EndedAt { get; set; }
 
-        public int DurationMinutes { get; set; }
+        public int DurationSeconds { get; set; }
 
         public int SocStart { get; set; }            // % lúc bắt đầu
         public int? SocEnd { get; set; }            // % lúc kết thúc, tuỳ chọn

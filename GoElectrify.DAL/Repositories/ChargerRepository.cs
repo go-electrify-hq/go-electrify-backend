@@ -50,5 +50,13 @@ namespace GoElectrify.DAL.Repositories
                 .Where(c => c.StationId == stationId)
                 .OrderBy(c => c.Code)
                 .ToListAsync(ct);
+
+        public async Task<(int StationId, int ConnectorTypeId)?> GetStationAndConnectorAsync(int chargerId, CancellationToken ct)
+        {
+            return await _db.Chargers.AsNoTracking()
+                .Where(c => c.Id == chargerId)
+                .Select(c => new ValueTuple<int, int>(c.StationId, c.ConnectorTypeId))
+                .FirstOrDefaultAsync(ct);
+        }
     }
 }

@@ -214,7 +214,7 @@ namespace GoElectrify.Api.Controllers
                     ChargerId = charger.Id,
                     Status = "PENDING",
                     SocStart = 0,
-                    DurationMinutes = 0
+                    DurationSeconds = 0
                 };
                 _db.ChargingSessions.Add(session);
                 await _db.SaveChangesAsync(ct);

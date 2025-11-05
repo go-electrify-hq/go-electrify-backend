@@ -28,6 +28,9 @@ namespace GoElectrify.BLL.Services
             if (s.Status != "UNPAID")
                 throw new InvalidOperationException("Session is not ready for payment.");
 
+            s.EndedAt = DateTime.UtcNow;
+            if (dto.FinalSoc.HasValue) s.FinalSoc = dto.FinalSoc.Value;
+            s.DurationSeconds = (int)Math.Max(0, (s.EndedAt.Value - s.StartedAt).TotalSeconds);
             if (s.EndedAt == null)
                 throw new InvalidOperationException("Session must be ended before payment.");
 

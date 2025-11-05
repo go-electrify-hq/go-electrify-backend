@@ -25,5 +25,15 @@ namespace GoElectrify.BLL.Contracts.Repositories
         int pageSize,
         CancellationToken ct);
 
+        Task<ChargingSession?> FindByIdAsync(int id, CancellationToken ct);
+        Task<ChargingSession?> FindActiveByIdAsync(int id, CancellationToken ct);
+        Task<bool> UserHasOtherUnpaidAsync(int userId, int exceptSessionId, CancellationToken ct);
+
+        Task<ChargingSession?> GetActiveByUserAsync(int userId, CancellationToken ct);
+        Task<ChargingSession?> GetClosestUnpaidByUserAsync(int userId, CancellationToken ct);
+
+        Task<(int Total, List<ChargingSession> Items)> GetHistoryForUserAsync(
+            int userId, DateTime? from, DateTime? to, HashSet<string> statuses, int page, int pageSize, CancellationToken ct);
+
     }
 }

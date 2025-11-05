@@ -3,6 +3,7 @@ using System;
 using GoElectrify.DAL.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoElectrify.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251105083223_FixDurationColumn")]
+    partial class FixDurationColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -776,63 +779,6 @@ namespace GoElectrify.DAL.Migrations
                         {
                             t.HasCheckConstraint("CK_Incidents_Status_UPPER", "status = UPPER(status)");
                         });
-                });
-
-            modelBuilder.Entity("GoElectrify.BLL.Entities.Notification", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsMarker")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_marker");
-
-                    b.Property<string>("MarkerKind")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("marker_kind");
-
-                    b.Property<DateTime?>("MarkerValueUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("marker_value_utc");
-
-                    b.Property<string>("NotifKey")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("notif_key");
-
-                    b.Property<DateTime?>("ReadAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("read_at_utc");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_notifications");
-
-                    b.HasIndex("UserId", "MarkerKind")
-                        .IsUnique()
-                        .HasDatabaseName("ix_notifications_user_id_marker_kind")
-                        .HasFilter("is_marker = TRUE AND marker_kind IS NOT NULL");
-
-                    b.HasIndex("UserId", "NotifKey")
-                        .IsUnique()
-                        .HasDatabaseName("ix_notifications_user_id_notif_key")
-                        .HasFilter("is_marker = FALSE AND notif_key IS NOT NULL");
-
-                    b.HasIndex("UserId", "ReadAtUtc")
-                        .HasDatabaseName("ix_notifications_user_id_read_at_utc")
-                        .HasFilter("is_marker = FALSE AND read_at_utc IS NULL");
-
-                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.RefreshToken", b =>
@@ -1902,18 +1848,6 @@ namespace GoElectrify.DAL.Migrations
                     b.Navigation("ReportedBy");
 
                     b.Navigation("Station");
-                });
-
-            modelBuilder.Entity("GoElectrify.BLL.Entities.Notification", b =>
-                {
-                    b.HasOne("GoElectrify.BLL.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_notifications_users_user_id");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GoElectrify.BLL.Entities.RefreshToken", b =>

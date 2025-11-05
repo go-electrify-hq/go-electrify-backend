@@ -15,7 +15,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             // Columns
             b.Property(x => x.StartedAt).IsRequired();
             b.Property(x => x.EndedAt);
-            b.Property(x => x.DurationMinutes).IsRequired();
+            b.Property(x => x.DurationSeconds).IsRequired();
             b.Property(x => x.ParkingMinutes);
 
             b.Property(x => x.SocStart).IsRequired();
@@ -53,7 +53,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
                 "ended_at IS NULL OR ended_at >= started_at"));
 
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_duration_non_negative",
-                "duration_minutes >= 0"));
+                "duration_seconds >= 0"));
 
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_parking_non_negative",
                 "parking_minutes IS NULL OR parking_minutes >= 0"));

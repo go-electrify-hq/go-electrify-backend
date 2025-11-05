@@ -110,5 +110,12 @@ namespace GoElectrify.DAL.Repositories
                 .Select(u => u.Email)
                 .FirstOrDefaultAsync(ct);
         }
+
+        public async Task<Booking?> GetByCodeAsync(string code, CancellationToken ct)
+        {
+            return await db.Bookings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.Code == code, ct);
+        }
     }
 }

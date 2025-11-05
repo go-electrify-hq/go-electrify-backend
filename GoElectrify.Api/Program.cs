@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using GoElectrify.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using GoElectrify.BLL.Services.Realtime;
+using GoElectrify.DAL.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(opt =>
