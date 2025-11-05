@@ -1,5 +1,6 @@
 ﻿using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Dtos.ChargingSession;
+using GoElectrify.BLL.Dtos.Dock;
 
 namespace GoElectrify.BLL.Contracts.Services
 {
@@ -15,6 +16,8 @@ namespace GoElectrify.BLL.Contracts.Services
 
         Task<(bool Ok, string? Error, StartSessionResult? Data, object? EventPayload)>
             StartAsync(int sessionId, int dockIdFromToken, BLL.Dtos.Dock.StartSessionRequest req, CancellationToken ct);
+        Task<(bool Ok, string? Error, CompleteSessionResult? Data)>
+            CompleteByDockAsync(int sessionId, int dockIdFromToken, CompleteSessionRequest req, CancellationToken ct);
 
         Task<(bool Ok, string? Error, BindBookingResult? Data, object? EventPayload)>
             BindBookingAsync(int userId, int sessionId, BindBookingRequest body, CancellationToken ct);

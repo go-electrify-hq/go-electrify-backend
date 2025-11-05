@@ -3,6 +3,7 @@ using GoElectrify.Api.Realtime;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Dtos.ChargingSession;
+using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Entities;
 using GoElectrify.BLL.Exceptions;
 using GoElectrify.DAL.Persistence;
@@ -79,7 +80,41 @@ namespace GoElectrify.Api.Controllers
             return Results.Json(new { ok = true, data }, options: Camel);
         }
 
+        [Authorize(AuthenticationSchemes = "DockJwt", Policy = "DockSessionWrite")]
+        [HttpPost("sessions/{id:int}/complete")]
+        public async Task<IResult> CompleteSession([FromRoute] int id,
+            [FromBody] CompleteSessionRequest req, CancellationToken ct)
+        {
+            // 1) Auth theo session
+            if (!JwtMatchesSession(User, id))
+                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
 
+            // 2) Lấy session còn hiệu lực? (optional pre-check để trả 404 sớm, vẫn an toàn)
+            var existsActive = await _db.ChargingSessions.AsNoTracking()
+                .AnyAsync(x => x.Id == id && x.EndedAt == null, ct);
+            if (!existsActive)
+                return Results.Json(new { ok = false, error = "session_not_found_or_already_ended" }, options: Camel, statusCode: 404);
+
+            // 3) dockId phải khớp charger
+            var claimDockId = int.TryParse(User.FindFirst("dockId")?.Value, out var did) ? did : (int?)null;
+            if (claimDockId is null)
+                return Results.Json(new { ok = false, error = "forbidden" }, options: Camel, statusCode: 403);
+
+            // 4) Uỷ quyền sang Service
+            var (ok, error, data) = await _svc.CompleteByDockAsync(id, claimDockId.Value, req, ct);
+            if (!ok)
+            {
+                var status = error switch
+                {
+                    "forbidden" => 403,
+                    "session_not_found_or_already_ended" => 404,
+                    _ => 400
+                };
+                return Results.Json(new { ok = false, error }, options: Camel, statusCode: status);
+            }
+
+            return Results.Json(new { ok = true, data }, options: Camel);
+        }
 
         [Authorize] // user JWT
         [HttpPost("{id:int}/bind-booking")]
