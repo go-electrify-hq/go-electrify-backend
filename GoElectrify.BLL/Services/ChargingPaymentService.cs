@@ -23,12 +23,17 @@ namespace GoElectrify.BLL.Services
         {
             var s = await sessionRepo.GetSessionAsync(sessionId, ct)
                 ?? throw new InvalidOperationException("Session not found.");
-            if (s.EndedAt != null)
-                throw new InvalidOperationException("Session already ended.");
+            if (s.Status == "COMPLETED")
+                throw new InvalidOperationException("Session already paid.");
+            if (s.Status != "UNPAID")
+                throw new InvalidOperationException("Session is not ready for payment.");
 
             s.EndedAt = DateTime.UtcNow;
             if (dto.FinalSoc.HasValue) s.FinalSoc = dto.FinalSoc.Value;
             s.DurationSeconds = (int)Math.Max(0, (s.EndedAt.Value - s.StartedAt).TotalSeconds);
+            if (s.EndedAt == null)
+                throw new InvalidOperationException("Session must be ended before payment.");
+
             var energy = s.EnergyKwh;
             if (energy <= 0)
                 throw new InvalidOperationException("EnergyKwh must be > 0 to process payment.");
@@ -58,12 +63,14 @@ namespace GoElectrify.BLL.Services
                     throw BusinessRuleException.WalletInsufficient(billedAmount - wallet.Balance);
 
                 wallet.Balance -= billedAmount;
-
+                wallet.UpdatedAt = DateTime.UtcNow;
+                await walletRepo.UpdateAsync(wallet, ct);
+                await walletRepo.SaveChangesAsync(ct);
                 txs.Add(new Transaction
                 {
                     WalletId = wallet.Id,
                     ChargingSessionId = s.Id,
-                    Amount = -billedAmount,
+                    Amount = billedAmount,
                     Type = "CHARGING",
                     Status = "SUCCEEDED",
                     Note = $"Charged {billedKwh:F2} kWh @ {unitPrice} VND/kWh",
@@ -126,7 +133,6 @@ namespace GoElectrify.BLL.Services
             s.UpdatedAt = DateTime.UtcNow;
             await txRepo.AddRangeAsync(txs);
             await sessionRepo.SaveChangesAsync(ct);
-
             return new PaymentReceiptDto
             {
                 SessionId = s.Id,

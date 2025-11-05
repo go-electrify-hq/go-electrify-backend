@@ -53,6 +53,26 @@ namespace GoElectrify.DAL.Repositories
                           select u.Email)
                          .FirstOrDefaultAsync();
         }
+        public Task UpdateAsync(Wallet wallet, CancellationToken ct = default)
+        {
+            // Nếu wallet đang Detached thì attach & mark modified các field cần thiết
+            var entry = _db.Entry(wallet);
+            if (entry.State == EntityState.Detached)
+            {
+                _db.Wallets.Attach(wallet);
+                entry.Property(x => x.Balance).IsModified = true;
+                entry.Property(x => x.UpdatedAt).IsModified = true;
+            }
+            else
+            {
+                entry.Property(x => x.Balance).IsModified = true;
+                entry.Property(x => x.UpdatedAt).IsModified = true;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task SaveChangesAsync(CancellationToken ct = default)
+            => _db.SaveChangesAsync(ct);
     }
 }
 
