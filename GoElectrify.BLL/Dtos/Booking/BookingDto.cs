@@ -9,7 +9,7 @@
         public int InitialSoc { get; set; }
         public int StationId { get; set; }
         public int ConnectorTypeId { get; set; }
-        public int VehicleModelId { get; set; }
+        public int? VehicleModelId { get; set; }
         public decimal? EstimatedCost { get; set; }
     }
 }

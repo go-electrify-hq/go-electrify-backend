@@ -9,7 +9,7 @@ namespace GoElectrify.Api.Controllers
     [Route("api/v1/ably")]
     public sealed class AblyController(IAblyService ably) : ControllerBase
     {
-        [Authorize] // driver phải đăng nhập
+        [Authorize]
         [HttpGet("token")]
         public async Task<IActionResult> GetToken([FromQuery] string channel, [FromQuery] string role = "driver", CancellationToken ct = default)
         {

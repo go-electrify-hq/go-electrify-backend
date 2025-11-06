@@ -44,7 +44,7 @@ namespace GoElectrify.Api.Hosted
                         // Lấy tick MỚI NHẤT kể từ khi phiên bắt đầu (bỏ qua log cũ của phiên trước)
                         var lastAt = await db.ChargerLogs
                             .Where(l => l.ChargerId == s.ChargerId
-                                     && l.SampleAt >= s.StartedAt) // 👈 quan trọng: chỉ xét log trong phạm vi phiên hiện tại
+                                     && l.SampleAt >= s.StartedAt) 
                             .OrderByDescending(l => l.SampleAt)
                             .Select(l => (DateTime?)l.SampleAt)
                             .FirstOrDefaultAsync(stoppingToken);

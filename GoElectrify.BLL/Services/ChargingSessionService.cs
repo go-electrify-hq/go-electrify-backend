@@ -178,10 +178,13 @@ namespace GoElectrify.BLL.Services
                 return (false, "booking_wrong_station", null, null);
             if (bk.ConnectorTypeId != ch.ConnectorTypeId)
                 return (false, "booking_wrong_connector", null, null);
+            if (bk.VehicleModelId.HasValue)
+            {
+                var compatible = await repo.VehicleSupportsConnectorAsync(bk.VehicleModelId.Value, bk.ConnectorTypeId, ct);
+                if (!compatible)
+                    return (false, "vehicle_connector_incompatible", null, null);
+            }
 
-            var compatible = await repo.VehicleSupportsConnectorAsync(bk.VehicleModelId, bk.ConnectorTypeId, ct);
-            if (!compatible)
-                return (false, "vehicle_connector_incompatible", null, null);
 
             var hasUnpaid = await repo.UserHasOtherUnpaidAsync(bk.UserId, s.Id, ct);
             if (hasUnpaid)
@@ -278,6 +281,9 @@ namespace GoElectrify.BLL.Services
             if (ch is null || bk.StationId != ch.StationId)
                 return (false, "Booking does not belong to this charger.", null, null);
 
+            if (bk.ConnectorTypeId != ch.ConnectorTypeId)
+                return (false, "Booking connector type does not match charger.", null, null);
+
             if (bk.Status is not ("CONFIRMED" or "CHECKED_IN" or "RESERVED"))
                 return (false, "Booking is not active.", null, null);
 
@@ -294,13 +300,47 @@ namespace GoElectrify.BLL.Services
 
             // ===== Build payload cho Ably event "session_specs" =====
             // Lấy thêm thông tin vehicle & charger
-            var vm = await repo.GetVehicleModelAsync(bk.VehicleModelId, ct); // có BatteryCapacityKwh, MaxPowerKw
+            //var vm = await repo.GetVehicleModelAsync(bk.VehicleModelId, ct); // có BatteryCapacityKwh, MaxPowerKw
+            VehicleModel? vm = null;
+            if (bk.VehicleModelId.HasValue)
+            {
+                vm = await repo.GetVehicleModelAsync(bk.VehicleModelId.Value, ct);
+                if (vm is null)
+                    return (false, "Vehicle model not found.", null, null);
+            }
             var chargerLite = ch; // đã có ở trên (PowerKw, ConnectorTypeId)
 
             object? payload = null;
-            if (vm is not null && chargerLite is not null)
+            //if (vm is not null && chargerLite is not null)
+            //{
+            //    payload = new
+            //    {
+            //        sessionId = s.Id,
+            //        initialSoc = s.SocStart,
+            //        targetSoc = s.TargetSoc,
+            //        booking = new
+            //        {
+            //            vehicleModelId = bk.VehicleModelId,
+            //            connectorTypeId = bk.ConnectorTypeId,
+            //            stationId = bk.StationId,
+            //            scheduledStart = bk.ScheduledStart
+            //        },
+            //        vehicle = new
+            //        {
+            //            batteryCapacityKwh = vm.BatteryCapacityKwh,
+            //            maxPowerKw = vm.MaxPowerKw
+            //        },
+            //        charger = new
+            //        {
+            //            powerKw = chargerLite.PowerKw,
+            //            connectorTypeId = chargerLite.ConnectorTypeId
+            //        }
+            //    };
+            //}
+
+            if (chargerLite is not null)
             {
-                payload = new
+                var basePayload = new
                 {
                     sessionId = s.Id,
                     initialSoc = s.SocStart,
@@ -312,17 +352,26 @@ namespace GoElectrify.BLL.Services
                         stationId = bk.StationId,
                         scheduledStart = bk.ScheduledStart
                     },
-                    vehicle = new
-                    {
-                        batteryCapacityKwh = vm.BatteryCapacityKwh,
-                        maxPowerKw = vm.MaxPowerKw
-                    },
                     charger = new
                     {
                         powerKw = chargerLite.PowerKw,
                         connectorTypeId = chargerLite.ConnectorTypeId
                     }
                 };
+                payload = vm is null ? basePayload :
+                    new
+                    {
+                        basePayload.sessionId,
+                        basePayload.initialSoc,
+                        basePayload.targetSoc,
+                        basePayload.booking,
+                        basePayload.charger,
+                        vehicle = new
+                        {
+                            batteryCapacityKwh = vm.BatteryCapacityKwh,
+                            maxPowerKw = vm.MaxPowerKw
+                        }
+                    };
             }
 
             return (true, null, data, payload);

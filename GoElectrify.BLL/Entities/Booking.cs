@@ -9,8 +9,8 @@
         public int ConnectorTypeId { get; set; }
         public ConnectorType ConnectorType { get; set; } = default!;
 
-        public int VehicleModelId { get; set; }
-        public VehicleModel VehicleModel { get; set; } = default!;
+        public int? VehicleModelId { get; set; }
+        public VehicleModel? VehicleModel { get; set; } = default!;
         public DateTime ScheduledStart { get; set; }
         public int InitialSoc { get; set; }
 

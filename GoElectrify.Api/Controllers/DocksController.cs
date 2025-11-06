@@ -28,18 +28,14 @@ namespace GoElectrify.Api.Controllers
         private readonly AppDbContext _db;
         private readonly IAblyService _ably;
         private readonly IConfiguration _cfg;
-        private readonly ILogger<DocksController> _logger;
-        private readonly IChargingSessionService _svc;
         private readonly IAblyTokenCache _ablyTokenCache;
         private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
         private readonly IRealtimeTokenIssuer _tokenIssuer;
-        public DocksController(IChargingSessionService svc, AppDbContext db, IAblyService ably, IConfiguration cfg, ILogger<DocksController> logger, IAblyTokenCache ablyTokenCache, IRealtimeTokenIssuer tokenIssuer)
+        public DocksController(AppDbContext db, IAblyService ably, IConfiguration cfg, IAblyTokenCache ablyTokenCache, IRealtimeTokenIssuer tokenIssuer)
         {
             _db = db;
             _ably = ably;
             _cfg = cfg;
-            _logger = logger;
-            _svc = svc;
             _ablyTokenCache = ablyTokenCache;
             _tokenIssuer = tokenIssuer;
         }
@@ -90,7 +86,7 @@ namespace GoElectrify.Api.Controllers
             {
                 bool changed = false;
 
-                // 3a) Ưu tiên đồng hồ cộng dồn (cẩn thận out-of-order)
+                // 3a) Ưu tiên đồng hồ cộng dồn
                 if (req.SessionEnergyKwh is not null)
                 {
                     var newTotal = Math.Max(session.EnergyKwh, req.SessionEnergyKwh.Value);
