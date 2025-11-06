@@ -46,9 +46,14 @@ namespace GoElectrify.BLL.Services
         {
             // Validate input
             if (!await _repo.StationExistsAsync(dto.StationId, ct)) throw new InvalidOperationException("Station not found.");
-            if (!await _repo.VehicleSupportsConnectorAsync(dto.VehicleModelId, dto.ConnectorTypeId, ct))
-                throw new InvalidOperationException("Vehicle model does not support the selected connector type.");
-
+            //if (!await _repo.VehicleSupportsConnectorAsync(dto.VehicleModelId, dto.ConnectorTypeId, ct))
+            //    throw new InvalidOperationException("Vehicle model does not support the selected connector type.");
+            if (dto.VehicleModelId.HasValue)
+            {
+                var ok = await _repo.VehicleSupportsConnectorAsync(dto.VehicleModelId.Value, dto.ConnectorTypeId, ct);
+                if (!ok)
+                    throw new InvalidOperationException("Vehicle model does not support the selected connector type.");
+            }
             var start = dto.ScheduledStart.ToUniversalTime();
             if (start < DateTime.UtcNow.AddMinutes(5))
                 throw new InvalidOperationException("ScheduledStart must be at least +5 minutes from now.");
@@ -91,7 +96,7 @@ namespace GoElectrify.BLL.Services
                 await _tx.AddAsync(new Transaction
                 {
                     WalletId = wallet.Id,
-                    Amount = fee,                 
+                    Amount = fee,
                     Type = "BOOKING_FEE",
                     Status = "SUCCEEDED",
                     Note = $"Booking fee"

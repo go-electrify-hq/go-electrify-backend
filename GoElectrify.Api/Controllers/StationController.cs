@@ -66,8 +66,8 @@ public class StationController : ControllerBase
     [HttpGet("{stationId:int}/chargers")]
     public async Task<IActionResult> GetChargersByStation(
     int stationId,
-    [FromServices] IStationService stations,    // inject cục bộ, không đổi constructor
-    [FromServices] IChargerService chargers,    // inject cục bộ, không đổi constructor
+    [FromServices] IStationService stations,
+    [FromServices] IChargerService chargers,
     CancellationToken ct = default)
     {
 

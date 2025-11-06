@@ -3,7 +3,7 @@
     public sealed class CreateBookingDto
     {
         public int StationId { get; set; }
-        public int VehicleModelId { get; set; }
+        public int? VehicleModelId { get; set; }
         public int ConnectorTypeId { get; set; }
         public DateTime ScheduledStart { get; set; }   // UTC
         public int InitialSoc { get; set; }            // 0..100

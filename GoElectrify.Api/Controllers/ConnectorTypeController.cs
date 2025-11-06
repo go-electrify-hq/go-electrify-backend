@@ -61,7 +61,7 @@ namespace GoElectrify.Api.Controllers
             {
                 return NotFound();
             }
-            catch (InvalidOperationException ex) // đang bị bookings/chargers tham chiếu
+            catch (InvalidOperationException ex)
             {
                 return Conflict(new { error = ex.Message });
             }
@@ -77,12 +77,10 @@ namespace GoElectrify.Api.Controllers
 
             var result = await svc.DeleteManyWithReportAsync(req.Ids, ct);
 
-            // Có id không tồn tại hoặc đang bị tham chiếu -> 409, không xóa gì cả
             if (result.BlockedIds.Count > 0 || result.NotFoundIds.Count > 0)
                 return Conflict(result);
 
-            // Xóa thành công toàn bộ
-            return Ok(result); // { deleted, deletedIds, blockedIds:[], notFoundIds:[] }
+            return Ok(result);
         }
     }
 }

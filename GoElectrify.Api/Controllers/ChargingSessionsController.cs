@@ -166,7 +166,7 @@ namespace GoElectrify.Api.Controllers
             // Số tiền cần trả
             var amount = s.Cost ?? 0m;
 
-            // Nếu chưa có giá (cost=null) ⇒ coi như 0đ, chuyển PAID
+            // Nếu chưa có giá (cost=null) => coi như 0đ, chuyển PAID
             if (s.Cost is null)
             {
                 s.Status = "PAID";
@@ -184,7 +184,7 @@ namespace GoElectrify.Api.Controllers
             if (wallet.Balance < amount)
                 return BadRequest(new { ok = false, error = "insufficient_funds", errorMsg = "Không đủ số dư" });
 
-            // Trừ tiền + tạo Transaction (Type/Status theo schema hiện có)
+            // Trừ tiền + tạo Transaction 
             using var tx = await _db.Database.BeginTransactionAsync(ct);
 
             // Reload để tránh race

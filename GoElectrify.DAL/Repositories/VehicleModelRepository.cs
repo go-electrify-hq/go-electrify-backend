@@ -62,12 +62,13 @@ namespace GoElectrify.DAL.Repositories
 
         public Task<List<int>> FindIdsInBookingsAsync(IEnumerable<int> ids, CancellationToken ct)
         {
-            var idList = ids?.Distinct().ToList() ?? new();
+            var idList = ids?.Where(x => x > 0).Distinct().ToList() ?? new();
             if (idList.Count == 0) return Task.FromResult(new List<int>());
 
             return db.Set<Booking>()
-                     .Where(b => idList.Contains(b.VehicleModelId))
-                     .Select(b => b.VehicleModelId)
+                     .Where(b => b.VehicleModelId.HasValue
+                              && idList.Contains(b.VehicleModelId.Value))
+                     .Select(b => b.VehicleModelId!.Value)
                      .Distinct()
                      .ToListAsync(ct);
         }

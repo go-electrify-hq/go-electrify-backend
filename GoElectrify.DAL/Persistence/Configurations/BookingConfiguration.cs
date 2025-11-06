@@ -34,7 +34,8 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasOne(x => x.VehicleModel)
              .WithMany(vm => vm.Bookings)
              .HasForeignKey(x => x.VehicleModelId)
-             .OnDelete(DeleteBehavior.Restrict);
+             .OnDelete(DeleteBehavior.Restrict)
+             .IsRequired(false);
 
             b.Property(x => x.EstimatedCost)
             .HasPrecision(18, 2);
