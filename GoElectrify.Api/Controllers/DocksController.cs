@@ -335,23 +335,32 @@ namespace GoElectrify.Api.Controllers
         [HttpPost("join")]
         public async Task<IActionResult> JoinByCode([FromBody] JoinByCodeRequest body, CancellationToken ct)
         {
-            var s = await _db.ChargingSessions
+            if (string.IsNullOrWhiteSpace(body?.Code))
+                return BadRequest(new { ok = false, error = "missing_code" });
+
+            var dto = await _db.ChargingSessions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.JoinCode == body.Code && x.EndedAt == null, ct);
+                .Where(x => x.JoinCode == body.Code && x.EndedAt == null)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.AblyChannel,
+                    PricePerKwh = x.Charger.PricePerKwh
+                })
+                .FirstOrDefaultAsync(ct);
 
-            if (s is null)
-                return NotFound(new { ok = false, error = "Invalid or expired code." });
+            if (dto is null)
+                return NotFound(new { ok = false, error = "invalid_or_expired_code" });
 
-            if (string.IsNullOrWhiteSpace(s.AblyChannel))
+            if (string.IsNullOrWhiteSpace(dto.AblyChannel))
                 return Conflict(new { ok = false, error = "no_ably_channel" });
 
-            // “Giống” user: subscribe-only, cùng schema trả về
             var clientId = $"viewer-{Guid.NewGuid():N}";
 
             var (ablyToken, exp) = await _tokenIssuer.IssueAsync(
-                sessionId: s.Id,
-                channelId: s.AblyChannel!,
-                clientId: $"viewer-{Guid.NewGuid():N}",
+                sessionId: dto.Id,
+                channelId: dto.AblyChannel!,
+                clientId: clientId,
                 subscribeOnly: false,
                 useCache: false,
                 allowPresence: true,
@@ -363,9 +372,10 @@ namespace GoElectrify.Api.Controllers
                 ok = true,
                 data = new
                 {
-                    sessionId = s.Id,
-                    channelId = s.AblyChannel,
+                    sessionId = dto.Id,
+                    channelId = dto.AblyChannel,
                     ablyToken = ablyToken,
+                    pricePerKwh = dto.PricePerKwh,
                     expiresAt = exp
                 }
             });
