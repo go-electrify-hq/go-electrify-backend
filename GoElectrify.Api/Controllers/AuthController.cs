@@ -76,31 +76,32 @@ namespace go_electrify_backend.Controllers
             }
         }
 
-        [AllowAnonymous]
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout([FromBody] LogoutRequest? body, CancellationToken ct)
+        [Authorize] // giữ nguyên để FE không phải đổi
+        public async Task<IActionResult> Logout([FromBody] string? refreshToken, CancellationToken ct)
         {
-            // Lấy refresh token: ưu tiên body, fallback cookie
-            var rt = body?.RefreshToken;
-            if (string.IsNullOrWhiteSpace(rt))
-                rt = Request.Cookies["refreshToken"];
+            var rt = string.IsNullOrWhiteSpace(refreshToken)
+                ? Request.Cookies["refreshToken"]
+                : refreshToken;
 
-            // Revoke trong DB (nếu có token)
-            if (!string.IsNullOrWhiteSpace(rt))
+            try
             {
-                try
+                var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!string.IsNullOrWhiteSpace(uidStr) && int.TryParse(uidStr, out var uid) && !string.IsNullOrWhiteSpace(rt))
+                {
+                    await auth.LogoutAsync(uid, rt!, ct);
+                }
+                else if (!string.IsNullOrWhiteSpace(rt))
                 {
                     await auth.RevokeRefreshTokenAsync(rt!, ct);
                 }
-                catch
-                {
-                    // không throw: vẫn tiếp tục clear cookie để đảm bảo client logged out
-                }
+            }
+            catch
+            {
+
             }
 
-            // Clear cookies trên domain chung để FE/API tách subdomain vẫn xoá được
             var expired = DateTime.UnixEpoch;
-
             Response.Cookies.Append("refreshToken", ".", new CookieOptions
             {
                 HttpOnly = true,
@@ -110,8 +111,6 @@ namespace go_electrify_backend.Controllers
                 Domain = ".go-electrify.com",
                 Expires = expired
             });
-
-            // Nếu bạn đang set accessToken ở cookie cho FE đọc, xoá luôn cho chắc
             Response.Cookies.Append("accessToken", ".", new CookieOptions
             {
                 HttpOnly = false,
@@ -122,7 +121,7 @@ namespace go_electrify_backend.Controllers
                 Expires = expired
             });
 
-            return Ok(new { ok = true });
+            return Ok();
         }
         public sealed record LogoutRequest(string? RefreshToken);
 
@@ -145,52 +144,41 @@ namespace go_electrify_backend.Controllers
 
         [AllowAnonymous]
         [HttpPost("refreshToken")]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshRequest? body, CancellationToken ct)
+        public async Task<IActionResult> Refresh([FromBody] RefreshRequest? req, CancellationToken ct)
         {
-            // Ưu tiên body, fallback cookie
-            var incoming = body?.RefreshToken;
+            var incoming = req?.RefreshToken;
             if (string.IsNullOrWhiteSpace(incoming))
                 incoming = Request.Cookies["refreshToken"];
 
             if (string.IsNullOrWhiteSpace(incoming))
-                return Unauthorized(new { ok = false, error = "missing_refresh_token" });
+                return Unauthorized(new { error = "missing_refresh_token" });
 
             try
             {
-                // AuthService sẽ ném exception nếu token sai/hết hạn
                 var tokens = await auth.RefreshAsync(incoming!, ct);
 
-                // Rotate refreshToken cookie (cross-site: FE và API khác subdomain)
-                Response.Cookies.Append(
-                    "refreshToken",
-                    tokens.RefreshToken,
-                    new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.None,
-                        Expires = tokens.RefreshExpires,
-                        Path = "/",
-                        Domain = ".go-electrify.com"
-                    });
-
-                var ttlSeconds = (int)Math.Max(
-                    1,
-                    (tokens.AccessExpires - DateTimeOffset.UtcNow).TotalSeconds
-                );
-
-                return Ok(new
+                Response.Cookies.Append("refreshToken", tokens.RefreshToken, new CookieOptions
                 {
-                    ok = true,
-                    accessToken = tokens.AccessToken,
-                    expiresInSeconds = ttlSeconds
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = tokens.RefreshExpires,
+                    Path = "/",
+                    Domain = ".go-electrify.com"
                 });
+
+                return Ok(tokens);
             }
-            catch (Exception)
+            catch (UnauthorizedAccessException ex)
             {
-                return Unauthorized(new { ok = false, error = "invalid_or_expired_refresh_token" });
+                return Unauthorized(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
             }
         }
+
         public sealed record RefreshRequest(string? RefreshToken);
         private bool IsAllowedRedirect(string? url)
         {
