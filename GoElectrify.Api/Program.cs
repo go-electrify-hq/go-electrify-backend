@@ -164,13 +164,18 @@ builder.Services
         o.SaveTokens = false;
         o.Events = new Microsoft.AspNetCore.Authentication.OAuth.OAuthEvents
         {
+            OnRedirectToAuthorizationEndpoint = ctx =>
+            {
+                ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                   .CreateLogger("GoogleOAuth")
+                   .LogInformation("Google auth redirect: {Url}", ctx.RedirectUri);
+                return Task.CompletedTask;
+            },
             OnRemoteFailure = ctx =>
             {
-                ctx.HttpContext.RequestServices
-                   .GetRequiredService<ILoggerFactory>()
+                ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
                    .CreateLogger("GoogleOAuth")
                    .LogError(ctx.Failure, "Google OAuth remote failure");
-
                 ctx.HandleResponse();
                 return Task.CompletedTask;
             }
@@ -233,7 +238,6 @@ app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
 app.UseRouting();
 app.UseHttpsRedirection();
 app.UseCors("FrontEndProd");
-
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
