@@ -6,7 +6,6 @@ namespace GoElectrify.BLL.Contracts.Services
     public interface IUserService
     {
         Task<UserListPageDto> ListAsync(UserListQueryDto query, CancellationToken ct);
-        Task<UserListPageDto> ListAsync(UserListQueryDto query, CancellationToken ct);
 
         Task<UserRoleChangedDto> UpdateRoleAsync(
             int actingUserId,
