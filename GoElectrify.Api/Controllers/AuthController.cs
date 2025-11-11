@@ -216,7 +216,8 @@ namespace go_electrify_backend.Controllers
         [AllowAnonymous]
         public IActionResult LoginWithGoogle([FromQuery] string? returnUrl)
         {
-            var cb = Url.Action(nameof(GoogleCallback), "Auth", values: null, protocol: Request.Scheme)!;
+            //var cb = Url.Action(nameof(GoogleCallback), "Auth", values: null, protocol: Request.Scheme)!;
+            var cb = "https://api.go-electrify.com/api/v1/auth/callback/google";
             var (scheme, props) = auth.GetGoogleChallenge(cb);
 
             if (!string.IsNullOrWhiteSpace(returnUrl) && IsAllowedRedirect(returnUrl))
