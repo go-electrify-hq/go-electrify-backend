@@ -25,7 +25,7 @@ builder.Services.AddCors(opt =>
         p.WithOrigins(cfg.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
          .AllowAnyHeader()
          .AllowAnyMethod()
-         .AllowCredentials(); // cần cho cookie cross-site
+         .AllowCredentials();
     });
 });
 
