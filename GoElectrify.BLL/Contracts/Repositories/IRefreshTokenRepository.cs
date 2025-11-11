@@ -9,6 +9,7 @@ namespace GoElectrify.BLL.Contracts.Repositories
         /// <summary>Lấy refresh token còn hiệu lực theo user + hash.</summary>
         Task<RefreshToken?> FindActiveAsync(int userId, string tokenHash, CancellationToken ct);
         Task<RefreshToken?> FindActiveByHashAsync(string tokenHash, CancellationToken ct);
+        Task<int> RevokeAllActiveByUserAsync(int userId, CancellationToken ct);
         Task SaveAsync(CancellationToken ct);
     }
 }
