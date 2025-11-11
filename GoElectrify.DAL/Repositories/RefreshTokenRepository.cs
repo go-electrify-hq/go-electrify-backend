@@ -26,7 +26,19 @@ namespace GoElectrify.DAL.Repositories
                 .OrderByDescending(rt => rt.Id)
                 .FirstOrDefaultAsync(ct);
         }
+        public async Task<int> RevokeAllActiveByUserAsync(int userId, CancellationToken ct)
+        {
+            var now = DateTime.UtcNow;
+            var items = await db.RefreshTokens
+                .Where(rt => rt.UserId == userId && rt.RevokedAt == null && rt.ExpiresAt > now)
+                .ToListAsync(ct);
 
+            foreach (var it in items)
+                it.RevokedAt = now;
+
+            await db.SaveChangesAsync(ct);
+            return items.Count;
+        }
         public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
     }
 }
