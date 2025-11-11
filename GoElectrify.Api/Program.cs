@@ -164,13 +164,18 @@ builder.Services
         o.SaveTokens = false;
         o.Events = new Microsoft.AspNetCore.Authentication.OAuth.OAuthEvents
         {
+            OnRedirectToAuthorizationEndpoint = ctx =>
+            {
+                ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                   .CreateLogger("GoogleOAuth")
+                   .LogInformation("Google auth redirect: {Url}", ctx.RedirectUri);
+                return Task.CompletedTask;
+            },
             OnRemoteFailure = ctx =>
             {
-                ctx.HttpContext.RequestServices
-                   .GetRequiredService<ILoggerFactory>()
+                ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
                    .CreateLogger("GoogleOAuth")
                    .LogError(ctx.Failure, "Google OAuth remote failure");
-
                 ctx.HandleResponse();
                 return Task.CompletedTask;
             }
@@ -205,7 +210,14 @@ builder.Services.AddControllers()
     });
 
 var app = builder.Build();
+var fwd = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+};
+fwd.KnownNetworks.Clear();
+fwd.KnownProxies.Clear();
 
+app.UseForwardedHeaders(fwd);
 // Auto-migrate (dev) + seed Roles
 using (var scope = app.Services.CreateScope())
 {
@@ -226,10 +238,6 @@ app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
 app.UseRouting();
 app.UseHttpsRedirection();
 app.UseCors("FrontEndProd");
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
-});
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
