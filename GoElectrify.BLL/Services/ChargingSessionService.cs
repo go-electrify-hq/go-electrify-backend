@@ -1,6 +1,4 @@
-﻿using System;
-using System.Linq;
-using GoElectrify.BLL.Contracts.Repositories;
+﻿using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.ChargingSession;
 using GoElectrify.BLL.Dtos.ChargingSession;
@@ -8,6 +6,9 @@ using GoElectrify.BLL.Dtos.Dock;
 using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace GoElectrify.BLL.Services
 {
@@ -16,7 +17,9 @@ namespace GoElectrify.BLL.Services
         IChargingSessionRepository repo,
         IBookingRepository bookingRepo,
         IChargerRepository chargerRepo,
-        IChargerLogRepository logRepo
+        IChargerLogRepository logRepo,
+        IStationRepository stationRepo,
+        INotificationMailService _notifMail
     ) : IChargingSessionService
     {
         public async Task<ChargingSessionDto> StopAsync(int userId, int sessionId, string reason, CancellationToken ct)
@@ -236,6 +239,8 @@ namespace GoElectrify.BLL.Services
             s.DurationSeconds = seconds;
             s.FinalSoc = req.EndSoc;
 
+            var charger = await repo.GetChargerAsync(s.ChargerId, ct);
+
             // Tính Cost nếu có giá
             decimal? pricePerKwh = (await repo.GetChargerAsync(s.ChargerId, ct))?.PricePerKwh;
             s.Cost = pricePerKwh.HasValue
@@ -246,6 +251,46 @@ namespace GoElectrify.BLL.Services
             s.Status = "UNPAID";
 
             await repo.SaveChangesAsync(ct);
+
+            // ================== [MAIL] gửi email "Phiên sạc hoàn tất" ==================
+            if (s.EndedAt is not null)
+            {
+                try
+                {
+                    string? userEmail = null;
+                    if (s.BookingId is int bid)
+                    {
+                        var bk = await bookingRepo.GetByIdAsync(bid, ct);
+                        userEmail = bk?.User?.Email;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(userEmail))
+                    {
+                        string stationName = "Trạm sạc";
+                        if (charger != null)
+                        {
+                            var name = await stationRepo.GetNameByIdAsync(charger.StationId, ct);
+                            stationName = string.IsNullOrWhiteSpace(name) ? $"Trạm #{charger.StationId}" : name!;
+                        }
+
+                        await _notifMail.SendChargingCompletedAsync(
+                            toEmail: userEmail!,
+                            stationName: stationName,
+                            energyKwh: s.EnergyKwh,
+                            cost: s.Cost,
+                            startedAtUtc: started == default ? s.EndedAt.Value : started,
+                            endedAtUtc: s.EndedAt.Value,
+                            ct: ct
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // nếu có ILogger, bạn có thể log lại:
+                    // _logger.LogWarning(ex, "Send charging completed email failed (sessionId={Id})", s.Id);
+                }
+            }
+            // ================== [/MAIL] ==================
 
             var result = new CompleteSessionResult(
                 s.Id,

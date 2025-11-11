@@ -142,5 +142,41 @@ namespace GoElectrify.BLL.Services
             return _email.SendAsync(toEmail, subject, html, ct);
         }
 
+        // Hoàn tất phiên sạc
+        public Task SendChargingCompletedAsync(
+            string toEmail, 
+            string stationName, 
+            decimal energyKwh, 
+            decimal? cost, 
+            DateTime startedAtUtc, 
+            DateTime endedAtUtc, 
+            CancellationToken ct = default)
+        {
+                var vi = new CultureInfo("vi-VN");
+                var kwh = energyKwh.ToString("N2", vi);
+                var money = cost.HasValue ? string.Format(vi, "{0:C0}", cost.Value) : "—";
+                var start = startedAtUtc.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+                var end = endedAtUtc.ToLocalTime().ToString("HH:mm dd/MM/yyyy");
+
+                var subject = "[Go Electrify] HOÀN TẤT PHIÊN SẠC";
+                var html = $@"
+                <!doctype html>
+                <html>
+                  <body style=""font-family:Segoe UI,Arial,sans-serif; line-height:1.6; color:#111"">
+                    <h2 style=""margin:0 0 12px"">{subject}</h2>
+                    <p>Chào quý khách,</p>
+                    <p>Phiên sạc của bạn đã hoàn tất tại <b>{WebUtility.HtmlEncode(stationName)}</b>:</p>
+                    <ul style=""padding-left:18px; margin:8px 0 12px"">
+                      <li>Thời gian: <b>{WebUtility.HtmlEncode(start)} - {WebUtility.HtmlEncode(end)}</b></li>
+                      <li>Năng lượng: <b>{WebUtility.HtmlEncode(kwh)} kWh</b></li>
+                      <li>Chi phí: <b>{WebUtility.HtmlEncode(money)}</b></li>
+                    </ul>
+                    <hr style=""border:none;height:1px;background:#e5e7eb;margin:16px 0"" />
+                    <p style=""margin:0"">Cảm ơn bạn đã sử dụng dịch vụ Go Electrify!</p>
+                  </body>
+                </html>";
+
+                return _email.SendAsync(toEmail, subject, html, ct);
+        }
     }
 }

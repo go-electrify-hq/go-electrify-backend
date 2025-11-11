@@ -34,5 +34,14 @@ namespace GoElectrify.BLL.Contracts.Services
             int durationDays,     // THỜI GIAN SỬ DỤNG (ngày)
             DateTime activatedAtUtc,
             CancellationToken ct = default);
+
+        Task SendChargingCompletedAsync(
+           string toEmail,
+           string stationName,
+           decimal energyKwh,
+           decimal? cost,
+           DateTime startedAtUtc,
+           DateTime endedAtUtc,
+           CancellationToken ct = default);
     }
 }
