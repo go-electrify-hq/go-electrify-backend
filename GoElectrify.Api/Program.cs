@@ -205,7 +205,14 @@ builder.Services.AddControllers()
     });
 
 var app = builder.Build();
+var fwd = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+};
+fwd.KnownNetworks.Clear();
+fwd.KnownProxies.Clear();
 
+app.UseForwardedHeaders(fwd);
 // Auto-migrate (dev) + seed Roles
 using (var scope = app.Services.CreateScope())
 {
@@ -226,10 +233,7 @@ app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
 app.UseRouting();
 app.UseHttpsRedirection();
 app.UseCors("FrontEndProd");
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
-});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
