@@ -235,25 +235,20 @@ namespace GoElectrify.BLL.Services
                 throw new InvalidOperationException("Missing Google sub or email.");
 
             var normEmail = NormalizeEmail(email);
-
             var user = await users.FindByEmailAsync(normEmail, ct);
 
             if (user is null)
             {
-                var driverRole = await roles.GetByNameAsync("Driver", ct)
-                    ?? throw new InvalidOperationException("Missing 'Driver' role. Seed roles first.");
-
+                var driver = await EnsureDriverRoleAsync(ct);
                 user = new User
                 {
                     Email = normEmail,
-                    RoleId = driverRole.Id,
-                    Role = driverRole,
+                    RoleId = driver.Id,
+                    Role = driver,
                     FullName = string.IsNullOrWhiteSpace(name) ? null : name,
                     AvatarUrl = string.IsNullOrWhiteSpace(picture) ? null : picture,
                 };
-
                 await users.AddAsync(user, ct);
-                await wallets.AddAsync(new Wallet { User = user, Balance = 0m }, ct);
                 await users.SaveAsync(ct);
             }
             else
@@ -266,35 +261,12 @@ namespace GoElectrify.BLL.Services
                 if (touched) await users.SaveAsync(ct);
             }
 
-            // BẢO HIỂM: tránh NRE nếu repo không Include
-            user.ExternalLogins ??= new List<ExternalLogin>();
-
-            var hasGoogleLink = user.ExternalLogins
-                .Any(x => x.Provider == ExternalProviders.GOOGLE && x.ProviderUserId == sub);
-
-            if (!hasGoogleLink)
-            {
-                user.ExternalLogins.Add(new ExternalLogin
-                {
-                    User = user,
-                    UserId = user.Id,
-                    Provider = ExternalProviders.GOOGLE,
-                    ProviderUserId = sub,
-                    CreatedAt = DateTime.UtcNow,
-                });
-                await users.SaveAsync(ct);
-            }
+            await EnsureWalletAsync(user, ct);
+            await EnsureExternalLoginAsync(user.Id, ExternalProviders.GOOGLE, sub, ct);
 
             var roleName = user.Role?.Name ?? "Driver";
-
             var (access, accessExp, refresh, refreshExp) = tokenSvc.IssueTokens(
-                userId: user.Id,
-                email: user.Email,
-                role: roleName,
-                fullName: user.FullName,
-                avatarUrl: user.AvatarUrl,
-                authMethod: "google"
-            );
+                user.Id, user.Email, roleName, user.FullName, user.AvatarUrl, authMethod: "google");
 
             await refreshTokens.AddAsync(new RefreshToken
             {
@@ -307,6 +279,8 @@ namespace GoElectrify.BLL.Services
             return new TokenResponse(access, accessExp, refresh, refreshExp);
         }
 
+
+
         public async Task RevokeRefreshTokenAsync(string rawRefreshToken, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(rawRefreshToken)) return;
@@ -318,6 +292,53 @@ namespace GoElectrify.BLL.Services
 
             rt.RevokedAt = DateTime.UtcNow;
             await refreshTokens.SaveAsync(ct);
+        }
+
+        private async Task<Role> EnsureDriverRoleAsync(CancellationToken ct) =>
+            await roles.GetByNameAsync("Driver", ct)
+            ?? throw new InvalidOperationException("Missing 'Driver' role. Seed roles first.");
+
+        private async Task EnsureWalletAsync(User user, CancellationToken ct)
+        {
+            if (user.Wallet != null) return;
+            try
+            {
+                await wallets.AddAsync(new Wallet { UserId = user.Id, Balance = 0m }, ct);
+                await wallets.SaveChangesAsync(ct);
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            {
+                if (!IsUniqueViolation(ex)) throw;
+            }
+        }
+
+        private async Task EnsureExternalLoginAsync(int userId, string provider, string providerUserId, CancellationToken ct)
+        {
+            var exists = await externalLogins.ExistsAsync(userId, provider, providerUserId, ct);
+            if (exists) return;
+
+            try
+            {
+                await externalLogins.AddAsync(new ExternalLogin
+                {
+                    UserId = userId,
+                    Provider = provider,
+                    ProviderUserId = providerUserId,
+                    CreatedAt = DateTime.UtcNow,
+                }, ct);
+                await externalLogins.SaveAsync(ct);
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            {
+                if (!IsUniqueViolation(ex)) throw;
+            }
+        }
+
+        private static bool IsUniqueViolation(Exception ex)
+        {
+            var s = ex.ToString();
+            return s.Contains("23505") || s.Contains("2601") || s.Contains("2627")
+                || s.Contains("unique", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

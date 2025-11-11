@@ -16,5 +16,10 @@ namespace GoElectrify.DAL.Repositories
             => db.Set<ExternalLogin>().AddAsync(login, ct).AsTask();
 
         public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+        public Task<bool> ExistsAsync(int userId, string provider, string providerUserId, CancellationToken ct)
+                => db.ExternalLogins.AnyAsync(x =>
+                    x.UserId == userId &&
+                    x.Provider == provider &&
+                    x.ProviderUserId == providerUserId, ct);
     }
 }
