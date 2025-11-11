@@ -29,12 +29,33 @@ namespace GoElectrify.DAL.Repositories
             _ => ($"{type} cập nhật", "LOW")
         };
 
+        private static string ChargingTitle(string s) => s switch
+        {
+            "PENDING" => "Phiên sạc đang chờ",
+            "RUNNING" => "Đang sạc",
+            "STOPPED" => "Đã dừng sạc",
+            "COMPLETED" => "Hoàn tất phiên sạc",
+            "FAILED" => "Phiên sạc thất bại",
+            _ => "Cập nhật phiên sạc"
+        };
+        private static string ChargingSeverity(string s) => s switch
+        {
+            "FAILED" => "HIGH",
+            "STOPPED" => "MEDIUM",
+            _ => "LOW"
+        };
+        private static DateTime PickAt(DateTime? endedAt, DateTime startedAt, DateTime? updatedAt, DateTime createdAt)
+            => endedAt ?? (startedAt != default ? startedAt : (updatedAt ?? createdAt));
+
         private static string KeyAssign(int id, DateTime? at) => $"assign:{id}:{(at ?? DateTime.UnixEpoch).Ticks}";
         private static string KeyRevoke(int id, DateTime at) => $"revoke:{id}:{at.Ticks}";
         private static string KeyBooking(int id) => $"booking:{id}";
         private static string KeyTx(int id) => $"tx:{id}";
         private static string KeyDeposit(int id) => $"deposit:{id}";
         private static string KeyIncident(int id) => $"incident:{id}";
+        private static string KeyCharging(int id) => $"charging:{id}";
+
+
 
         // ===================== DASHBOARD =====================
 
@@ -66,6 +87,59 @@ namespace GoElectrify.DAL.Repositories
                     Message = $"Trạm {b.StationName}",
                     Severity = BookingSeverity(status),
                     CreatedAt = b.At
+                });
+            }
+
+            // Charging sessions (PENDING, RUNNING, STOPPED, COMPLETED, FAILED) 
+            var cs = _db.Set<ChargingSession>().AsNoTracking()
+                .Where(s =>
+                    (s.EndedAt != null && s.EndedAt >= since) ||
+                    (s.StartedAt >= since) ||
+                    (s.UpdatedAt != null && s.UpdatedAt >= since) ||
+                     s.CreatedAt >= since);
+
+            if (!isAdmin)
+            {
+                // User chỉ thấy session liên quan booking của chính họ
+                cs = cs.Where(s => s.Booking != null && s.Booking!.UserId == userId);
+            }
+
+            var csRows = await cs
+                .Select(s => new
+                {
+                    s.Id,
+                    s.Status,
+                    s.EnergyKwh,
+                    s.Cost,
+                    s.CreatedAt,
+                    s.UpdatedAt,
+                    s.StartedAt,
+                    s.EndedAt,
+                    StationName = s.Charger.Station.Name
+                })
+                .ToListAsync(ct);
+
+            foreach (var s in csRows)
+            {
+                var status = string.IsNullOrWhiteSpace(s.Status) ? "RUNNING" : s.Status!;
+                var at = PickAt(s.EndedAt, s.StartedAt, s.UpdatedAt, s.CreatedAt);
+
+                var msg = s.StationName ?? "";
+                if (status == "COMPLETED")
+                    msg = $"{s.StationName} • {s.EnergyKwh:N2} kWh • {s.Cost?.ToString("n0") ?? "0"}đ";
+                else if (status == "STOPPED")
+                    msg = $"{s.StationName} • Phiên đã dừng";
+                else if (status == "FAILED")
+                    msg = $"{s.StationName} • Đã xảy ra lỗi";
+
+                bag.Add(new NotificationDto
+                {
+                    Id = KeyCharging(s.Id),
+                    Type = $"charging.{status.ToLowerInvariant()}",
+                    Title = ChargingTitle(status),
+                    Message = msg,
+                    Severity = ChargingSeverity(status),
+                    CreatedAt = at
                 });
             }
 
@@ -245,6 +319,12 @@ namespace GoElectrify.DAL.Repositories
             foreach (var id in await bQuery.Select(b => b.Id).ToListAsync(ct))
                 ids.Add(KeyBooking(id));
 
+            // charging (lọc theo booking.UserId cho non-admin)
+            var cQuery = _db.Set<ChargingSession>().AsNoTracking();
+            if (!isAdmin) cQuery = cQuery.Where(s => s.Booking != null && s.Booking!.UserId == userId);
+            foreach (var id in await cQuery.Select(s => s.Id).ToListAsync(ct))
+                ids.Add(KeyCharging(id));
+
             // transactions
             var tQuery = _db.Transactions.AsNoTracking();
             if (!isAdmin) tQuery = tQuery.Where(t => t.Wallet.UserId == userId);
@@ -320,6 +400,12 @@ namespace GoElectrify.DAL.Repositories
                     return isAdmin
                         ? await _db.Bookings.AsNoTracking().AnyAsync(b => b.Id == entityId, ct)
                         : await _db.Bookings.AsNoTracking().AnyAsync(b => b.Id == entityId && b.UserId == userId, ct);
+
+                case "charging": // kiểm tra theo Booking.UserId cho non-admin
+                    return isAdmin
+                        ? await _db.Set<ChargingSession>().AsNoTracking().AnyAsync(s => s.Id == entityId, ct)
+                        : await _db.Set<ChargingSession>().AsNoTracking()
+                            .AnyAsync(s => s.Id == entityId && s.Booking != null && s.Booking!.UserId == userId, ct);
 
                 case "tx":
                     return isAdmin
