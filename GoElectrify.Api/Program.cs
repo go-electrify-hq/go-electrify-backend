@@ -14,6 +14,7 @@ using Serilog;
 using GoElectrify.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using GoElectrify.BLL.Services.Realtime;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
@@ -161,6 +162,19 @@ builder.Services
         o.Scope.Add("email");
         o.Scope.Add("profile");
         o.SaveTokens = false;
+        o.Events = new Microsoft.AspNetCore.Authentication.OAuth.OAuthEvents
+        {
+            OnRemoteFailure = ctx =>
+            {
+                ctx.HttpContext.RequestServices
+                   .GetRequiredService<ILoggerFactory>()
+                   .CreateLogger("GoogleOAuth")
+                   .LogError(ctx.Failure, "Google OAuth remote failure");
+
+                ctx.HandleResponse();
+                return Task.CompletedTask;
+            }
+        };
     });
 
 
@@ -212,6 +226,10 @@ app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
 app.UseRouting();
 app.UseHttpsRedirection();
 app.UseCors("FrontEndProd");
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
