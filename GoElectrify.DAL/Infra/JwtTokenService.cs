@@ -65,9 +65,6 @@ namespace GoElectrify.DAL.Infra
             var access = _handler.WriteToken(jwt);
             var refresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
-            if (_env.IsDevelopment())
-                Console.WriteLine($"[DEV] Access token TTL = {accessSeconds}s (expires at {accessExp:u})");
-
             return (access, accessExp, refresh, refreshExp);
         }
 

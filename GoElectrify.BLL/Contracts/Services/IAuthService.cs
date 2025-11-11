@@ -1,4 +1,6 @@
-﻿using GoElectrify.BLL.Dto.Auth;
+﻿using System.Security.Claims;
+using GoElectrify.BLL.Dto.Auth;
+using Microsoft.AspNetCore.Authentication;
 
 namespace GoElectrify.BLL.Contracts.Services
 {
@@ -9,6 +11,8 @@ namespace GoElectrify.BLL.Contracts.Services
         //Task LogoutAsync(int userId, string refreshToken, CancellationToken ct);
         Task LogoutAsync(int userId, string refreshToken, CancellationToken ct);
         Task<TokenResponse> RefreshAsync(string refreshToken, CancellationToken ct);
-
+        (string Scheme, AuthenticationProperties Props) GetGoogleChallenge(string callbackUrl);
+        Task<TokenResponse> SignInWithGoogleAsync(ClaimsPrincipal googlePrincipal, CancellationToken ct);
+        Task RevokeRefreshTokenAsync(string rawRefreshToken, CancellationToken ct);
     }
 }

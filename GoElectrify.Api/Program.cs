@@ -11,23 +11,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using System.Security.Claims;
-using System.IdentityModel.Tokens.Jwt;
-using Microsoft.Extensions.Options;
 using GoElectrify.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using GoElectrify.BLL.Services.Realtime;
-using GoElectrify.DAL.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+var cfg = builder.Configuration;
 builder.Services.AddCors(opt =>
 {
-    opt.AddPolicy("DashboardDev", p =>
-        p
-            .AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-    );
+    opt.AddPolicy("FrontEndProd", p =>
+    {
+        p.WithOrigins(cfg.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+         .AllowCredentials(); // cần cho cookie cross-site
+    });
 });
 
 
@@ -101,55 +99,39 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IAuthorizationHandler, NoUnpaidSessionsHandler>();
 
 // JWT auth
-var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(o =>
+var jwtOpts = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()
+             ?? throw new InvalidOperationException("Missing Jwt options");
+builder.Services
+    .AddAuthentication(options =>
     {
-        var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddCookie("External", o =>
+    {
+        o.Cookie.Name = "ge_ext";
+        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        o.Cookie.SameSite = SameSiteMode.None;   // cross-site
+        o.Cookie.HttpOnly = true;
+        o.Cookie.Path = "/";
+        o.Cookie.Domain = cfg["Auth:CookieDomain"]; // .go-electrify.com
+        o.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+        o.SlidingExpiration = false;
+    })
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, o =>
+    {
         o.TokenValidationParameters = new()
         {
-            ValidIssuer = jwt.Issuer,
-            ValidAudience = jwt.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Secret)),
+            ValidIssuer = jwtOpts.Issuer,
+            ValidAudience = jwtOpts.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOpts.Secret)),
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ClockSkew = TimeSpan.FromSeconds(30)
         };
-        // Log lý do 401 để debug nhanh
-        o.IncludeErrorDetails = true; // thêm dòng này
-        o.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = ctx =>
-            {
-                var auth = ctx.Request.Headers["Authorization"].ToString();
-                Console.WriteLine($"[DockJwt] Authorization present={(!string.IsNullOrEmpty(auth))}");
-                if (auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                {
-                    var tok = auth.Substring("Bearer ".Length).Trim();
-                    ctx.Token = tok; // đảm bảo handler dùng đúng token từ header
-                    try
-                    {
-                        var jwtTok = new JwtSecurityTokenHandler().ReadJwtToken(tok);
-                        Console.WriteLine($"[DockJwt] hdr ok, iss={jwtTok.Issuer}, aud={string.Join(",", jwtTok.Audiences)}");
-                    }
-                    catch { }
-                }
-                return Task.CompletedTask;
-            },
-            OnAuthenticationFailed = ctx =>
-            {
-                Console.WriteLine($"[DockJwt] auth failed: {ctx.Exception.GetType().Name} - {ctx.Exception.Message}");
-                return Task.CompletedTask;
-            },
-            OnChallenge = ctx =>
-            {
-                // sẽ in rõ: invalid_token / signature invalid / audience invalid / expired ...
-                Console.WriteLine($"[DockJwt] challenge: {ctx.Error} - {ctx.ErrorDescription}");
-                return Task.CompletedTask;
-            }
-        };
+        o.IncludeErrorDetails = true;
     })
     .AddJwtBearer("DockJwt", o =>
     {
@@ -168,40 +150,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ClockSkew = TimeSpan.Zero
         };
-        o.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = ctx =>
-            {
-                var tok = ctx.Token;
-                if (!string.IsNullOrEmpty(tok))
-                {
-                    try
-                    {
-                        var h = new JwtSecurityTokenHandler();
-                        var jwt = h.ReadJwtToken(tok); // KHÔNG validate
-                        Console.WriteLine($"[DockJwt] Received token {tok[..10]}...{tok[^10..]}");
-                        Console.WriteLine($"[DockJwt] Token iss={jwt.Issuer} aud={string.Join(",", jwt.Audiences)}");
-                    }
-                    catch { /* ignore */ }
-                }
-                return Task.CompletedTask;
-            },
-            OnAuthenticationFailed = ctx =>
-            {
-                Console.WriteLine($"Dock JWT failed: {ctx.Exception.Message}");
-                return Task.CompletedTask;
-            },
-            OnTokenValidated = ctx =>
-            {
-                var sid = ctx.Principal?.FindFirst("sessionId")?.Value;
-                var did = ctx.Principal?.FindFirst("dockId")?.Value;
-                var role = ctx.Principal?.FindFirst("role")?.Value;
-                Console.WriteLine($"[DockJwt] OK role={role} sessionId={sid} dockId={did}");
-                return Task.CompletedTask;
-            }
-        };
-
+    })
+    .AddGoogle("Google", o =>
+    {
+        o.SignInScheme = "External";
+        o.ClientId = cfg["Authentication:Google:ClientId"]!;
+        o.ClientSecret = cfg["Authentication:Google:ClientSecret"]!;
+        o.CallbackPath = cfg["Authentication:Google:CallbackPath"] ?? "/signin-google";
+        o.Scope.Add("openid");
+        o.Scope.Add("email");
+        o.Scope.Add("profile");
+        o.SaveTokens = false;
     });
+
+
 
 builder.Services.AddAuthorization(options =>
 {
@@ -248,7 +210,8 @@ app.UseSwaggerUI(o =>
 
 app.MapGet("/", () => Results.Redirect("/swagger", permanent: false));
 app.UseRouting();
-app.UseCors("DashboardDev");
+app.UseHttpsRedirection();
+app.UseCors("FrontEndProd");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
