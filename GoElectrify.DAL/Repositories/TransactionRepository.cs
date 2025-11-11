@@ -41,5 +41,36 @@ namespace GoElectrify.DAL.Repositories
             _db.Transactions.AddRange(items);
             await _db.SaveChangesAsync();
         }
+        public async Task<bool> ExistsRefundByBookingIdAsync(int walletId, int bookingId, CancellationToken ct)
+        {
+            var tag = $"bookingId={bookingId}";
+            return await _db.Transactions
+                .AsNoTracking()
+                .AnyAsync(t => t.WalletId == walletId
+                            && t.Type == "REFUND"
+                            && t.Note != null
+                            && EF.Functions.ILike(t.Note, $"%{tag}%"), ct);
+            // Nếu ILike chưa khả dụng ở provider hiện tại, thay bằng: t.Note!.Contains(tag)
+        }
+
+        public async Task<Transaction?> GetRefundByBookingIdAsync(int walletId, int bookingId, CancellationToken ct)
+        {
+            var tag = $"bookingId={bookingId}";
+            return await _db.Transactions
+                .AsNoTracking()
+                .Where(t => t.WalletId == walletId
+                         && t.Type == "REFUND"
+                         && t.Note != null
+                         && EF.Functions.ILike(t.Note, $"%{tag}%"))
+                .OrderByDescending(t => t.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        public async Task<Transaction> CreateAsync(Transaction tx, CancellationToken ct)
+        {
+            _db.Transactions.Add(tx);
+            await _db.SaveChangesAsync(ct);
+            return tx;
+        }
     }
 }

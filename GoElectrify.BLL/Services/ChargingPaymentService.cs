@@ -15,7 +15,8 @@ namespace GoElectrify.BLL.Services
         IChargingSessionRepository sessionRepo,
         IWalletRepository walletRepo,
         ITransactionRepository txRepo,
-        IWalletSubscriptionRepository walletSubRepo
+        IWalletSubscriptionRepository walletSubRepo,
+        IRefundService refundSvc
     ) : IChargingPaymentService
     {
         public async Task<PaymentReceiptDto> CompletePaymentAsync(
@@ -129,32 +130,51 @@ namespace GoElectrify.BLL.Services
                 billedKwh = 0m;
                 billedAmount = 0m;
             }
-
-            s.UpdatedAt = DateTime.UtcNow;
-            await txRepo.AddRangeAsync(txs);
-            await sessionRepo.SaveChangesAsync(ct);
-            return new PaymentReceiptDto
+                s.UpdatedAt = DateTime.UtcNow;
+                await txRepo.AddRangeAsync(txs);
+                await sessionRepo.SaveChangesAsync(ct);
+            if (s.Status == "COMPLETED")
             {
-                SessionId = s.Id,
-                Status = s.Status,
-                EnergyKwh = energy,
-                UnitPrice = unitPrice,
-                CoveredBySubscriptionKwh = coveredBySubKwh,
-                BilledKwh = billedKwh,
-                BilledAmount = billedAmount,
-                PaymentMethod = method,
-                Transactions = txs.Select(t => new WalletTransactionDto
+                wallet = await walletRepo.GetByUserIdAsync(userId);
+                if (wallet != null)
                 {
-                    Id = t.Id,
-                    Amount = t.Amount,
-                    Type = t.Type,
-                    Status = t.Status,
-                    Note = t.Note,
-                    CreatedAt = t.CreatedAt
-                }).ToList()
-            };
-        }
+                    try
+                    {
+                        await refundSvc.RefundBookingFeeIfNeededAsync(
+                            walletId: wallet.Id,
+                            bookingId: s.BookingId.Value,
+                            sourceTag: "SESSION_PAID",
+                            userReason: null,
+                            ct: ct);
+                    }
+                    catch
+                    {
 
+                    }
+                }
+            }
+            return new PaymentReceiptDto
+                {
+                    SessionId = s.Id,
+                    Status = s.Status,
+                    EnergyKwh = energy,
+                    UnitPrice = unitPrice,
+                    CoveredBySubscriptionKwh = coveredBySubKwh,
+                    BilledKwh = billedKwh,
+                    BilledAmount = billedAmount,
+                    PaymentMethod = method,
+                    Transactions = txs.Select(t => new WalletTransactionDto
+                    {
+                        Id = t.Id,
+                        Amount = t.Amount,
+                        Type = t.Type,
+                        Status = t.Status,
+                        Note = t.Note,
+                        CreatedAt = t.CreatedAt
+                    }).ToList()
+                };
+            }
+        
         private static decimal Round2(decimal v)
             => Math.Round(v, 2, MidpointRounding.AwayFromZero);
     }

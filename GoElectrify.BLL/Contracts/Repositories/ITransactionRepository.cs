@@ -8,5 +8,7 @@ public interface ITransactionRepository
     Task AddAsync(Transaction entity);
 
     Task AddRangeAsync(IEnumerable<Transaction> items);
-
+    Task<bool> ExistsRefundByBookingIdAsync(int walletId, int bookingId, CancellationToken ct);
+    Task<Transaction?> GetRefundByBookingIdAsync(int walletId, int bookingId, CancellationToken ct);
+    Task<Transaction> CreateAsync(Transaction tx, CancellationToken ct);
 }

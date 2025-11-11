@@ -4,6 +4,7 @@ using GoElectrify.BLL.Dto.Booking;
 using GoElectrify.BLL.Dtos.Booking;
 using GoElectrify.BLL.Entities;
 using GoElectrify.BLL.Exceptions;
+using GoElectrify.BLL.Policies;
 using Microsoft.Extensions.Logging;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
@@ -18,6 +19,7 @@ namespace GoElectrify.BLL.Services
         private readonly IWalletRepository _wallets;
         private readonly ITransactionRepository _tx;
         private readonly IBookingFeeService _fee;
+        private readonly IRefundService _refundSvc;
 
         // [MAIL]
         private readonly INotificationMailService _notifMail;
@@ -30,7 +32,8 @@ namespace GoElectrify.BLL.Services
             ITransactionRepository tx,
             IBookingFeeService fee,
             INotificationMailService notifMail,
-            ILogger<BookingService> logger)
+            ILogger<BookingService> logger,
+            IRefundService refundSvc)
         {
             _repo = repo;
             _stations = stations;
@@ -40,6 +43,7 @@ namespace GoElectrify.BLL.Services
             _fee = fee;
             _notifMail = notifMail;
             _logger = logger;
+            _refundSvc = refundSvc;
         }
 
         public async Task<BookingDto> CreateAsync(int userId, CreateBookingDto dto, CancellationToken ct)
@@ -151,14 +155,41 @@ namespace GoElectrify.BLL.Services
 
         public async Task<bool> CancelAsync(int userId, int bookingId, string? reason, CancellationToken ct)
         {
-            var e = await _repo.GetByIdAsync(bookingId, ct);
-            if (e is null || e.UserId != userId) return false;
-            if (e.Status is "CANCELED" or "EXPIRED" or "CONSUMED") return true; // idempotent
+            var booking = await _repo.GetByIdAsync(bookingId, ct);
+            if (booking is null) return false;
+            if (booking.UserId != userId) return false;
 
-            // không cho hủy nếu đã vào phiên sạc (CONSUMED) hoặc quá sát giờ? (tùy BR)
-            e.Status = "CANCELED";
-            e.UpdatedAt = DateTime.UtcNow;
-            await _repo.UpdateAsync(e, ct);
+            // đánh dấu hủy
+            booking.Status = "CANCELED"; // hoặc BookingStatus.CANCELED nếu bạn dùng constant
+            await _repo.UpdateAsync(booking, ct);
+
+            // Hoàn nếu hủy trước 15'
+            var refundable = DateTime.UtcNow <= booking.CreatedAt.AddMinutes(15);
+
+            if (refundable)
+            {
+                var wallet = await _wallets.GetByUserIdAsync(userId);
+                if (wallet != null)
+                {
+                    // reason: lấy từ FE (body.Reason) – truyền nguyên sang RefundService
+                    try
+                    {
+                        await _refundSvc.RefundBookingFeeIfNeededAsync(
+                            walletId: wallet.Id,
+                            bookingId: booking.Id,
+                            sourceTag: "CANCEL_BEFORE_WINDOW",
+                            userReason: reason,
+                            ct: ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Cancel] Refund exception: {ex.Message}");
+                        throw;
+                    }
+                }
+            }
+
+                
             return true;
         }
 

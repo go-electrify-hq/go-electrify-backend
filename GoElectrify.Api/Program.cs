@@ -98,7 +98,7 @@ builder.Services.AddScoped<INotificationMailService, NotificationMailService>();
 builder.Services.AddScoped<IChargerLogService, ChargerLogService>();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IAuthorizationHandler, NoUnpaidSessionsHandler>();
-
+builder.Services.AddScoped<IRefundService, RefundService>();
 // JWT auth
 var jwtOpts = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()
              ?? throw new InvalidOperationException("Missing Jwt options");
