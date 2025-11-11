@@ -77,14 +77,10 @@ namespace GoElectrify.BLL.Services
             var otp = Generate6Digits();
             await redis.SetAsync(otpKey, otp, OtpTtl);
 
-            // 4) Gửi email (để lỗi ném ra cho controller mapping)
             await emailSender.SendOtpAsync(email, otp, ct);
 
-            // 5) Log thông tin server-side (đừng log mã OTP)
-            //log.LogInformation("OTP sent to {Email}", email);
         }
 
-        // Jitter 180–320ms để responses khó phân biệt (đồng phục thời gian)
         private static int RandomJitter(int minMs, int maxMs)
         {
             var rnd = System.Random.Shared.Next(minMs, maxMs + 1);
@@ -234,7 +230,6 @@ namespace GoElectrify.BLL.Services
             var email = gp.FindFirst(ClaimTypes.Email)?.Value;
             var name = gp.FindFirst(ClaimTypes.Name)?.Value;
             var picture = gp.FindFirst("picture")?.Value;
-            var emailVerified = gp.FindFirst("email_verified")?.Value == "true";
 
             if (string.IsNullOrWhiteSpace(sub) || string.IsNullOrWhiteSpace(email))
                 throw new InvalidOperationException("Missing Google sub or email.");
@@ -242,9 +237,12 @@ namespace GoElectrify.BLL.Services
             var normEmail = NormalizeEmail(email);
 
             var user = await users.FindByEmailAsync(normEmail, ct);
+
             if (user is null)
             {
-                var driverRole = await roles.GetByNameAsync("Driver", ct);
+                var driverRole = await roles.GetByNameAsync("Driver", ct)
+                    ?? throw new InvalidOperationException("Missing 'Driver' role. Seed roles first.");
+
                 user = new User
                 {
                     Email = normEmail,
@@ -268,8 +266,12 @@ namespace GoElectrify.BLL.Services
                 if (touched) await users.SaveAsync(ct);
             }
 
+            // BẢO HIỂM: tránh NRE nếu repo không Include
+            user.ExternalLogins ??= new List<ExternalLogin>();
+
             var hasGoogleLink = user.ExternalLogins
                 .Any(x => x.Provider == ExternalProviders.GOOGLE && x.ProviderUserId == sub);
+
             if (!hasGoogleLink)
             {
                 user.ExternalLogins.Add(new ExternalLogin
@@ -284,6 +286,7 @@ namespace GoElectrify.BLL.Services
             }
 
             var roleName = user.Role?.Name ?? "Driver";
+
             var (access, accessExp, refresh, refreshExp) = tokenSvc.IssueTokens(
                 userId: user.Id,
                 email: user.Email,
@@ -303,6 +306,7 @@ namespace GoElectrify.BLL.Services
 
             return new TokenResponse(access, accessExp, refresh, refreshExp);
         }
+
         public async Task RevokeRefreshTokenAsync(string rawRefreshToken, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(rawRefreshToken)) return;
