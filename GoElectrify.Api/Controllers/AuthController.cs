@@ -199,25 +199,11 @@ namespace go_electrify_backend.Controllers
             return allowed.Any(a => url.StartsWith(a, StringComparison.OrdinalIgnoreCase));
         }
 
-        private CookieOptions BuildRefreshCookie(DateTimeOffset expiresUtc)
-        {
-            return new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,                 // cần None cho cross-site
-                Path = "/",
-                Domain = _cfg["Auth:CookieDomain"],          // .go-electrify.com
-                Expires = expiresUtc.UtcDateTime
-            };
-        }
-
         [HttpGet("login/google")]
         [AllowAnonymous]
         public IActionResult LoginWithGoogle([FromQuery] string? returnUrl)
         {
-            //var cb = Url.Action(nameof(GoogleCallback), "Auth", values: null, protocol: Request.Scheme)!;
-            var cb = "https://api.go-electrify.com/api/v1/auth/callback/google";
+            var cb = Url.Action(nameof(GoogleCallback), "Auth", values: null, protocol: Request.Scheme)!;
             var (scheme, props) = auth.GetGoogleChallenge(cb);
 
             if (!string.IsNullOrWhiteSpace(returnUrl) && IsAllowedRedirect(returnUrl))
@@ -233,16 +219,13 @@ namespace go_electrify_backend.Controllers
             var ext = await HttpContext.AuthenticateAsync("External");
             if (!ext.Succeeded || ext.Principal == null)
             {
-                // External sign-in fail -> 401 (tuỳ bạn muốn redirect lỗi về FE thì đổi thành Redirect)
                 return Unauthorized(new { ok = false, error = "external_auth_failed" });
             }
 
             try
             {
-                // Issue tokens theo service hiện có của bạn
                 var tokens = await auth.SignInWithGoogleAsync(ext.Principal, ct);
 
-                // Set refreshToken cookie cho cross-site (FE: go-electrify.com, API: api.go-electrify.com)
                 var isHttps = Request.IsHttps;
                 Response.Cookies.Append(
                     "refreshToken",
@@ -250,17 +233,15 @@ namespace go_electrify_backend.Controllers
                     new CookieOptions
                     {
                         HttpOnly = true,
-                        Secure = true,                 // prod bắt buộc https
-                        SameSite = SameSiteMode.None,  // cần None để FE gọi cross-site có credentials
+                        Secure = true,
+                        SameSite = SameSiteMode.None,
                         Expires = tokens.RefreshExpires,
                         Path = "/",
                         Domain = ".go-electrify.com"
                     });
 
-                // Dọn vé tạm "External"
                 await HttpContext.SignOutAsync("External");
 
-                // Redirect về returnUrl nếu hợp lệ, ngược lại rơi về "/" (FE sẽ tự route)
                 string? returnUrl = null;
                 if (ext.Properties?.Items != null &&
                     ext.Properties.Items.TryGetValue("returnUrl", out var r) &&
