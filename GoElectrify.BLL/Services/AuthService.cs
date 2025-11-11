@@ -1,8 +1,11 @@
-﻿using GoElectrify.BLL.Contracts.Repositories;
+﻿using System.Security.Claims;
+using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Auth;
 using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Entities.Common;
 using GoElectrify.BLL.Exceptions;
+using Microsoft.AspNetCore.Authentication;
 
 
 namespace GoElectrify.BLL.Services
@@ -14,7 +17,8 @@ namespace GoElectrify.BLL.Services
     IRefreshTokenRepository refreshTokens,
     IRedisCache redis,
     IEmailSender emailSender,
-    ITokenService tokenSvc
+    ITokenService tokenSvc,
+    IExternalLoginRepository externalLogins
 ) : IAuthService
     {
         private const string OtpKeyPrefix = "otp:";
@@ -221,6 +225,95 @@ namespace GoElectrify.BLL.Services
 
             return new TokenResponse(access, accessExp, newRefresh, newRefreshExp);
         }
+        public (string Scheme, AuthenticationProperties Props) GetGoogleChallenge(string callbackUrl)
+        => ("Google", new AuthenticationProperties { RedirectUri = callbackUrl });
 
+        public async Task<TokenResponse> SignInWithGoogleAsync(ClaimsPrincipal gp, CancellationToken ct)
+        {
+            var sub = gp.FindFirst("sub")?.Value ?? gp.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var email = gp.FindFirst(ClaimTypes.Email)?.Value;
+            var name = gp.FindFirst(ClaimTypes.Name)?.Value;
+            var picture = gp.FindFirst("picture")?.Value;
+            var emailVerified = gp.FindFirst("email_verified")?.Value == "true";
+
+            if (string.IsNullOrWhiteSpace(sub) || string.IsNullOrWhiteSpace(email))
+                throw new InvalidOperationException("Missing Google sub or email.");
+
+            var normEmail = NormalizeEmail(email);
+
+            var user = await users.FindByEmailAsync(normEmail, ct);
+            if (user is null)
+            {
+                var driverRole = await roles.GetByNameAsync("Driver", ct);
+                user = new User
+                {
+                    Email = normEmail,
+                    RoleId = driverRole.Id,
+                    Role = driverRole,
+                    FullName = string.IsNullOrWhiteSpace(name) ? null : name,
+                    AvatarUrl = string.IsNullOrWhiteSpace(picture) ? null : picture,
+                };
+
+                await users.AddAsync(user, ct);
+                await wallets.AddAsync(new Wallet { User = user, Balance = 0m }, ct);
+                await users.SaveAsync(ct);
+            }
+            else
+            {
+                bool touched = false;
+                if (string.IsNullOrWhiteSpace(user.FullName) && !string.IsNullOrWhiteSpace(name))
+                { user.FullName = name; touched = true; }
+                if (string.IsNullOrWhiteSpace(user.AvatarUrl) && !string.IsNullOrWhiteSpace(picture))
+                { user.AvatarUrl = picture; touched = true; }
+                if (touched) await users.SaveAsync(ct);
+            }
+
+            var hasGoogleLink = user.ExternalLogins
+                .Any(x => x.Provider == ExternalProviders.GOOGLE && x.ProviderUserId == sub);
+            if (!hasGoogleLink)
+            {
+                user.ExternalLogins.Add(new ExternalLogin
+                {
+                    User = user,
+                    UserId = user.Id,
+                    Provider = ExternalProviders.GOOGLE,
+                    ProviderUserId = sub,
+                    CreatedAt = DateTime.UtcNow,
+                });
+                await users.SaveAsync(ct);
+            }
+
+            var roleName = user.Role?.Name ?? "Driver";
+            var (access, accessExp, refresh, refreshExp) = tokenSvc.IssueTokens(
+                userId: user.Id,
+                email: user.Email,
+                role: roleName,
+                fullName: user.FullName,
+                avatarUrl: user.AvatarUrl,
+                authMethod: "google"
+            );
+
+            await refreshTokens.AddAsync(new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = tokenSvc.HashToken(refresh),
+                ExpiresAt = refreshExp
+            }, ct);
+            await refreshTokens.SaveAsync(ct);
+
+            return new TokenResponse(access, accessExp, refresh, refreshExp);
+        }
+        public async Task RevokeRefreshTokenAsync(string rawRefreshToken, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(rawRefreshToken)) return;
+
+            var hash = tokenSvc.HashToken(rawRefreshToken);
+
+            var rt = await refreshTokens.FindActiveByHashAsync(hash, ct);
+            if (rt is null) return;
+
+            rt.RevokedAt = DateTime.UtcNow;
+            await refreshTokens.SaveAsync(ct);
+        }
     }
 }
