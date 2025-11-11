@@ -162,24 +162,7 @@ builder.Services
         o.Scope.Add("email");
         o.Scope.Add("profile");
         o.SaveTokens = false;
-        o.Events = new Microsoft.AspNetCore.Authentication.OAuth.OAuthEvents
-        {
-            OnRedirectToAuthorizationEndpoint = ctx =>
-            {
-                ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
-                   .CreateLogger("GoogleOAuth")
-                   .LogInformation("Google auth redirect: {Url}", ctx.RedirectUri);
-                return Task.CompletedTask;
-            },
-            OnRemoteFailure = ctx =>
-            {
-                ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
-                   .CreateLogger("GoogleOAuth")
-                   .LogError(ctx.Failure, "Google OAuth remote failure");
-                ctx.HandleResponse();
-                return Task.CompletedTask;
-            }
-        };
+
     });
 
 
