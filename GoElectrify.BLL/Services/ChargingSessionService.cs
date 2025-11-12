@@ -198,7 +198,8 @@ namespace GoElectrify.BLL.Services
             s.StartedAt = DateTime.UtcNow;
             if (req.TargetSoc.HasValue)
                 s.TargetSoc = Math.Clamp(req.TargetSoc.Value, 10, 100);
-            
+            if (!string.Equals(bk.Status, "CONSUMED", StringComparison.OrdinalIgnoreCase))
+                bk.Status = "CONSUMED";
 
             await repo.SaveChangesAsync(ct);
 
@@ -248,8 +249,7 @@ namespace GoElectrify.BLL.Services
 
             // Trạng thái -> UNPAID (không thêm field mới)
             s.Status = "UNPAID";
-            if (!string.Equals(s.Booking.Status, "CONSUMED", StringComparison.OrdinalIgnoreCase))
-                s.Booking.Status = "CONSUMED";
+            
             await repo.SaveChangesAsync(ct);
 
             // ================== [MAIL] gửi email "Phiên sạc hoàn tất" ==================

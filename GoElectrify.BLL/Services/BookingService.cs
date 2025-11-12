@@ -159,6 +159,7 @@ namespace GoElectrify.BLL.Services
                             Note = $"Booking fee"
                         });
                     }
+                    
                     // ================== [MAIL] gửi email "Đặt chỗ thành công" ==================
                     // === EMAIL: Đặt chỗ thành công ===
                     try
