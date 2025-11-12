@@ -194,8 +194,7 @@ namespace go_electrify_backend.Controllers
             var cb = Url.Action(nameof(GoogleCallback), "Auth", values: null, protocol: Request.Scheme)!;
             var (scheme, props) = auth.GetGoogleChallenge(cb);
 
-            if (!string.IsNullOrWhiteSpace(returnUrl) && IsAllowedRedirect(returnUrl))
-                props.Items["returnUrl"] = returnUrl;
+            if (!string.IsNullOrWhiteSpace(returnUrl)) props.Items["returnUrl"] = returnUrl;
 
             return Challenge(props, scheme);
         }
