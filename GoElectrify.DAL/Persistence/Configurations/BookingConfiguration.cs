@@ -51,7 +51,7 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.HasIndex(x => new { x.StationId, x.ScheduledStart });
             b.HasIndex(x => new { x.ChargerId, x.ScheduledStart })
                 .IsUnique()
-                .HasFilter("charger_id IS NOT NULL");
+                .HasFilter("charger_id IS NOT NULL AND status IN ('PENDING','CONFIRMED','CONSUMED')");
 
             b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
             b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();

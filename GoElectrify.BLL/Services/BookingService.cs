@@ -194,8 +194,21 @@ namespace GoElectrify.BLL.Services
                 }
                 catch (DbUpdateException ex) when (IsUniqueSeatViolation(ex))
                 {
-                    lastConflict = ex;
-                    continue;
+                    _logger.LogWarning(ex,
+                        "Seat conflict at charger={ChargerId} slot={Slot:o}. Constraint={Constraint}",
+                        chosen.Id, slotStart,
+                        (ex.GetBaseException() as Npgsql.PostgresException)?.ConstraintName);
+                    continue; // thử trụ kế
+                }
+                catch (DbUpdateException ex)
+                {
+                    var root = ex.GetBaseException();
+                    _logger.LogError(ex,
+                        "Save failed for charger={ChargerId} slot={Slot:o}. RootMessage={Msg} Constraint={Constraint}",
+                        chosen.Id, slotStart,
+                        root.Message,
+                        (root as Npgsql.PostgresException)?.ConstraintName);
+                    throw; // không phải seat-conflict -> ném ra cho middleware
                 }
             }
 
