@@ -111,27 +111,6 @@ namespace GoElectrify.BLL.Services
             }
             if (fee < 0) fee = 0;
 
-            if (fee > 0)
-            {
-                var wallet = await _wallets.GetByUserIdAsync(userId)
-                             ?? throw new InvalidOperationException("Wallet not found.");
-
-                if (wallet.Balance < fee)
-                    throw new InsufficientFundsException(fee, wallet.Balance);
-
-                // Khuyến nghị: bọc các bước dưới trong transaction DbContext
-                wallet.Balance -= fee;
-                await _wallets.UpdateAsync(wallet.Id, wallet.Balance);
-
-                await _tx.AddAsync(new Transaction
-                {
-                    WalletId = wallet.Id,
-                    Amount = fee,
-                    Type = "BOOKING_FEE",
-                    Status = "SUCCEEDED",
-                    Note = $"Booking fee"
-                });
-            }
             var candidates = (await _chargers.GetByStationAsync(dto.StationId, ct))
                 .Where(c => c.Status == "ONLINE" && c.ConnectorTypeId == dto.ConnectorTypeId)
                 .OrderBy(c => c.Id)
@@ -158,7 +137,28 @@ namespace GoElectrify.BLL.Services
                     };
 
                     await _repo.AddAsync(e, ct);
+                    //===============Trừ phí booking 
+                    if (fee > 0)
+                    {
+                        var wallet = await _wallets.GetByUserIdAsync(userId)
+                                     ?? throw new InvalidOperationException("Wallet not found.");
 
+                        if (wallet.Balance < fee)
+                            throw new InsufficientFundsException(fee, wallet.Balance);
+
+                        // Khuyến nghị: bọc các bước dưới trong transaction DbContext
+                        wallet.Balance -= fee;
+                        await _wallets.UpdateAsync(wallet.Id, wallet.Balance);
+
+                        await _tx.AddAsync(new Transaction
+                        {
+                            WalletId = wallet.Id,
+                            Amount = fee,
+                            Type = "BOOKING_FEE",
+                            Status = "SUCCEEDED",
+                            Note = $"Booking fee"
+                        });
+                    }
                     // ================== [MAIL] gửi email "Đặt chỗ thành công" ==================
                     // === EMAIL: Đặt chỗ thành công ===
                     try
