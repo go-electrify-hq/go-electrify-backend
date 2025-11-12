@@ -49,7 +49,7 @@ namespace GoElectrify.DAL.Repositories
         public Task<int> CountActiveBookingsAsync(
             int stationId, int connectorTypeId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken ct)
         {
-            var active = new[] { "PENDING", "CONFIRMED", "CONSUMED"};
+            var active = new[] { "PENDING", "CONFIRMED"};
             return db.Bookings
                 .Where(b => b.StationId == stationId && b.ConnectorTypeId == connectorTypeId)
                 .Where(b => active.Contains(b.Status))

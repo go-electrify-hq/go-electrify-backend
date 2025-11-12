@@ -94,7 +94,7 @@ namespace GoElectrify.BLL.Services
                 dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, active, cap);
 
             if (cap <= 0 || active >= cap)
-                throw new InvalidOperationException("No capacity available for this slot.");
+                throw new InvalidOperationException("Không còn chỗ trống cho khung giờ này.");
 
             var (feeType, feeVal) = await _fee.GetAsync(ct);
             decimal estimatedCost = 0m;
@@ -116,7 +116,7 @@ namespace GoElectrify.BLL.Services
                 .OrderBy(c => c.Id)
                 .ToList();
             if (candidates.Count == 0)
-                throw new InvalidOperationException("No online charger available.");
+                throw new InvalidOperationException("Không có trụ sạc nào đang trực tuyến.");
 
             DbUpdateException? lastConflict = null;
             foreach (var chosen in candidates)
@@ -133,7 +133,7 @@ namespace GoElectrify.BLL.Services
                         InitialSoc = dto.InitialSoc,
                         Status = "CONFIRMED",
                         Code = GenerateCode(),
-                        ChargerId = chosen.Id 
+                        ChargerId = chosen.Id
                     };
 
                     await _repo.AddAsync(e, ct);
@@ -213,8 +213,7 @@ namespace GoElectrify.BLL.Services
                 }
             }
 
-            // Nếu duyệt hết trụ vẫn conflict/hết chỗ
-            throw new InvalidOperationException("No capacity available for this slot.");
+            throw new InvalidOperationException("Không còn chỗ trống cho khung giờ này.");
 
             // helper local
             static bool IsUniqueSeatViolation(DbUpdateException ex)
