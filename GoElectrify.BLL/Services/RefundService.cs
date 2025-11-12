@@ -59,7 +59,7 @@ namespace GoElectrify.BLL.Services
                 Note = sourceTag switch
                 {
                     "CANCEL_BEFORE_WINDOW" => "Hoàn tiền đặt chỗ (Hủy sớm)",
-                    "SESSION_PAID" => "Hoàn tiền đặt chỗ(Sau thanh toán)",
+                    "SESSION_PAID" => "Hoàn tiền đặt chỗ (Sau thanh toán)",
                     _ => "Hoàn tiền đặt chỗ"
                 },
                 CreatedAt = now,
