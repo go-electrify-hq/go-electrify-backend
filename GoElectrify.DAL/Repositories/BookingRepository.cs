@@ -64,7 +64,7 @@ namespace GoElectrify.DAL.Repositories
         public Task<int> CountActiveChargersAsync(int stationId, int connectorTypeId, CancellationToken ct)
             => db.Chargers
                   .Where(c => c.StationId == stationId && c.ConnectorTypeId == connectorTypeId)
-                  .Where(c => c.Status != "OFFLINE") // ONLINE + MAINTENANCE vẫn coi 1 cổng vật lý; tùy BR có thể exclude MAINTENANCE
+                  .Where(c => c.Status == "ONLINE" && c.DockStatus == "DISCONNECTED")
                   .CountAsync(ct);
 
         public Task<bool> VehicleSupportsConnectorAsync(int vehicleModelId, int connectorTypeId, CancellationToken ct)

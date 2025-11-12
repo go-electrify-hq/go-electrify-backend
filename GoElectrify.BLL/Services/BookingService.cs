@@ -3,6 +3,7 @@ using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Booking;
 using GoElectrify.BLL.Dtos.Booking;
 using GoElectrify.BLL.Entities;
+using GoElectrify.BLL.Entities.Enums;
 using GoElectrify.BLL.Exceptions;
 using GoElectrify.BLL.Policies;
 using Microsoft.Extensions.Logging;
@@ -49,9 +50,15 @@ namespace GoElectrify.BLL.Services
         public async Task<BookingDto> CreateAsync(int userId, CreateBookingDto dto, CancellationToken ct)
         {
             // Validate input
-            if (!await _repo.StationExistsAsync(dto.StationId, ct)) throw new InvalidOperationException("Station not found.");
+            //if (!await _repo.StationExistsAsync(dto.StationId, ct)) throw new InvalidOperationException("Station not found.");
             //if (!await _repo.VehicleSupportsConnectorAsync(dto.VehicleModelId, dto.ConnectorTypeId, ct))
             //    throw new InvalidOperationException("Vehicle model does not support the selected connector type.");
+
+            var station = await _stations.GetByIdAsync(dto.StationId)
+             ?? throw new InvalidOperationException("Station not found.");
+            if (station.Status != StationStatus.ACTIVE)
+                throw new InvalidOperationException("Station is not available at the moment.");
+
             if (dto.VehicleModelId.HasValue)
             {
                 var ok = await _repo.VehicleSupportsConnectorAsync(dto.VehicleModelId.Value, dto.ConnectorTypeId, ct);
