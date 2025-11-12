@@ -19,6 +19,8 @@ namespace GoElectrify.BLL.Contracts.Repositories
 
         Task<int> CountActiveChargersAsync(
             int stationId, int connectorTypeId, CancellationToken ct);
+        Task<int> CountFreeChargersAsync(
+    int stationId, int connectorTypeId, DateTime slotStart, DateTime slotEnd, CancellationToken ct);
 
         Task<bool> VehicleSupportsConnectorAsync(int vehicleModelId, int connectorTypeId, CancellationToken ct);
 

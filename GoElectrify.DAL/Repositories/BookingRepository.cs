@@ -62,6 +62,26 @@ namespace GoElectrify.DAL.Repositories
                   .Where(c => c.StationId == stationId && c.ConnectorTypeId == connectorTypeId)
                   .Where(c => c.Status == "ONLINE")
                   .CountAsync(ct);
+        public Task<int> CountFreeChargersAsync(
+    int stationId, int connectorTypeId, DateTime slotStart, DateTime slotEnd, CancellationToken ct)
+        {
+            var busyChargerIdsQuery =
+                db.ChargingSessions
+                  .Where(s => s.StartedAt != null)
+                  .Where(s => s.StartedAt < slotEnd && (s.EndedAt == null || s.EndedAt > slotStart))
+                  .Join(db.Bookings,
+                        s => s.BookingId,
+                        b => b.Id,
+                        (s, b) => new { s.ChargerId, b.StationId, b.ConnectorTypeId })
+                  .Where(x => x.StationId == stationId && x.ConnectorTypeId == connectorTypeId)
+                  .Select(x => x.ChargerId);
+
+            return db.Chargers
+                .Where(c => c.StationId == stationId && c.ConnectorTypeId == connectorTypeId)
+                .Where(c => c.Status == "ONLINE" && c.DockStatus == "CONNECTED")
+                .Where(c => !busyChargerIdsQuery.Contains(c.Id))
+                .CountAsync(ct);
+        }
 
         public Task<bool> VehicleSupportsConnectorAsync(int vehicleModelId, int connectorTypeId, CancellationToken ct)
             => db.Set<VehicleModelConnectorType>()

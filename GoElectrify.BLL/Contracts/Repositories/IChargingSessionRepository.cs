@@ -34,6 +34,8 @@ namespace GoElectrify.BLL.Contracts.Repositories
 
         Task<(int Total, List<ChargingSession> Items)> GetHistoryForUserAsync(
             int userId, DateTime? from, DateTime? to, HashSet<string> statuses, int page, int pageSize, CancellationToken ct);
+        Task<List<int>> GetBusyChargerIdsByStationConnectorAsync(
+            int stationId, int connectorTypeId, DateTime slotStart, DateTime slotEnd, CancellationToken ct);
 
     }
 }

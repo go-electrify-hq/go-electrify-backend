@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using Npgsql;
+using Microsoft.AspNetCore.Http;
 namespace GoElectrify.BLL.Services
 {
     public sealed class BookingService : IBookingService
@@ -23,7 +24,7 @@ namespace GoElectrify.BLL.Services
         private readonly IBookingFeeService _fee;
         private readonly IRefundService _refundSvc;
         private readonly IChargerRepository _chargers;
-
+        private readonly IChargingSessionRepository _sessions;
         // [MAIL]
         private readonly INotificationMailService _notifMail;
         private readonly ILogger<BookingService> _logger;
@@ -36,7 +37,7 @@ namespace GoElectrify.BLL.Services
             IBookingFeeService fee,
             INotificationMailService notifMail,
             ILogger<BookingService> logger,
-            IRefundService refundSvc, IChargerRepository chargers)
+            IRefundService refundSvc, IChargerRepository chargers, IChargingSessionRepository session)
         {
             _repo = repo;
             _stations = stations;
@@ -48,6 +49,7 @@ namespace GoElectrify.BLL.Services
             _logger = logger;
             _refundSvc = refundSvc;
             _chargers = chargers;
+            _sessions = session;
         }
 
         private static DateTime AlignToSlotStartUtc(DateTime utc, int slotMinutes)
@@ -88,7 +90,7 @@ namespace GoElectrify.BLL.Services
                 throw new InvalidOperationException("ScheduledStart must be at least +5 minutes from now.");
 
             var active = await _repo.CountActiveBookingsAsync(dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
-            var cap = await _repo.CountActiveChargersAsync(dto.StationId, dto.ConnectorTypeId, ct);
+            var cap = await _repo.CountFreeChargersAsync(dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
 
             _logger.LogInformation("CapacityCheck: station={StationId}, conn={Conn}, slot=[{S:o}..{E:o}), active={Active}, cap={Cap}",
                 dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, active, cap);
@@ -111,12 +113,18 @@ namespace GoElectrify.BLL.Services
             }
             if (fee < 0) fee = 0;
 
+            var busyIds = await _sessions.GetBusyChargerIdsByStationConnectorAsync(
+    dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
+
             var candidates = (await _chargers.GetByStationAsync(dto.StationId, ct))
-                .Where(c => c.Status == "ONLINE" && c.ConnectorTypeId == dto.ConnectorTypeId)
+                .Where(c => c.Status == "ONLINE" && c.DockStatus == "CONNECTED")
+                .Where(c => c.ConnectorTypeId == dto.ConnectorTypeId)
+                .Where(c => !busyIds.Contains(c.Id))
                 .OrderBy(c => c.Id)
                 .ToList();
+
             if (candidates.Count == 0)
-                throw new InvalidOperationException("Không có trụ sạc nào đang trực tuyến.");
+                throw new InvalidOperationException("Không có bộ sạc nào đang trực tuyến.");
 
             DbUpdateException? lastConflict = null;
             foreach (var chosen in candidates)

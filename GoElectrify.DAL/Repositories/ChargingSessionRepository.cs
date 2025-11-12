@@ -149,5 +149,22 @@ namespace GoElectrify.DAL.Repositories
 
             return (total, items);
         }
+
+        public Task<List<int>> GetBusyChargerIdsByStationConnectorAsync(
+    int stationId, int connectorTypeId, DateTime slotStart, DateTime slotEnd, CancellationToken ct)
+        {
+            return db.ChargingSessions
+                .Where(s => s.StartedAt != null)
+                .Where(s => s.StartedAt < slotEnd && (s.EndedAt == null || s.EndedAt > slotStart))
+                .Join(db.Bookings,
+                      s => s.BookingId,
+                      b => b.Id,
+                      (s, b) => new { s.ChargerId, b.StationId, b.ConnectorTypeId })
+                .Where(x => x.StationId == stationId && x.ConnectorTypeId == connectorTypeId)
+                .Select(x => x.ChargerId)
+                .Distinct()
+                .ToListAsync(ct);
+        }
+
     }
 }
