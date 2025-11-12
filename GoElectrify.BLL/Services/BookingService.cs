@@ -156,7 +156,7 @@ namespace GoElectrify.BLL.Services
                             Amount = fee,
                             Type = "BOOKING_FEE",
                             Status = "SUCCEEDED",
-                            Note = $"Booking fee"
+                            Note = $"Phí đặt chỗ"
                         });
                     }
                     
