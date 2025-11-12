@@ -21,13 +21,62 @@ namespace GoElectrify.DAL.Repositories
             _ => "Đặt chỗ mới"
         };
         private static string BookingSeverity(string status) => status == "FAILED" ? "HIGH" : "LOW";
-        private static (string title, string severity) TxLabel(string type, string status) => status switch
+        private static (string title, string severity) TxLabel(string? typeRaw, string? statusRaw)
         {
-            "SUCCESS" => ($"{type} thành công", "LOW"),
-            "FAILED" => ($"{type} thất bại", "HIGH"),
-            "REFUNDED" => ($"{type} hoàn tiền", "MEDIUM"),
-            _ => ($"{type} cập nhật", "LOW")
-        };
+            var type = string.IsNullOrWhiteSpace(typeRaw) ? "Giao dịch" : typeRaw.Trim();
+            var status = string.IsNullOrWhiteSpace(statusRaw) ? "UPDATED" : statusRaw.Trim();
+
+            // Chuẩn hoá: gom alias
+            var TU = type.ToUpperInvariant().Replace(" ", "").Replace("-", "").Replace("_", "");
+            var SU = status.ToUpperInvariant();
+
+            static bool IsOk(string s) => s is "SUCCESS" or "SUCCEEDED" or "COMPLETED" or "PAID" or "DONE" or "OK";
+            static bool IsFail(string s) => s is "FAILED" or "FAIL" or "ERROR" or "CANCELED" or "CANCELLED" or "DECLINED";
+            static bool IsRefund(string s) => s is "REFUND" or "REFUNDED" or "SUCCESS_REFUND" or "REFUND_SUCCESS";
+
+            // Gom các biến thể "nạp ví"
+            bool IsTopupLike = TU is "DEPOSIT" or "TOPUP" or "WALLETTOPUP" or "RECHARGE";
+
+            if (IsTopupLike)
+            {
+                if (IsRefund(SU)) return ("Hoàn tiền nạp ví", "MEDIUM");
+                if (IsOk(SU)) return ("Nạp ví thành công", "LOW");
+                if (IsFail(SU)) return ("Nạp ví thất bại", "HIGH");
+                return ("Nạp ví cập nhật", "LOW");
+            }
+
+            // BOOKING_FEE
+            if (TU == "BOOKINGFEE")
+            {
+                if (IsRefund(SU)) return ("Hoàn phí giữ chỗ", "MEDIUM");
+                if (IsOk(SU)) return ("Thanh toán phí giữ chỗ thành công", "LOW");
+                if (IsFail(SU)) return ("Thanh toán phí giữ chỗ thất bại", "HIGH");
+                return ("Phí giữ chỗ cập nhật", "LOW");
+            }
+
+            // CHARGING (thanh toán phiên sạc)
+            if (TU == "CHARGING")
+            {
+                if (IsRefund(SU)) return ("Hoàn tiền phiên sạc", "MEDIUM");
+                if (IsOk(SU)) return ("Thanh toán phiên sạc thành công", "LOW");
+                if (IsFail(SU)) return ("Thanh toán phiên sạc thất bại", "HIGH");
+                return ("Phiên sạc cập nhật", "LOW");
+            }
+
+            // REFUND (explicit)
+            if (TU == "REFUND")
+            {
+                if (IsOk(SU) || IsRefund(SU)) return ("Hoàn tiền thành công", "MEDIUM");
+                if (IsFail(SU)) return ("Hoàn tiền thất bại", "HIGH");
+                return ("Hoàn tiền cập nhật", "LOW");
+            }
+
+            // Fallback chung
+            if (IsRefund(SU)) return ($"{type} hoàn tiền", "MEDIUM");
+            if (IsOk(SU)) return ($"{type} thành công", "LOW");
+            if (IsFail(SU)) return ($"{type} thất bại", "HIGH");
+            return ($"{type} cập nhật", "LOW");
+        }
 
         private static string ChargingTitle(string s) => s switch
         {
