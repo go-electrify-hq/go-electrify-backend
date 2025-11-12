@@ -11,5 +11,6 @@
         public int ConnectorTypeId { get; set; }
         public int? VehicleModelId { get; set; }
         public decimal? EstimatedCost { get; set; }
+        public int? ChargerId { get; set; }
     }
 }

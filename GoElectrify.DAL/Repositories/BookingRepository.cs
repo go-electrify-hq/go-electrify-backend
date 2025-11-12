@@ -113,5 +113,20 @@ namespace GoElectrify.DAL.Repositories
                 .AsNoTracking()
                 .FirstOrDefaultAsync(b => b.Code == code, ct);
         }
+
+        public async Task<Dictionary<int, int>> CountBookingsPerChargerAsync(
+    int stationId, int connectorTypeId, DateTime slotStartUtc, DateTime slotEndUtc,
+    string[] activeStatuses, CancellationToken ct)
+        {
+            return await db.Bookings
+                .Where(b => b.StationId == stationId
+                         && b.ConnectorTypeId == connectorTypeId
+                         && activeStatuses.Contains(b.Status)
+                         && b.ScheduledStart >= slotStartUtc && b.ScheduledStart < slotEndUtc
+                         && b.ChargerId != null)
+                .GroupBy(b => b.ChargerId!.Value)
+                .Select(g => new { ChargerId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ChargerId, x => x.Count, ct);
+        }
     }
 }

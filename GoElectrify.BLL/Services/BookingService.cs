@@ -6,10 +6,11 @@ using GoElectrify.BLL.Entities;
 using GoElectrify.BLL.Entities.Enums;
 using GoElectrify.BLL.Exceptions;
 using GoElectrify.BLL.Policies;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
-
+using Npgsql;
 namespace GoElectrify.BLL.Services
 {
     public sealed class BookingService : IBookingService
@@ -21,6 +22,7 @@ namespace GoElectrify.BLL.Services
         private readonly ITransactionRepository _tx;
         private readonly IBookingFeeService _fee;
         private readonly IRefundService _refundSvc;
+        private readonly IChargerRepository _chargers;
 
         // [MAIL]
         private readonly INotificationMailService _notifMail;
@@ -34,7 +36,7 @@ namespace GoElectrify.BLL.Services
             IBookingFeeService fee,
             INotificationMailService notifMail,
             ILogger<BookingService> logger,
-            IRefundService refundSvc)
+            IRefundService refundSvc, IChargerRepository chargers)
         {
             _repo = repo;
             _stations = stations;
@@ -45,6 +47,7 @@ namespace GoElectrify.BLL.Services
             _notifMail = notifMail;
             _logger = logger;
             _refundSvc = refundSvc;
+            _chargers = chargers;
         }
 
         private static DateTime AlignToSlotStartUtc(DateTime utc, int slotMinutes)
@@ -61,11 +64,6 @@ namespace GoElectrify.BLL.Services
         }
         public async Task<BookingDto> CreateAsync(int userId, CreateBookingDto dto, CancellationToken ct)
         {
-            // Validate input
-            //if (!await _repo.StationExistsAsync(dto.StationId, ct)) throw new InvalidOperationException("Station not found.");
-            //if (!await _repo.VehicleSupportsConnectorAsync(dto.VehicleModelId, dto.ConnectorTypeId, ct))
-            //    throw new InvalidOperationException("Vehicle model does not support the selected connector type.");
-
             var station = await _stations.GetByIdAsync(dto.StationId)
              ?? throw new InvalidOperationException("Station not found.");
             if (station.Status != StationStatus.ACTIVE)
@@ -77,9 +75,6 @@ namespace GoElectrify.BLL.Services
                 if (!ok)
                     throw new InvalidOperationException("Vehicle model does not support the selected connector type.");
             }
-            var start = dto.ScheduledStart.ToUniversalTime();
-            if (start < DateTime.UtcNow.AddMinutes(5))
-                throw new InvalidOperationException("ScheduledStart must be at least +5 minutes from now.");
 
             var nowUtc = DateTime.UtcNow;
             var startUtc = dto.ScheduledStart.Kind == DateTimeKind.Utc
@@ -92,7 +87,6 @@ namespace GoElectrify.BLL.Services
             if (slotStart < nowUtc.AddMinutes(5))
                 throw new InvalidOperationException("ScheduledStart must be at least +5 minutes from now.");
 
-            // Capacity check trong 1 block (xem C bên dưới), nhưng nhớ dùng slotStart/slotEnd:
             var active = await _repo.CountActiveBookingsAsync(dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
             var cap = await _repo.CountActiveChargersAsync(dto.StationId, dto.ConnectorTypeId, ct);
 
@@ -139,52 +133,81 @@ namespace GoElectrify.BLL.Services
                     Note = $"Booking fee"
                 });
             }
-            var e = new Booking
-            {
-                UserId = userId,
-                StationId = dto.StationId,
-                ConnectorTypeId = dto.ConnectorTypeId,
-                VehicleModelId = dto.VehicleModelId,
-                ScheduledStart = slotStart,
-                InitialSoc = dto.InitialSoc,
-                Status = "CONFIRMED",
-                Code = GenerateCode()
-            };
-            await _repo.AddAsync(e, ct);
+            var candidates = (await _chargers.GetByStationAsync(dto.StationId, ct))
+                .Where(c => c.Status == "ONLINE" && c.ConnectorTypeId == dto.ConnectorTypeId)
+                .OrderBy(c => c.Id)
+                .ToList();
+            if (candidates.Count == 0)
+                throw new InvalidOperationException("No online charger available.");
 
-            // ================== [MAIL] gửi email "Đặt chỗ thành công" ==================
-            // === EMAIL: Đặt chỗ thành công ===
-            try
+            DbUpdateException? lastConflict = null;
+            foreach (var chosen in candidates)
             {
-                var userEmail = await _repo.GetUserEmailAsync(userId, ct);
-                if (!string.IsNullOrWhiteSpace(userEmail))
+                try
                 {
-                    // Lấy tên trạm thật; nếu null → fallback
-                    var stationName = await _stations.GetNameByIdAsync(e.StationId, ct)
-                                     ?? $"Trạm #{e.StationId}";
+                    var e = new Booking
+                    {
+                        UserId = userId,
+                        StationId = dto.StationId,
+                        ConnectorTypeId = dto.ConnectorTypeId,
+                        VehicleModelId = dto.VehicleModelId,
+                        ScheduledStart = slotStart,
+                        InitialSoc = dto.InitialSoc,
+                        Status = "CONFIRMED",
+                        Code = GenerateCode(),
+                        ChargerId = chosen.Id 
+                    };
 
-                    // Booking của bạn hiện chưa có ChargerId → để null
-                    string? chargerName = null;
+                    await _repo.AddAsync(e, ct);
 
-                    await _notifMail.SendBookingSuccessAsync(
-                        toEmail: userEmail,
-                        bookingCode: e.Code,
-                        stationName: stationName,
-                        chargerName: chargerName,
-                        startTimeUtc: e.ScheduledStart,
-                        endTimeUtc: null,
-                        ct: ct
-                    );
+                    // ================== [MAIL] gửi email "Đặt chỗ thành công" ==================
+                    // === EMAIL: Đặt chỗ thành công ===
+                    try
+                    {
+                        var userEmail = await _repo.GetUserEmailAsync(userId, ct);
+                        if (!string.IsNullOrWhiteSpace(userEmail))
+                        {
+                            // Lấy tên trạm thật; nếu null → fallback
+                            var stationName = await _stations.GetNameByIdAsync(e.StationId, ct)
+                                             ?? $"Trạm #{e.StationId}";
+
+                            // Booking của bạn hiện chưa có ChargerId → để null
+                            string? chargerName = null;
+
+                            await _notifMail.SendBookingSuccessAsync(
+                                toEmail: userEmail,
+                                bookingCode: e.Code,
+                                stationName: stationName,
+                                chargerName: chargerName,
+                                startTimeUtc: e.ScheduledStart,
+                                endTimeUtc: null,
+                                ct: ct
+                            );
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Send booking success email failed (bookingCode={Code})", e.Code);
+                    }
+
+                    // ================== [/MAIL] ==================
+                    return Map(e);
+                }
+                catch (DbUpdateException ex) when (IsUniqueSeatViolation(ex))
+                {
+                    lastConflict = ex;
+                    continue;
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Send booking success email failed (bookingCode={Code})", e.Code);
-            }
 
-            // ================== [/MAIL] ==================
-            return Map(e);
+            // Nếu duyệt hết trụ vẫn conflict/hết chỗ
+            throw new InvalidOperationException("No capacity available for this slot.");
+
+            // helper local
+            static bool IsUniqueSeatViolation(DbUpdateException ex)
+                => ex.InnerException is PostgresException pg && pg.SqlState == "23505";
         }
+        
 
 
         public async Task<bool> CancelAsync(int userId, int bookingId, string? reason, CancellationToken ct)
@@ -300,7 +323,8 @@ namespace GoElectrify.BLL.Services
             StationId = e.StationId,
             ConnectorTypeId = e.ConnectorTypeId,
             VehicleModelId = e.VehicleModelId,
-            EstimatedCost = e.EstimatedCost
+            EstimatedCost = e.EstimatedCost,
+            ChargerId = e.ChargerId
         };
     }
 }

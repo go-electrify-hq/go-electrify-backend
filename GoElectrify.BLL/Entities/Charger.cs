@@ -21,5 +21,6 @@
 
         public ICollection<ChargingSession> ChargingSessions { get; set; } = new List<ChargingSession>();
         public ICollection<ChargerLog> ChargerLogs { get; set; } = new List<ChargerLog>();
+        public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     }
 }

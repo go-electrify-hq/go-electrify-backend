@@ -36,7 +36,10 @@ namespace GoElectrify.DAL.Persistence.Configurations
              .HasForeignKey(x => x.VehicleModelId)
              .OnDelete(DeleteBehavior.Restrict)
              .IsRequired(false);
-
+            b.HasOne(x => x.Charger)
+             .WithMany(c => c.Bookings)     
+             .HasForeignKey(x => x.ChargerId)
+             .OnDelete(DeleteBehavior.Restrict);
             b.Property(x => x.EstimatedCost)
             .HasPrecision(18, 2);
             // 1-1 Booking <-> ChargingSession (FK nằm ở ChargingSession)
@@ -46,6 +49,9 @@ namespace GoElectrify.DAL.Persistence.Configurations
 
             b.HasIndex(x => new { x.UserId, x.ScheduledStart });
             b.HasIndex(x => new { x.StationId, x.ScheduledStart });
+            b.HasIndex(x => new { x.ChargerId, x.ScheduledStart })
+                .IsUnique()
+                .HasFilter("charger_id IS NOT NULL");
 
             b.Property(x => x.CreatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();
             b.Property(x => x.UpdatedAt).HasDefaultValueSql("now()").ValueGeneratedOnAdd().IsRequired();

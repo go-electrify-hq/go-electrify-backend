@@ -29,5 +29,9 @@ namespace GoElectrify.BLL.Contracts.Repositories
         /// Gets the email address of the user by userId.
         /// </summary>
         Task<string?> GetUserEmailAsync(int userId, CancellationToken ct);
+
+        Task<Dictionary<int, int>> CountBookingsPerChargerAsync(
+    int stationId, int connectorTypeId, DateTime slotStartUtc, DateTime slotEndUtc,
+    string[] activeStatuses, CancellationToken ct);
     }
 }
