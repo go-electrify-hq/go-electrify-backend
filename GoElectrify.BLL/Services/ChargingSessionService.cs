@@ -260,13 +260,20 @@ namespace GoElectrify.BLL.Services
                     string? userEmail = null;
                     if (s.BookingId is int bid)
                     {
+                        // Lấy booking (không cần Include User)
                         var bk = await bookingRepo.GetByIdAsync(bid, ct);
-                        userEmail = bk?.User?.Email;
+                        if (bk is not null)
+                        {
+                            // LẤY EMAIL THEO UserId để tránh phụ thuộc Include(User)
+                            userEmail = await bookingRepo.GetUserEmailAsync(bk.UserId, ct);
+                        }
                     }
 
                     if (!string.IsNullOrWhiteSpace(userEmail))
                     {
+                        // Lấy tên trạm (có fallback)
                         string stationName = "Trạm sạc";
+                        //var charger = await repo.GetChargerAsync(s.ChargerId, ct);
                         if (charger != null)
                         {
                             var name = await stationRepo.GetNameByIdAsync(charger.StationId, ct);
@@ -277,16 +284,22 @@ namespace GoElectrify.BLL.Services
                             toEmail: userEmail!,
                             stationName: stationName,
                             energyKwh: s.EnergyKwh,
-                            cost: s.Cost,
-                            startedAtUtc: started == default ? s.EndedAt.Value : started,
+                            cost: s.Cost, // NotificationMailService tự handle null -> "—"
+                            startedAtUtc: s.StartedAt == default ? s.EndedAt.Value : s.StartedAt,
                             endedAtUtc: s.EndedAt.Value,
                             ct: ct
                         );
                     }
+                    else
+                    {
+                        // Ghi lại để debug nếu không tìm được email
+                        Console.WriteLine($"[Mail][Session {s.Id}] Skip: userEmail not found (BookingId={s.BookingId?.ToString() ?? "null"}).");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    // nếu có ILogger, bạn có thể log lại:
+                    // Đừng nuốt lỗi — ghi log nhẹ để còn lần ra nguyên nhân thực tế (SMTP, template, config…)
+                    Console.WriteLine($"[Mail][Session {s.Id}] SendChargingCompleted failed: {ex}");
                     // _logger.LogWarning(ex, "Send charging completed email failed (sessionId={Id})", s.Id);
                 }
             }
