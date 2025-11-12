@@ -31,7 +31,7 @@ namespace GoElectrify.BLL.Services
             {
                 WalletId = wallet.Id,
                 Amount = dto.Amount,
-                Type = "DEPOSIT_MANUAL",
+                Type = "DEPOSIT",
                 Status = "SUCCEEDED",
                 Note = dto.Note ?? "Nạp tiền thủ công"
             };
