@@ -176,7 +176,7 @@ namespace GoElectrify.BLL.Services
                   </body>
                 </html>";
 
-                return _email.SendAsync(toEmail, subject, html, ct);
+             return _email.SendAsync(toEmail, subject, html, ct);
         }
     }
 }
