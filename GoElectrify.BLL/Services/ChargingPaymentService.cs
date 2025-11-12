@@ -74,7 +74,7 @@ namespace GoElectrify.BLL.Services
                     Amount = billedAmount,
                     Type = "CHARGING",
                     Status = "SUCCEEDED",
-                    Note = $"Charged {billedKwh:F2} kWh @ {unitPrice} VND/kWh",
+                    Note = $"Đã sạc {billedKwh:F2} kWh @ {unitPrice} VND/kWh",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 });
@@ -119,7 +119,7 @@ namespace GoElectrify.BLL.Services
                         Amount = 0m,
                         Type = "SUBSCRIPTION_USAGE",
                         Status = "SUCCEEDED",
-                        Note = $"Used {u.UsedKwh:F2} kWh from WalletSub#{u.WalletSubscriptionId} for session #{s.Id}",
+                        Note = $"Sử dụng {u.UsedKwh:F2} kWh từ WalletSub#{u.WalletSubscriptionId} cho session #{s.Id}",
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     });

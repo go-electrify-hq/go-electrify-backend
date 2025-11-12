@@ -58,9 +58,9 @@ namespace GoElectrify.BLL.Services
                 Status = "SUCCEEDED",
                 Note = sourceTag switch
                 {
-                    "CANCEL_BEFORE_WINDOW" => "Refund booking fee (cancelled early)",
-                    "SESSION_PAID" => "Refund booking fee (after charging session)",
-                    _ => "Refund booking fee"
+                    "CANCEL_BEFORE_WINDOW" => "Hoàn tiền đặt chỗ (Hủy sớm)",
+                    "SESSION_PAID" => "Hoàn tiền đặt chỗ(Sau thanh toán)",
+                    _ => "Hoàn tiền đặt chỗ"
                 },
                 CreatedAt = now,
                 UpdatedAt = now

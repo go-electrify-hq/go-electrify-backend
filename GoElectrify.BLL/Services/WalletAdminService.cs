@@ -33,7 +33,7 @@ namespace GoElectrify.BLL.Services
                 Amount = dto.Amount,
                 Type = "DEPOSIT_MANUAL",
                 Status = "SUCCEEDED",
-                Note = dto.Note ?? "Manual deposit (admin)"
+                Note = dto.Note ?? "Nạp tiền thủ công"
             };
 
             await _txRepo.AddAsync(tx);
