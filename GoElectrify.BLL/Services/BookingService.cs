@@ -90,7 +90,6 @@ namespace GoElectrify.BLL.Services
             var active = await _repo.CountActiveBookingsAsync(dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
             var cap = await _repo.CountActiveChargersAsync(dto.StationId, dto.ConnectorTypeId, ct);
 
-            // Log để debug
             _logger.LogInformation("CapacityCheck: station={StationId}, conn={Conn}, slot=[{S:o}..{E:o}), active={Active}, cap={Cap}",
                 dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, active, cap);
 
