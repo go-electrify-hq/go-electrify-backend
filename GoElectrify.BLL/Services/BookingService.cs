@@ -47,6 +47,18 @@ namespace GoElectrify.BLL.Services
             _refundSvc = refundSvc;
         }
 
+        private static DateTime AlignToSlotStartUtc(DateTime utc, int slotMinutes)
+        {
+            // đảm bảo là UTC
+            if (utc.Kind != DateTimeKind.Utc) utc = utc.ToUniversalTime();
+
+            // Làm tròn "lên" tới mốc slot gần nhất (00/30’)
+            var floored = new DateTime(utc.Year, utc.Month, utc.Day, utc.Hour,
+                                       (utc.Minute / slotMinutes) * slotMinutes, 0, DateTimeKind.Utc);
+            if (floored < utc) // nếu đã trễ hơn mốc, đẩy lên mốc kế
+                floored = floored.AddMinutes(slotMinutes);
+            return floored;
+        }
         public async Task<BookingDto> CreateAsync(int userId, CreateBookingDto dto, CancellationToken ct)
         {
             // Validate input
@@ -69,12 +81,26 @@ namespace GoElectrify.BLL.Services
             if (start < DateTime.UtcNow.AddMinutes(5))
                 throw new InvalidOperationException("ScheduledStart must be at least +5 minutes from now.");
 
-            // Capacity check within [start, start + SLOT)
-            var windowStart = start;
-            var windowEnd = start.AddMinutes(SLOT_MINUTES);
-            var activeBookings = await _repo.CountActiveBookingsAsync(dto.StationId, dto.ConnectorTypeId, windowStart, windowEnd, ct);
-            var capacity = await _repo.CountActiveChargersAsync(dto.StationId, dto.ConnectorTypeId, ct);
-            if (activeBookings >= capacity)
+            var nowUtc = DateTime.UtcNow;
+            var startUtc = dto.ScheduledStart.Kind == DateTimeKind.Utc
+                ? dto.ScheduledStart
+                : DateTime.SpecifyKind(dto.ScheduledStart.ToUniversalTime(), DateTimeKind.Utc);
+
+            var slotStart = AlignToSlotStartUtc(startUtc, SLOT_MINUTES);
+            var slotEnd = slotStart.AddMinutes(SLOT_MINUTES);
+
+            if (slotStart < nowUtc.AddMinutes(5))
+                throw new InvalidOperationException("ScheduledStart must be at least +5 minutes from now.");
+
+            // Capacity check trong 1 block (xem C bên dưới), nhưng nhớ dùng slotStart/slotEnd:
+            var active = await _repo.CountActiveBookingsAsync(dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
+            var cap = await _repo.CountActiveChargersAsync(dto.StationId, dto.ConnectorTypeId, ct);
+
+            // Log để debug
+            _logger.LogInformation("CapacityCheck: station={StationId}, conn={Conn}, slot=[{S:o}..{E:o}), active={Active}, cap={Cap}",
+                dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, active, cap);
+
+            if (cap <= 0 || active >= cap)
                 throw new InvalidOperationException("No capacity available for this slot.");
 
             var (feeType, feeVal) = await _fee.GetAsync(ct);
@@ -119,7 +145,7 @@ namespace GoElectrify.BLL.Services
                 StationId = dto.StationId,
                 ConnectorTypeId = dto.ConnectorTypeId,
                 VehicleModelId = dto.VehicleModelId,
-                ScheduledStart = start,
+                ScheduledStart = slotStart,
                 InitialSoc = dto.InitialSoc,
                 Status = "CONFIRMED",
                 Code = GenerateCode()
