@@ -32,23 +32,20 @@ namespace GoElectrify.DAL.Repositories
         public async Task<(IReadOnlyList<User> Items, int Total)> ListAsync(
             string? role, string? search, string? sort, int page, int pageSize, CancellationToken ct)
         {
-            // Base query
             IQueryable<User> q = db.Users
                 .AsNoTracking()
                 .Include(u => u.Role)
                 .Include(u => u.Wallet);
 
-            // Filter role
+            // --- Filter role (case-insensitive). null/empty/"All"|"*" => KHÔNG lọc ---
             if (!string.IsNullOrWhiteSpace(role))
             {
-                string roleName = role.Trim();
-                q = q.Where(u => u.Role != null && u.Role.Name == roleName);
-            }
-            else
-            {
-                // Mặc định chỉ Staff + Driver
-                q = q.Where(u => u.Role != null &&
-                                 (u.Role.Name == "Staff" || u.Role.Name == "Driver"));
+                var r = role.Trim();
+                if (!r.Equals("All", StringComparison.OrdinalIgnoreCase) && r != "*")
+                {
+                    var roleName = r.ToLower();
+                    q = q.Where(u => u.Role != null && u.Role.Name.ToLower() == roleName);
+                }
             }
 
             // Search
@@ -83,20 +80,8 @@ namespace GoElectrify.DAL.Repositories
                 q = q.OrderByDescending(u => u.CreatedAt).ThenByDescending(u => u.Id);
             }
 
-            // Normalize paging
-            if (page <= 0) page = 1;
-            if (pageSize <= 0) pageSize = 20;
-            if (pageSize > 200) pageSize = 200;
-
             int total = await q.CountAsync(ct);
-
-            int skip = (page - 1) * pageSize;
-            if (skip < 0) skip = 0;
-
-            List<User> items = await q
-                .Skip(skip)
-                .Take(pageSize)
-                .ToListAsync(ct);
+            var items = await q.ToListAsync(ct);
 
             return (items, total);
         }
