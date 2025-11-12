@@ -49,22 +49,18 @@ namespace GoElectrify.DAL.Repositories
         public Task<int> CountActiveBookingsAsync(
             int stationId, int connectorTypeId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken ct)
         {
-            // Đếm PENDING/CONFIRMED/CONSUMED trong khoảng chồng lấn time window
             var active = new[] { "PENDING", "CONFIRMED", "CONSUMED" };
             return db.Bookings
                 .Where(b => b.StationId == stationId && b.ConnectorTypeId == connectorTypeId)
                 .Where(b => active.Contains(b.Status))
-                .Where(b =>
-                    // coi mỗi booking chiếm một slot bắt đầu tại ScheduledStart, kéo dài SLOT_MIN (service sẽ truyền windowStart/End)
-                    b.ScheduledStart >= windowStartUtc && b.ScheduledStart < windowEndUtc
-                )
+                .Where(b => b.ScheduledStart >= windowStartUtc && b.ScheduledStart < windowEndUtc)
                 .CountAsync(ct);
         }
 
         public Task<int> CountActiveChargersAsync(int stationId, int connectorTypeId, CancellationToken ct)
             => db.Chargers
                   .Where(c => c.StationId == stationId && c.ConnectorTypeId == connectorTypeId)
-                  .Where(c => c.Status == "ONLINE" && c.DockStatus == "DISCONNECTED")
+                  .Where(c => c.Status == "ONLINE")
                   .CountAsync(ct);
 
         public Task<bool> VehicleSupportsConnectorAsync(int vehicleModelId, int connectorTypeId, CancellationToken ct)

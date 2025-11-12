@@ -160,6 +160,7 @@ namespace GoElectrify.BLL.Services
             return Map(e);
         }
 
+
         public async Task<bool> CancelAsync(int userId, int bookingId, string? reason, CancellationToken ct)
         {
             var booking = await _repo.GetByIdAsync(bookingId, ct);
