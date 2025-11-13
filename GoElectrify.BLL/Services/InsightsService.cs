@@ -2,57 +2,125 @@
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dto.Insights;
 
-public sealed class InsightsService : IInsightsService
+namespace GoElectrify.BLL.Services
 {
-    private readonly IInsightsRepository _repo;
-    public InsightsService(IInsightsRepository repo) => _repo = repo;
-
-    public async Task<RevenueSeriesDto> GetRevenueAsync(
-    DateTime from, DateTime to, int? stationId, string granularity, CancellationToken ct = default)
+    public sealed class InsightsService : IInsightsService
     {
-        var fromUtc = NormalizeUtc(from);
-        var toUtc = NormalizeUtc(to);
-        if (toUtc > DateTime.UtcNow) toUtc = DateTime.UtcNow;
+        private readonly IInsightsRepository _repo;
+        public InsightsService(IInsightsRepository repo) => _repo = repo;
 
-        var raw = await _repo.GetRevenueAsync(fromUtc, toUtc, stationId, granularity, ct);
-
-        var series = raw
-            .Select(x => new RevenuePointDto { Bucket = x.Bucket, Amount = x.Amount })
-            .ToList();
-
-        return new RevenueSeriesDto
+        // =============== REVENUE (day / hour) ===============
+        public async Task<RevenueSeriesDto> GetRevenueAsync(
+            DateTime from, DateTime to, int? stationId, string granularity, CancellationToken ct = default)
         {
-            Series = series,
-            Total = series.Sum(x => x.Amount)
-        };
-    }
+            if (to <= from) throw new ArgumentException("`to` must be greater than `from`.");
 
+            var fromUtc = NormalizeUtc(from);
+            var toUtc = NormalizeUtc(to);
 
-    public async Task<UsageSeriesDto> GetUsageAsync(DateTime from, DateTime to, int? stationId, string granularity, CancellationToken ct)
-    {
-        (from, to) = (NormalizeUtc(from), NormalizeUtc(to));
+            granularity = (granularity ?? "day").Trim().ToLowerInvariant();
 
-        var rows = await _repo.GetUsageSeriesAsync(from, to, stationId, granularity, ct);
-        var peak = await _repo.GetUsagePeaksAsync(from, to, stationId, ct);
+            var raw = await _repo.GetRevenueAsync(fromUtc, toUtc, stationId, granularity, ct);
+            var map = raw.ToDictionary(x => x.Bucket, x => x.Amount);
 
-        return new UsageSeriesDto
+            var series = new List<RevenuePointDto>();
+
+            if (granularity == "hour")
+            {
+                // ví dụ: fromUtc = 2025-11-13T00:00Z, toUtc = 2025-11-14T00:00Z
+                for (var t = fromUtc; t < toUtc; t = t.AddHours(1))
+                {
+                    map.TryGetValue(t, out var amount);
+                    series.Add(new RevenuePointDto
+                    {
+                        Bucket = t,
+                        Amount = amount
+                    });
+                }
+            }
+            else // "day"
+            {
+                // fill đủ từng ngày trong khoảng
+                for (var d = fromUtc.Date; d < toUtc.Date; d = d.AddDays(1))
+                {
+                    map.TryGetValue(d, out var amount);
+                    series.Add(new RevenuePointDto
+                    {
+                        Bucket = d,
+                        Amount = amount
+                    });
+                }
+            }
+
+            return new RevenueSeriesDto
+            {
+                Series = series,
+                Total = series.Sum(x => x.Amount)
+            };
+        }
+
+        // =============== USAGE (hour / day) ===============
+        public async Task<UsageSeriesDto> GetUsageAsync(
+            DateTime from, DateTime to, int? stationId, string granularity, CancellationToken ct)
         {
-            Series = rows.Select(x => new UsagePointDto { Bucket = x.Bucket, Count = x.Count })
-                                 .OrderBy(x => x.Bucket).ToList(),
-            PeakHour = peak.PeakHour,
-            PeakHourCount = peak.PeakCount,
-            TotalSessions = peak.Total
-        };
-    }
+            if (to <= from) throw new ArgumentException("`to` must be greater than `from`.");
 
-    private static DateTime NormalizeUtc(DateTime dt)
-    {
-        return dt.Kind switch
+            var fromUtc = NormalizeUtc(from);
+            var toUtc = NormalizeUtc(to);
+
+            granularity = (granularity ?? "hour").Trim().ToLowerInvariant();
+
+            var rawSeries = await _repo.GetUsageSeriesAsync(fromUtc, toUtc, stationId, granularity, ct);
+            var peak = await _repo.GetUsagePeaksAsync(fromUtc, toUtc, stationId, ct);
+
+            var map = rawSeries.ToDictionary(x => x.Bucket, x => x.Count);
+            var filled = new List<UsagePointDto>();
+
+            if (granularity == "hour")
+            {
+                // luôn fill đủ từng giờ
+                for (var t = fromUtc; t < toUtc; t = t.AddHours(1))
+                {
+                    map.TryGetValue(t, out var count);
+                    filled.Add(new UsagePointDto
+                    {
+                        Bucket = t,
+                        Count = count
+                    });
+                }
+            }
+            else // "day"
+            {
+                for (var d = fromUtc.Date; d < toUtc.Date; d = d.AddDays(1))
+                {
+                    map.TryGetValue(d, out var count);
+                    filled.Add(new UsagePointDto
+                    {
+                        Bucket = d,
+                        Count = count
+                    });
+                }
+            }
+
+            return new UsageSeriesDto
+            {
+                Series = filled,
+                PeakHour = peak.PeakHour,
+                PeakHourCount = peak.PeakCount,
+                TotalSessions = peak.Total
+            };
+        }
+
+        // =============== helper ===============
+        private static DateTime NormalizeUtc(DateTime dt)
         {
-            DateTimeKind.Utc => dt,
-            DateTimeKind.Local => dt.ToUniversalTime(),
-            DateTimeKind.Unspecified => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
-            _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc) // fallback
-        };
+            return dt.Kind switch
+            {
+                DateTimeKind.Utc => dt,
+                DateTimeKind.Local => dt.ToUniversalTime(),
+                DateTimeKind.Unspecified => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+                _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc) // fallback
+            };
+        }
     }
 }
