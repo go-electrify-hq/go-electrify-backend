@@ -57,10 +57,9 @@ namespace GoElectrify.BLL.Services
             // đảm bảo là UTC
             if (utc.Kind != DateTimeKind.Utc) utc = utc.ToUniversalTime();
 
-            // Làm tròn "lên" tới mốc slot gần nhất (00/30’)
             var floored = new DateTime(utc.Year, utc.Month, utc.Day, utc.Hour,
                                        (utc.Minute / slotMinutes) * slotMinutes, 0, DateTimeKind.Utc);
-            if (floored < utc) // nếu đã trễ hơn mốc, đẩy lên mốc kế
+            if (floored < utc)
                 floored = floored.AddMinutes(slotMinutes);
             return floored;
         }
@@ -124,13 +123,19 @@ namespace GoElectrify.BLL.Services
                 .ToList();
 
             if (candidates.Count == 0)
-                throw new InvalidOperationException("Không có bộ sạc nào đang trực tuyến.");
+                throw new InvalidOperationException("Không còn chỗ trống cho khung giờ này.");
 
             DbUpdateException? lastConflict = null;
             foreach (var chosen in candidates)
             {
                 try
                 {
+                    var wallet = await _wallets.GetByUserIdAsync(userId)
+                     ?? throw new InvalidOperationException("Wallet not found.");
+
+                    if (fee > 0 && wallet.Balance < fee)
+                        throw new InsufficientFundsException(fee, wallet.Balance);
+
                     var e = new Booking
                     {
                         UserId = userId,
@@ -148,9 +153,6 @@ namespace GoElectrify.BLL.Services
                     //===============Trừ phí booking 
                     if (fee > 0)
                     {
-                        var wallet = await _wallets.GetByUserIdAsync(userId)
-                                     ?? throw new InvalidOperationException("Wallet not found.");
-
                         if (wallet.Balance < fee)
                             throw new InsufficientFundsException(fee, wallet.Balance);
 
@@ -167,7 +169,7 @@ namespace GoElectrify.BLL.Services
                             Note = $"Phí đặt chỗ"
                         });
                     }
-                    
+
                     // ================== [MAIL] gửi email "Đặt chỗ thành công" ==================
                     // === EMAIL: Đặt chỗ thành công ===
                     try
@@ -227,7 +229,7 @@ namespace GoElectrify.BLL.Services
             static bool IsUniqueSeatViolation(DbUpdateException ex)
                 => ex.InnerException is PostgresException pg && pg.SqlState == "23505";
         }
-        
+
 
 
         public async Task<bool> CancelAsync(int userId, int bookingId, string? reason, CancellationToken ct)
@@ -266,7 +268,7 @@ namespace GoElectrify.BLL.Services
                 }
             }
 
-                
+
             return true;
         }
 
