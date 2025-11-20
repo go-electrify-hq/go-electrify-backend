@@ -12,7 +12,6 @@ using System.Runtime.InteropServices;
 
 namespace GoElectrify.BLL.Services
 {
-    // Thêm các repo cần thiết vào primary-constructor
     public sealed class ChargingSessionService(
         IChargingSessionRepository repo,
         IBookingRepository bookingRepo,
@@ -249,7 +248,7 @@ namespace GoElectrify.BLL.Services
 
             // Trạng thái -> UNPAID (không thêm field mới)
             s.Status = "UNPAID";
-            
+
             await repo.SaveChangesAsync(ct);
 
             // ================== [MAIL] gửi email "Phiên sạc hoàn tất" ==================

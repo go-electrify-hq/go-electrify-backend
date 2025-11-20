@@ -23,9 +23,7 @@ namespace go_electrify_backend.Controllers
 
         [HttpPost("request-otp")]
         [AllowAnonymous]
-        public async Task<IActionResult> RequestOtp([FromBody] RequestOtpDto dto,
-                                            [FromServices] IAuthService auth,
-                                            CancellationToken ct)
+        public async Task<IActionResult> RequestOtp([FromBody] RequestOtpDto dto, CancellationToken ct)
         {
             // Che khi email không hợp lệ
             if (!IsValidEmail(dto.Email))
@@ -49,7 +47,6 @@ namespace go_electrify_backend.Controllers
             }
             catch (Exception)
             {
-                // Cho các lỗi khác: 500 (SMTP/Redis, v.v.)
                 return StatusCode(500, new { ok = false, error = "Internal server error." });
             }
 
@@ -77,52 +74,36 @@ namespace go_electrify_backend.Controllers
         }
 
         [HttpPost("logout")]
-        [Authorize] // giữ nguyên để FE không phải đổi
-        public async Task<IActionResult> Logout([FromBody] string? refreshToken, CancellationToken ct)
+        [Authorize]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest? req, CancellationToken ct)
         {
-            var rt = string.IsNullOrWhiteSpace(refreshToken)
-                ? Request.Cookies["refreshToken"]
-                : refreshToken;
+            var rt = req?.RefreshToken;
 
-            try
+            if (!string.IsNullOrWhiteSpace(rt))
             {
-                var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (!string.IsNullOrWhiteSpace(uidStr) && int.TryParse(uidStr, out var uid) && !string.IsNullOrWhiteSpace(rt))
+                try
                 {
-                    await auth.LogoutAsync(uid, rt!, ct);
+                    var uidStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (!string.IsNullOrWhiteSpace(uidStr) && int.TryParse(uidStr, out var uid))
+                    {
+                        // Logout theo user + refresh token
+                        await auth.LogoutAsync(uid, rt, ct);
+                    }
+                    else
+                    {
+                        // Không parse được userId thì revoke token thôi
+                        await auth.RevokeRefreshTokenAsync(rt, ct);
+                    }
                 }
-                else if (!string.IsNullOrWhiteSpace(rt))
+                catch
                 {
-                    await auth.RevokeRefreshTokenAsync(rt!, ct);
+                    // optional: log lại, nhưng vẫn trả Ok để logout là "best effort"
                 }
             }
-            catch
-            {
 
-            }
-
-            var expired = DateTime.UnixEpoch;
-            Response.Cookies.Append("refreshToken", ".", new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Path = "/",
-                Domain = ".go-electrify.com",
-                Expires = expired
-            });
-            Response.Cookies.Append("accessToken", ".", new CookieOptions
-            {
-                HttpOnly = false,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Path = "/",
-                Domain = ".go-electrify.com",
-                Expires = expired
-            });
-
-            return Ok();
+            return Ok(new { ok = true });
         }
+
         public sealed record LogoutRequest(string? RefreshToken);
 
 
@@ -147,8 +128,6 @@ namespace go_electrify_backend.Controllers
         public async Task<IActionResult> Refresh([FromBody] RefreshRequest? req, CancellationToken ct)
         {
             var incoming = req?.RefreshToken;
-            if (string.IsNullOrWhiteSpace(incoming))
-                incoming = Request.Cookies["refreshToken"];
 
             if (string.IsNullOrWhiteSpace(incoming))
                 return Unauthorized(new { error = "missing_refresh_token" });
@@ -157,15 +136,15 @@ namespace go_electrify_backend.Controllers
             {
                 var tokens = await auth.RefreshAsync(incoming!, ct);
 
-                Response.Cookies.Append("refreshToken", tokens.RefreshToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.None,
-                    Expires = tokens.RefreshExpires,
-                    Path = "/",
-                    Domain = ".go-electrify.com"
-                });
+                //Response.Cookies.Append("refreshToken", tokens.RefreshToken, new CookieOptions
+                //{
+                //    HttpOnly = true,
+                //    Secure = true,
+                //    SameSite = SameSiteMode.None,
+                //    Expires = tokens.RefreshExpires,
+                //    Path = "/",
+                //    Domain = ".go-electrify.com"
+                //});
 
                 return Ok(tokens);
             }
@@ -213,20 +192,6 @@ namespace go_electrify_backend.Controllers
             {
                 var tokens = await auth.SignInWithGoogleAsync(ext.Principal, ct);
 
-                var isHttps = Request.IsHttps;
-                Response.Cookies.Append(
-                    "refreshToken",
-                    tokens.RefreshToken,
-                    new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.None,
-                        Expires = tokens.RefreshExpires,
-                        Path = "/",
-                        Domain = ".go-electrify.com"
-                    });
-
                 await HttpContext.SignOutAsync("External");
 
                 string? returnUrl = null;
@@ -237,9 +202,16 @@ namespace go_electrify_backend.Controllers
                     returnUrl = r;
                 }
 
-                return string.IsNullOrWhiteSpace(returnUrl)
-                    ? Redirect("/")
-                    : Redirect(returnUrl);
+                if (string.IsNullOrWhiteSpace(returnUrl))
+                {
+                    returnUrl = _cfg["Auth:DefaultFrontendRedirect"] ?? "/";
+                }
+
+                var separator = returnUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+                var redirectUrl =
+                    $"{returnUrl}{separator}refreshToken={Uri.EscapeDataString(tokens.RefreshToken)}";
+
+                return Redirect(redirectUrl);
             }
             catch
             {
@@ -247,5 +219,6 @@ namespace go_electrify_backend.Controllers
                 return Unauthorized(new { ok = false, error = "signin_with_google_failed" });
             }
         }
+
     }
 }

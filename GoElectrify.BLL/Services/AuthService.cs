@@ -340,5 +340,6 @@ namespace GoElectrify.BLL.Services
             return s.Contains("23505") || s.Contains("2601") || s.Contains("2627")
                 || s.Contains("unique", StringComparison.OrdinalIgnoreCase);
         }
+
     }
 }
