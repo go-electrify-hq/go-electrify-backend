@@ -37,14 +37,12 @@ namespace GoElectrify.DAL.Persistence.Configurations
             b.Property(x => x.AvgPowerKw).HasPrecision(12, 4);
             b.Property(x => x.Cost).HasPrecision(18, 2);
 
-            // CHECK constraints cho Postgres + snake_case
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_status_upper",
                 "status = UPPER(status)"));
 
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_status_allowed",
                 "status in ('PENDING','RUNNING','COMPLETED','TIMEOUT','FAILED','ABORTED','UNPAID','PAID')"));
 
-            // MỚI: ràng buộc flow hợp lý giữa EndedAt và Status
             b.ToTable(t => t.HasCheckConstraint("ck_charging_sessions_status_flow",
                 "CASE WHEN ended_at IS NULL THEN status IN ('PENDING','RUNNING') " +
                 "ELSE status IN ('COMPLETED','TIMEOUT','FAILED','ABORTED','UNPAID','PAID') END"));

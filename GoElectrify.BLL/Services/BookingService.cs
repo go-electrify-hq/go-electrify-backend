@@ -238,8 +238,7 @@ namespace GoElectrify.BLL.Services
             if (booking is null) return false;
             if (booking.UserId != userId) return false;
 
-            // đánh dấu hủy
-            booking.Status = "CANCELED"; // hoặc BookingStatus.CANCELED nếu bạn dùng constant
+            booking.Status = "CANCELED";
             await _repo.UpdateAsync(booking, ct);
 
             // Hoàn nếu hủy trước 15'
@@ -250,7 +249,6 @@ namespace GoElectrify.BLL.Services
                 var wallet = await _wallets.GetByUserIdAsync(userId);
                 if (wallet != null)
                 {
-                    // reason: lấy từ FE (body.Reason) – truyền nguyên sang RefundService
                     try
                     {
                         await _refundSvc.RefundBookingFeeIfNeededAsync(
@@ -291,7 +289,7 @@ namespace GoElectrify.BLL.Services
         {
             if (b.Status is "PENDING" or "CONFIRMED")
             {
-                var expireAt = b.ScheduledStart.AddMinutes(SLOT_MINUTES + 10); // grace 10'
+                var expireAt = b.ScheduledStart.AddMinutes(SLOT_MINUTES + 10);
                 if (DateTime.UtcNow >= expireAt) b.Status = "EXPIRED";
             }
         }
@@ -310,7 +308,7 @@ namespace GoElectrify.BLL.Services
 
         public async Task<IReadOnlyList<BookingDto>> GetByStationAsync(int stationId, StationBookingQueryDto q, CancellationToken ct)
         {
-            // Validate status nếu có
+            // Validate status 
             if (!string.IsNullOrWhiteSpace(q.Status) && !AllowedStatuses.Contains(q.Status))
                 throw new InvalidOperationException("Invalid status filter.");
 
@@ -329,7 +327,7 @@ namespace GoElectrify.BLL.Services
                 ct
             );
 
-            // Gán EXPIRED kiểu “derived” trước khi map (đúng logic GetMyAsync)
+            // Gán EXPIRED kiểu “derived” trước khi map 
             foreach (var b in list) ApplyDerivedExpiry(b);
 
             return list.Select(Map).ToList();
