@@ -43,7 +43,7 @@ namespace GoElectrify.Api.Controllers
             }
 
             // Checksum key
-            var secretKey = _config["PayOS:ChecksumKey"];
+            var secretKey = Environment.GetEnvironmentVariable("PayOS__ChecksumKey");
             if (string.IsNullOrWhiteSpace(secretKey))
             {
                 Console.WriteLine("Missing PayOS checksum key");
