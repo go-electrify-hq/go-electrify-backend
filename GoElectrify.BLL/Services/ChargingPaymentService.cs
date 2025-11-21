@@ -13,6 +13,7 @@ namespace GoElectrify.BLL.Services
 {
     public sealed class ChargingPaymentService(
         IChargingSessionRepository sessionRepo,
+        IBookingRepository bookingRepo,
         IWalletRepository walletRepo,
         ITransactionRepository txRepo,
         IWalletSubscriptionRepository walletSubRepo,
@@ -24,6 +25,7 @@ namespace GoElectrify.BLL.Services
         {
             var s = await sessionRepo.GetSessionAsync(sessionId, ct)
                 ?? throw new InvalidOperationException("Session not found.");
+
             if (s.Status == "COMPLETED")
                 throw new InvalidOperationException("Session already paid.");
             if (s.Status != "UNPAID")
@@ -59,6 +61,7 @@ namespace GoElectrify.BLL.Services
                 // ===== Thanh toán bằng ví =====
                 billedKwh = energy;
                 billedAmount = Round2(billedKwh * unitPrice);
+
 
                 if (wallet.Balance < billedAmount)
                     throw BusinessRuleException.WalletInsufficient(billedAmount - wallet.Balance);

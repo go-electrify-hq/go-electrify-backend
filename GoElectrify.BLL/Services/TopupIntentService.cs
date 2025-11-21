@@ -1,3 +1,6 @@
+using System;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using GoElectrify.BLL.Contracts.Repositories;
 using GoElectrify.BLL.Contracts.Services;
 using GoElectrify.BLL.Dtos.WalletTopup;
@@ -5,12 +8,12 @@ using GoElectrify.BLL.Entities;
 using GoElectrify.BLL.Services.Interfaces;
 using GoElectrify.DAL.Repositories;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 
 namespace GoElectrify.BLL.Services;
 
 public class TopupIntentService : ITopupIntentService
 {
+    private const decimal MaxTopupAmount = 10_000_000m;
     private readonly ITopupIntentRepository _topupRepo;
     private readonly IWalletRepository _walletRepo;
     private readonly ITransactionRepository _txRepo;
@@ -24,22 +27,19 @@ public class TopupIntentService : ITopupIntentService
         _walletRepo = walletRepo;
         _txRepo = txRepo;
         _payos = payos;
-        _notifMail = notifMail;                            // <-- gán
+        _notifMail = notifMail;                          
         _logger = logger;
     }
 
     public async Task<TopupResponseDto> CreateTopupAsync(int walletId, TopupRequestDto dto)
     {
-        var baseUrl = "https://api.go-electrify.com";
-        var returnUrl = dto.ReturnUrl ??  baseUrl;
-        var cancelUrl = dto.CancelUrl ?? baseUrl;
-        //if (string.IsNullOrEmpty(returnUrl) ||
-        //   (!returnUrl.StartsWith("https://go-electrify.com") && !returnUrl.StartsWith("http://localhost")))
-        //    throw new ArgumentException("Invalid return URL");
+        if (dto.Amount > MaxTopupAmount)
+            throw new InvalidOperationException($"Amount exceeds the limit of {MaxTopupAmount:N0} VND");
 
-        //if (string.IsNullOrEmpty(cancelUrl) ||
-        //    (!cancelUrl.StartsWith("https://go-electrify.com") && !cancelUrl.StartsWith("http://localhost")))
-        //    throw new ArgumentException("Invalid cancel URL");
+
+        var baseUrl = "https://api.go-electrify.com";
+        var returnUrl = dto.ReturnUrl ?? baseUrl;
+        var cancelUrl = dto.CancelUrl ?? baseUrl;
 
         var (checkoutUrl, orderCode) = await _payos.CreatePaymentLinkAsync(
             dto.Amount,
@@ -69,7 +69,6 @@ public class TopupIntentService : ITopupIntentService
 
     public async Task HandleWebhookAsync(PayOSWebhookDto payload)
     {
-        // Basic success check
         if (payload.Code != "00") return;
 
         // Optional signature verification placeholder (depends on exact PayOS format)
