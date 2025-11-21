@@ -23,6 +23,16 @@ namespace GoElectrify.Api.Controllers
             var body = await new StreamReader(Request.Body).ReadToEndAsync();
             Console.WriteLine("📩 Webhook received: " + body);
 
+            if (!Request.Headers.TryGetValue("X-Signature", out var signatureHeader))
+                return Unauthorized(new { code = "401", desc = "Missing signature" });
+            var signature = signatureHeader.ToString();
+
+            var secretKey = Environment.GetEnvironmentVariable("ChecksumKey");
+            if (string.IsNullOrWhiteSpace(secretKey))
+                return StatusCode(500, "Missing ChecksumKey");
+
+            if (!VerifyPayOSSignature(body, signature, secretKey))
+                return Unauthorized(new { code = "401", desc = "Invalid signature" });
             try
             {
                 var json = JsonDocument.Parse(body);
@@ -121,6 +131,17 @@ namespace GoElectrify.Api.Controllers
             }
 
             return Ok(new { code = "00", desc = "ok" });
+        }
+
+        private bool VerifyPayOSSignature(string rawBody, string signature, string secretKey)
+        {
+            using var hmac = new System.Security.Cryptography.HMACSHA256(
+                System.Text.Encoding.UTF8.GetBytes(secretKey));
+
+            var hashBytes = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawBody));
+            var hashString = Convert.ToHexString(hashBytes).ToLower();
+
+            return hashString == signature.ToLower();
         }
     }
 }
