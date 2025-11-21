@@ -14,13 +14,11 @@ namespace GoElectrify.BLL.Contracts.Repositories
             int page, int pageSize, CancellationToken ct);
 
         // Capacity & overlap
-        Task<int> CountActiveBookingsAsync(
-            int stationId, int connectorTypeId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken ct);
+        Task<int> CountActiveBookingsAsync(int stationId, int connectorTypeId, DateTime windowStartUtc, DateTime windowEndUtc, CancellationToken ct);
 
         Task<int> CountActiveChargersAsync(
             int stationId, int connectorTypeId, CancellationToken ct);
-        Task<int> CountFreeChargersAsync(
-    int stationId, int connectorTypeId, DateTime slotStart, DateTime slotEnd, CancellationToken ct);
+        Task<int> CountFreeChargersAsync(int stationId, int connectorTypeId, DateTime slotStart, DateTime slotEnd, CancellationToken ct);
 
         Task<bool> VehicleSupportsConnectorAsync(int vehicleModelId, int connectorTypeId, CancellationToken ct);
 
@@ -33,7 +31,12 @@ namespace GoElectrify.BLL.Contracts.Repositories
         Task<string?> GetUserEmailAsync(int userId, CancellationToken ct);
 
         Task<Dictionary<int, int>> CountBookingsPerChargerAsync(
-    int stationId, int connectorTypeId, DateTime slotStartUtc, DateTime slotEndUtc,
-    string[] activeStatuses, CancellationToken ct);
+            int stationId, int connectorTypeId, DateTime slotStartUtc, DateTime slotEndUtc,
+            string[] activeStatuses, CancellationToken ct);
+        Task<bool> UserHasActiveBookingInWindowAsync(
+                int userId,
+                DateTime windowStartUtc,
+                DateTime windowEndUtc,
+                CancellationToken ct);
     }
 }
