@@ -12,12 +12,10 @@ namespace GoElectrify.Api.Controllers
     public class PayOSWebhookController : ControllerBase
     {
         private readonly AppDbContext _db;
-        private readonly IConfiguration _config;
 
-        public PayOSWebhookController(AppDbContext db, IConfiguration config)
+        public PayOSWebhookController(AppDbContext db)
         {
             _db = db;
-            _config = config;
         }
 
         [HttpPost]
@@ -31,15 +29,12 @@ namespace GoElectrify.Api.Controllers
 
             Console.WriteLine("Webhook received: " + rawBody);
 
-            // Signature
-            var js = JsonDocument.Parse(rawBody);
-
+            var json = JsonDocument.Parse(rawBody);
             string signature = null;
 
-            if (js.RootElement.TryGetProperty("signature", out var sigEl))
+            if (json.RootElement.TryGetProperty("signature", out var sigEl))
                 signature = sigEl.GetString();
-
-            else if (js.RootElement.TryGetProperty("data", out var dataEl) &&
+            else if (json.RootElement.TryGetProperty("data", out var dataEl) &&
                      dataEl.TryGetProperty("signature", out var sigDataEl))
                 signature = sigDataEl.GetString();
 
@@ -49,25 +44,18 @@ namespace GoElectrify.Api.Controllers
                 return Unauthorized(new { code = "401", desc = "Missing signature" });
             }
 
-
-            if (signature == null)
-            {
-                Console.WriteLine("Missing signature");
-                return Unauthorized(new { code = "401", desc = "Missing signature" });
-            }
-
-            // Checksum key
             var secretKey = Environment.GetEnvironmentVariable("PayOS__ChecksumKey");
             if (string.IsNullOrWhiteSpace(secretKey))
             {
-                Console.WriteLine("Missing PayOS checksum key");
+                Console.WriteLine("Missing PayOS__ChecksumKey env");
                 return StatusCode(500, "Missing ChecksumKey");
             }
 
-            // Verify Signature
             if (!VerifyPayOSSignature(rawBody, signature, secretKey))
             {
-                Console.WriteLine($"Invalid signature\nReceived: {signature}\n");
+                Console.WriteLine($"Invalid signature");
+                Console.WriteLine($"Expected HMAC: {ComputeHmac(rawBody, secretKey)}");
+                Console.WriteLine($"Received: {signature}");
                 return Unauthorized(new { code = "401", desc = "Invalid signature" });
             }
 
@@ -75,76 +63,70 @@ namespace GoElectrify.Api.Controllers
 
             try
             {
-                var json = JsonDocument.Parse(rawBody);
                 var data = json.RootElement.GetProperty("data");
 
                 long orderCode = data.GetProperty("orderCode").GetInt64();
                 decimal amount = data.GetProperty("amount").GetDecimal();
-                string code = data.GetProperty("code").GetString() ?? string.Empty;
 
-                if (json.RootElement.TryGetProperty("code", out var rootCodeEl))
+                string code = data.GetProperty("code").GetString() ?? "99";
+                if (code != "00")
                 {
-                    var rootCode = rootCodeEl.GetString();
-                    if (!string.IsNullOrWhiteSpace(rootCode))
-                        code = rootCode;
+                    Console.WriteLine("Payment failed");
+                    return Ok(new { code = "00", desc = "ok" });
                 }
 
-                if (code == "00") // thành công
+                var intent = await _db.TopupIntents.FirstOrDefaultAsync(t => t.OrderCode == orderCode);
+                if (intent == null)
+                    return Ok(new { code = "99", desc = "Intent not found" });
+
+                var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.Id == intent.WalletId);
+                if (wallet == null)
+                    return Ok(new { code = "98", desc = "Wallet not found" });
+
+                intent.Status = "SUCCESS";
+                intent.CompletedAt = DateTime.UtcNow;
+                intent.RawWebhook = rawBody;
+
+                wallet.Balance += amount;
+                wallet.UpdatedAt = DateTime.UtcNow;
+
+                var tx = new Transaction
                 {
-                    var intent = _db.TopupIntents.FirstOrDefault(t => t.OrderCode == orderCode);
-                    if (intent == null)
-                        return Ok(new { code = "99", desc = "Intent not found" });
+                    WalletId = wallet.Id,
+                    Amount = amount,
+                    Type = "DEPOSIT",
+                    Status = "SUCCEEDED",
+                    Note = $"PayOS {orderCode}",
+                    CreatedAt = DateTime.UtcNow
+                };
 
-                    intent.Status = "SUCCESS";
-                    intent.CompletedAt = DateTime.UtcNow;
-                    intent.RawWebhook = rawBody;
+                await _db.Transactions.AddAsync(tx);
+                await _db.SaveChangesAsync();
 
-                    var wallet = _db.Wallets.FirstOrDefault(w => w.Id == intent.WalletId);
-                    if (wallet == null)
-                        return Ok(new { code = "98", desc = "Wallet not found" });
-
-                    wallet.Balance += amount;
-                    wallet.UpdatedAt = DateTime.UtcNow;
-
-                    var transaction = new Transaction
-                    {
-                        WalletId = wallet.Id,
-                        Amount = amount,
-                        Type = "DEPOSIT",
-                        Status = "SUCCEEDED",
-                        CreatedAt = DateTime.UtcNow,
-                        Note = $"PayOS order {orderCode}"
-                    };
-
-                    await _db.Transactions.AddAsync(transaction);
-                    await _db.SaveChangesAsync();
-
-                    Console.WriteLine($"Wallet {wallet.Id} +{amount}");
-                }
-                else
-                {
-                    Console.WriteLine($"Payment failed (code={code})");
-                }
+                Console.WriteLine($"Wallet {wallet.Id} +{amount}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error handling webhook: " + ex.Message);
+                Console.WriteLine("Error: " + ex.Message);
             }
 
             return Ok(new { code = "00", desc = "ok" });
         }
 
-        private bool VerifyPayOSSignature(string rawBody, string signature, string secretKey)
+        private string ComputeHmac(string rawBody, string secretKey)
         {
-            if (signature == null) return false;
-
             using var hmac = new System.Security.Cryptography.HMACSHA256(
                 System.Text.Encoding.UTF8.GetBytes(secretKey));
 
-            var hashBytes = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawBody));
-            var hashString = Convert.ToHexString(hashBytes).ToLower();
+            return Convert.ToHexString(hmac.ComputeHash(
+                System.Text.Encoding.UTF8.GetBytes(rawBody)
+            )).ToLower();
+        }
 
-            return hashString == signature.ToLower();
+        private bool VerifyPayOSSignature(string rawBody, string signature, string secretKey)
+        {
+            var expected = ComputeHmac(rawBody, secretKey);
+            return expected == signature.ToLower();
         }
     }
 }
