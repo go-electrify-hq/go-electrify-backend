@@ -1,8 +1,9 @@
-﻿using GoElectrify.BLL.Contracts.Services;
-using GoElectrify.BLL.Entities;
+﻿using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace GoElectrify.Api.Controllers
@@ -22,21 +23,20 @@ namespace GoElectrify.Api.Controllers
         public async Task<IActionResult> ReceiveWebhook()
         {
             Request.EnableBuffering();
-
             using var reader = new StreamReader(Request.Body, leaveOpen: true);
             var rawBody = await reader.ReadToEndAsync();
             Request.Body.Position = 0;
 
-            Console.WriteLine("Webhook received: " + rawBody);
+            Console.WriteLine("=== RAW BODY START ===");
+            Console.WriteLine(rawBody);
+            Console.WriteLine("=== RAW BODY END ===");
+
 
             var json = JsonDocument.Parse(rawBody);
-            string signature = null;
 
+            string signature = null;
             if (json.RootElement.TryGetProperty("signature", out var sigEl))
                 signature = sigEl.GetString();
-            else if (json.RootElement.TryGetProperty("data", out var dataEl) &&
-                     dataEl.TryGetProperty("signature", out var sigDataEl))
-                signature = sigDataEl.GetString();
 
             if (string.IsNullOrWhiteSpace(signature))
             {
@@ -47,39 +47,56 @@ namespace GoElectrify.Api.Controllers
             var secretKey = Environment.GetEnvironmentVariable("PayOS__ChecksumKey");
             if (string.IsNullOrWhiteSpace(secretKey))
             {
-                Console.WriteLine("Missing PayOS__ChecksumKey env");
+                Console.WriteLine("Missing PayOS__ChecksumKey ENV");
                 return StatusCode(500, "Missing ChecksumKey");
             }
-
-            if (!VerifyPayOSSignature(rawBody, signature, secretKey))
+            if (!json.RootElement.TryGetProperty("data", out var dataEl))
             {
-                Console.WriteLine($"Invalid signature");
-                Console.WriteLine($"Expected HMAC: {ComputeHmac(rawBody, secretKey)}");
-                Console.WriteLine($"Received: {signature}");
+                Console.WriteLine("No data field");
+                return Ok(new { code = "00", desc = "ok" });
+            }
+
+            var dict = new SortedDictionary<string, string>();
+            foreach (var p in dataEl.EnumerateObject())
+            {
+                dict[p.Name] = p.Value.GetString() ?? "";
+            }
+
+            var dataStr = string.Join("&", dict.Select(kv => $"{kv.Key}={kv.Value}"));
+
+            Console.WriteLine("Data string used for HMAC:");
+            Console.WriteLine(dataStr);
+
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secretKey));
+            var expected = BitConverter.ToString(
+                hmac.ComputeHash(Encoding.UTF8.GetBytes(dataStr))
+            ).Replace("-", "").ToLower();
+
+            Console.WriteLine($"Expected: {expected}");
+            Console.WriteLine($"Received: {signature}");
+
+            if (expected != signature.ToLower())
+            {
+                Console.WriteLine("Invalid signature");
                 return Unauthorized(new { code = "401", desc = "Invalid signature" });
             }
 
-            Console.WriteLine("Signature is valid");
+            Console.WriteLine("Signature verified OK");
 
             try
             {
-                var data = json.RootElement.GetProperty("data");
+                long orderCode = dataEl.GetProperty("orderCode").GetInt64();
+                decimal amount = dataEl.GetProperty("amount").GetDecimal();
 
-                long orderCode = data.GetProperty("orderCode").GetInt64();
-                decimal amount = data.GetProperty("amount").GetDecimal();
+                var intent = await _db.TopupIntents
+                    .FirstOrDefaultAsync(t => t.OrderCode == orderCode);
 
-                string code = data.GetProperty("code").GetString() ?? "99";
-                if (code != "00")
-                {
-                    Console.WriteLine("Payment failed");
-                    return Ok(new { code = "00", desc = "ok" });
-                }
-
-                var intent = await _db.TopupIntents.FirstOrDefaultAsync(t => t.OrderCode == orderCode);
                 if (intent == null)
                     return Ok(new { code = "99", desc = "Intent not found" });
 
-                var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.Id == intent.WalletId);
+                var wallet = await _db.Wallets
+                    .FirstOrDefaultAsync(w => w.Id == intent.WalletId);
+
                 if (wallet == null)
                     return Ok(new { code = "98", desc = "Wallet not found" });
 
@@ -96,37 +113,21 @@ namespace GoElectrify.Api.Controllers
                     Amount = amount,
                     Type = "DEPOSIT",
                     Status = "SUCCEEDED",
-                    Note = $"PayOS {orderCode}",
+                    Note = $"PayOS Banking order {orderCode}",
                     CreatedAt = DateTime.UtcNow
                 };
 
                 await _db.Transactions.AddAsync(tx);
                 await _db.SaveChangesAsync();
 
-                Console.WriteLine($"Wallet {wallet.Id} +{amount}");
+                Console.WriteLine($"💰 Wallet {wallet.Id} +{amount}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                Console.WriteLine("❌ Webhook error: " + ex.Message);
             }
 
             return Ok(new { code = "00", desc = "ok" });
-        }
-
-        private string ComputeHmac(string rawBody, string secretKey)
-        {
-            using var hmac = new System.Security.Cryptography.HMACSHA256(
-                System.Text.Encoding.UTF8.GetBytes(secretKey));
-
-            return Convert.ToHexString(hmac.ComputeHash(
-                System.Text.Encoding.UTF8.GetBytes(rawBody)
-            )).ToLower();
-        }
-
-        private bool VerifyPayOSSignature(string rawBody, string signature, string secretKey)
-        {
-            var expected = ComputeHmac(rawBody, secretKey);
-            return expected == signature.ToLower();
         }
     }
 }
