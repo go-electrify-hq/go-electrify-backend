@@ -32,9 +32,23 @@ namespace GoElectrify.Api.Controllers
             Console.WriteLine("Webhook received: " + rawBody);
 
             // Signature
-            var signature =
-                Request.Headers["x-signature"].FirstOrDefault()
-                ?? Request.Headers["X-Signature"].FirstOrDefault();
+            var js = JsonDocument.Parse(rawBody);
+
+            string signature = null;
+
+            if (js.RootElement.TryGetProperty("signature", out var sigEl))
+                signature = sigEl.GetString();
+
+            else if (js.RootElement.TryGetProperty("data", out var dataEl) &&
+                     dataEl.TryGetProperty("signature", out var sigDataEl))
+                signature = sigDataEl.GetString();
+
+            if (string.IsNullOrWhiteSpace(signature))
+            {
+                Console.WriteLine("❌ Missing signature");
+                return Unauthorized(new { code = "401", desc = "Missing signature" });
+            }
+
 
             if (signature == null)
             {
