@@ -57,6 +57,21 @@ namespace GoElectrify.DAL.Repositories
                 .CountAsync(ct);
         }
 
+        public Task<bool> UserHasActiveBookingInWindowAsync(
+            int userId,
+            DateTime windowStartUtc,
+            DateTime windowEndUtc,
+            CancellationToken ct)
+        {
+            var active = new[] { "PENDING", "CONFIRMED", "CONSUMED" };
+
+            return db.Bookings
+                .Where(b => b.UserId == userId)
+                .Where(b => active.Contains(b.Status))
+                .Where(b => b.ScheduledStart >= windowStartUtc && b.ScheduledStart < windowEndUtc)
+                .AnyAsync(ct);
+        }
+
         public Task<int> CountActiveChargersAsync(int stationId, int connectorTypeId, CancellationToken ct)
             => db.Chargers
                   .Where(c => c.StationId == stationId && c.ConnectorTypeId == connectorTypeId)

@@ -88,6 +88,11 @@ namespace GoElectrify.BLL.Services
             if (slotStart < nowUtc.AddMinutes(5))
                 throw new InvalidOperationException("ScheduledStart must be at least +5 minutes from now.");
 
+            var hasUserBooking = await _repo.UserHasActiveBookingInWindowAsync(userId, slotStart, slotEnd, ct);
+
+            if (hasUserBooking)
+                throw new InvalidOperationException("Bạn đã có một đặt chỗ khác trong khung giờ này.");
+
             var active = await _repo.CountActiveBookingsAsync(dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
             var cap = await _repo.CountFreeChargersAsync(dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
 
@@ -113,7 +118,7 @@ namespace GoElectrify.BLL.Services
             if (fee < 0) fee = 0;
 
             var busyIds = await _sessions.GetBusyChargerIdsByStationConnectorAsync(
-    dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
+                    dto.StationId, dto.ConnectorTypeId, slotStart, slotEnd, ct);
 
             var candidates = (await _chargers.GetByStationAsync(dto.StationId, ct))
                 .Where(c => c.Status == "ONLINE" && c.DockStatus == "CONNECTED")
@@ -226,11 +231,11 @@ namespace GoElectrify.BLL.Services
             throw new InvalidOperationException("Không còn chỗ trống cho khung giờ này.");
 
             // helper local
-            static bool IsUniqueSeatViolation(DbUpdateException ex)
-                => ex.InnerException is PostgresException pg && pg.SqlState == "23505";
+
         }
 
-
+        static bool IsUniqueSeatViolation(DbUpdateException ex)
+                => ex.InnerException is PostgresException pg && pg.SqlState == "23505";
 
         public async Task<bool> CancelAsync(int userId, int bookingId, string? reason, CancellationToken ct)
         {
