@@ -3,8 +3,8 @@ using GoElectrify.BLL.Entities;
 using GoElectrify.DAL.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
 using System.Text.Json;
+
 namespace GoElectrify.Api.Controllers
 {
     [ApiController]
@@ -12,30 +12,56 @@ namespace GoElectrify.Api.Controllers
     public class PayOSWebhookController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly IConfiguration _config;
 
-        public PayOSWebhookController(AppDbContext db)
+        public PayOSWebhookController(AppDbContext db, IConfiguration config)
         {
             _db = db;
+            _config = config;
         }
+
         [HttpPost]
         public async Task<IActionResult> ReceiveWebhook()
         {
-            var body = await new StreamReader(Request.Body).ReadToEndAsync();
-            Console.WriteLine("📩 Webhook received: " + body);
+            Request.EnableBuffering();
 
-            if (!Request.Headers.TryGetValue("X-Signature", out var signatureHeader))
+            using var reader = new StreamReader(Request.Body, leaveOpen: true);
+            var rawBody = await reader.ReadToEndAsync();
+            Request.Body.Position = 0;
+
+            Console.WriteLine("Webhook received: " + rawBody);
+
+            // Signature
+            var signature =
+                Request.Headers["x-signature"].FirstOrDefault()
+                ?? Request.Headers["X-Signature"].FirstOrDefault();
+
+            if (signature == null)
+            {
+                Console.WriteLine("Missing signature");
                 return Unauthorized(new { code = "401", desc = "Missing signature" });
-            var signature = signatureHeader.ToString();
+            }
 
-            var secretKey = Environment.GetEnvironmentVariable("ChecksumKey");
+            // Checksum key
+            var secretKey = _config["PayOS:ChecksumKey"];
             if (string.IsNullOrWhiteSpace(secretKey))
+            {
+                Console.WriteLine("Missing PayOS checksum key");
                 return StatusCode(500, "Missing ChecksumKey");
+            }
 
-            if (!VerifyPayOSSignature(body, signature, secretKey))
+            // Verify Signature
+            if (!VerifyPayOSSignature(rawBody, signature, secretKey))
+            {
+                Console.WriteLine($"Invalid signature\nReceived: {signature}\n");
                 return Unauthorized(new { code = "401", desc = "Invalid signature" });
+            }
+
+            Console.WriteLine("Signature is valid");
+
             try
             {
-                var json = JsonDocument.Parse(body);
+                var json = JsonDocument.Parse(rawBody);
                 var data = json.RootElement.GetProperty("data");
 
                 long orderCode = data.GetProperty("orderCode").GetInt64();
@@ -46,10 +72,10 @@ namespace GoElectrify.Api.Controllers
                 {
                     var rootCode = rootCodeEl.GetString();
                     if (!string.IsNullOrWhiteSpace(rootCode))
-                        code = rootCode; // ghi đè code đã lấy từ data
+                        code = rootCode;
                 }
 
-                if (code == "00")
+                if (code == "00") // thành công
                 {
                     var intent = _db.TopupIntents.FirstOrDefault(t => t.OrderCode == orderCode);
                     if (intent == null)
@@ -57,77 +83,38 @@ namespace GoElectrify.Api.Controllers
 
                     intent.Status = "SUCCESS";
                     intent.CompletedAt = DateTime.UtcNow;
-                    intent.RawWebhook = body;
+                    intent.RawWebhook = rawBody;
 
                     var wallet = _db.Wallets.FirstOrDefault(w => w.Id == intent.WalletId);
                     if (wallet == null)
                         return Ok(new { code = "98", desc = "Wallet not found" });
+
                     wallet.Balance += amount;
                     wallet.UpdatedAt = DateTime.UtcNow;
+
                     var transaction = new Transaction
                     {
                         WalletId = wallet.Id,
                         Amount = amount,
                         Type = "DEPOSIT",
+                        Status = "SUCCEEDED",
                         CreatedAt = DateTime.UtcNow,
                         Note = $"PayOS order {orderCode}"
                     };
+
                     await _db.Transactions.AddAsync(transaction);
-
                     await _db.SaveChangesAsync();
+
                     Console.WriteLine($"Wallet {wallet.Id} +{amount}");
-
-                    // ADD — GỬI EMAIL XÁC NHẬN NẠP VÍ
-                    try
-                    {
-                        // Lấy Email + FullName để format "Họ Tên <email>"
-                        var userInfo = await _db.Wallets
-                            .Where(w => w.Id == wallet.Id)
-                            .Select(w => new { w.User.Email, w.User.FullName })
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync(HttpContext.RequestAborted);
-
-                        if (!string.IsNullOrWhiteSpace(userInfo?.Email))
-                        {
-                            var toDisplay = string.IsNullOrWhiteSpace(userInfo.FullName)
-                                ? userInfo.Email
-                                : $"{userInfo.FullName} <{userInfo.Email}>";
-
-                            var notif = HttpContext.RequestServices.GetService<INotificationMailService>();
-                            if (notif != null)
-                            {
-                                await notif.SendTopupSuccessAsync(
-                                    toEmail: toDisplay,
-                                    amount: amount,
-                                    provider: "PayOS",
-                                    orderCode: orderCode,
-                                    completedAtUtc: intent.CompletedAt ?? DateTime.UtcNow,
-                                    ct: HttpContext.RequestAborted
-                                );
-                            }
-                            else
-                            {
-                                Console.WriteLine("⚠️ INotificationMailService not registered; skip sending email.");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"⚠️ Wallet {wallet.Id} không tìm thấy email user.");
-                        }
-                    }
-                    catch (Exception mailEx)
-                    {
-                        Console.WriteLine("⚠️ Send email failed: " + mailEx.Message);
-                    }
                 }
                 else
                 {
-                    Console.WriteLine($"⚠️ Payment failed (code={code})");
+                    Console.WriteLine($"Payment failed (code={code})");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("❌ Error handling webhook: " + ex.Message);
+                Console.WriteLine("Error handling webhook: " + ex.Message);
             }
 
             return Ok(new { code = "00", desc = "ok" });
@@ -135,6 +122,8 @@ namespace GoElectrify.Api.Controllers
 
         private bool VerifyPayOSSignature(string rawBody, string signature, string secretKey)
         {
+            if (signature == null) return false;
+
             using var hmac = new System.Security.Cryptography.HMACSHA256(
                 System.Text.Encoding.UTF8.GetBytes(secretKey));
 
